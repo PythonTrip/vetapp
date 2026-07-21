@@ -6,8 +6,11 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Pooled URL for the app (Neon/Vercel). Use the same value as DIRECT_URL for local Postgres.
+  url       = env("DATABASE_URL")
+  // Direct (non-pooled) URL for Prisma Migrate on Neon.
+  directUrl = env("DIRECT_URL")
 }
 
 model Pet {

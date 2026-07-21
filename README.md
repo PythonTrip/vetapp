@@ -118,7 +118,7 @@ VetDietDerm должен стать главным рабочим окном в�
 ### Техническая основа
 
 - перейти от single-user прототипа к multi-user модели с аутентификацией и разграничением ролей;
-- использовать PostgreSQL для рабочих окружений, оставив SQLite для локальной разработки;
+- использовать PostgreSQL для локальной разработки и production (Neon на Vercel);
 - вынести файлы в S3-совместимое объектное хранилище;
 - добавить валидацию API, миграции, тесты критических формул и аудит;
 - хранить даты в UTC и отображать в часовом поясе клиники;
@@ -153,28 +153,63 @@ VetDietDerm должен стать главным рабочим окном в�
 
 - Next.js 16, React 19, TypeScript;
 - Tailwind CSS и shadcn/ui;
-- Prisma ORM и SQLite;
+- Prisma ORM и PostgreSQL (Neon на Vercel; локально — любой Postgres);
 - TanStack Query, Zustand, Zod;
 - Recharts для клинической динамики.
 
 ## Локальный запуск
 
-Требуется Node.js или Bun.
+Требуется Node.js 20+ (или Bun). База данных — **PostgreSQL** (локально или Neon).
 
 ```bash
-bun install
-bun run db:generate
-bun run db:push
-bun run dev
+cp .env.example .env
+# заполните DATABASE_URL и DIRECT_URL
+
+npm install
+npm run db:migrate:deploy
+npm run db:import-products   # опционально
+npm run dev
 ```
 
-В `.env` необходимо задать `DATABASE_URL`. Для локальной SQLite-базы путь задаётся относительно `prisma/schema.prisma`, например:
+В `.env` задайте оба URL. Для одного локального Postgres можно использовать одну и ту же строку:
 
 ```dotenv
-DATABASE_URL="file:../db/custom.db"
+DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/vetapp"
+DIRECT_URL="postgresql://USER:PASSWORD@localhost:5432/vetapp"
 ```
 
 После запуска приложение доступно по адресу `http://localhost:3000`.
+
+Локальный файл `db/custom.db` (SQLite) больше не используется приложением. При необходимости данные нужно перенести в PostgreSQL отдельно.
+
+## Развёртывание на Vercel
+
+Репозиторий подготовлен под Vercel (Next.js + Prisma Migrate + PostgreSQL).
+
+1. Создайте проект на [vercel.com](https://vercel.com) и подключите Git-репозиторий (команда: `alex-pytrips-projects`).
+2. Добавьте Neon через Marketplace: Project → Storage → Neon (или `vercel integration add neon` после `vercel link`).
+3. В Environment Variables проверьте наличие:
+   - `DATABASE_URL` — pooled connection (runtime);
+   - `DIRECT_URL` — non-pooled / direct (миграции).  
+     Если Neon отдал только `DATABASE_URL` и `DATABASE_URL_UNPOOLED`, скопируйте unpooled в `DIRECT_URL`.
+4. Deploy. Скрипт `build` выполняет `prisma generate`, `prisma migrate deploy` и `next build`.
+5. При необходимости импортируйте справочник продуктов после первого деплоя (`db:import-products` с production `DATABASE_URL`).
+
+Ограничения текущего прототипа на serverless:
+
+- фото хранятся как base64 в БД — крупные файлы упираются в лимит body serverless-функции (~4.5 MB);
+- AI-роуты (`z-ai-web-dev-sdk`) зависят от окружения SDK и могут быть недоступны без отдельной конфигурации провайдера;
+- аутентификация multi-user ещё не подключена.
+
+CLI (опционально):
+
+```bash
+npm i -g vercel
+vercel login
+vercel link --scope alex-pytrips-projects
+vercel env pull .env.local --yes
+vercel --prod
+```
 
 ## План развития
 
