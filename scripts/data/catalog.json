@@ -1,0 +1,1075 @@
+[
+    {
+      "id": "root",
+      "open": true,
+      "value": "/",
+      "name": "/",
+      "data": [
+        {
+          "id": 6,
+          "name": "Белки",
+          "value": "Белки",
+          "order": 1,
+          "data": [
+            {
+              "id": 26,
+              "name": "Баранина",
+              "value": "Баранина",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 222,
+              "name": "Бульон",
+              "value": "Бульон",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 27,
+              "name": "Говядина",
+              "value": "Говядина",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 28,
+              "name": "Гусь",
+              "value": "Гусь",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 29,
+              "name": "Дичь",
+              "value": "Дичь",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 30,
+              "name": "Индейка",
+              "value": "Индейка",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 223,
+              "name": "Колбасы, консервы",
+              "value": "Колбасы, консервы",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 31,
+              "name": "Конина",
+              "value": "Конина",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 32,
+              "name": "Кролик",
+              "value": "Кролик",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 33,
+              "name": "Курица",
+              "value": "Курица",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 34,
+              "name": "Молочные продукты",
+              "value": "Молочные продукты",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 35,
+              "name": "Морепродукты",
+              "value": "Морепродукты",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 718,
+              "name": "Перепел",
+              "value": "Перепел",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 36,
+              "name": "Растительный белок",
+              "value": "Растительный белок",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 37,
+              "name": "Рыба",
+              "value": "Рыба",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 38,
+              "name": "Свинина",
+              "value": "Свинина",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 39,
+              "name": "Страус",
+              "value": "Страус",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 40,
+              "name": "Утка",
+              "value": "Утка",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 41,
+              "name": "Яичные продукты",
+              "value": "Яичные продукты",
+              "order": 0,
+              "data": []
+            }
+          ]
+        },
+        {
+          "id": 1,
+          "name": "Углеводы",
+          "value": "Углеводы",
+          "order": 2,
+          "data": [
+            {
+              "id": 9,
+              "name": "Банан",
+              "value": "Банан",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 10,
+              "name": "Бобовые",
+              "value": "Бобовые",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 11,
+              "name": "Гречневая крупа",
+              "value": "Гречневая крупа",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 12,
+              "name": "Картофель",
+              "value": "Картофель",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 13,
+              "name": "Кукуруза",
+              "value": "Кукуруза",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 14,
+              "name": "Макаронные изделия",
+              "value": "Макаронные изделия",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 15,
+              "name": "Овес",
+              "value": "Овес",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 680,
+              "name": "Псевдозлаковые",
+              "value": "Псевдозлаковые",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 16,
+              "name": "Пшеница",
+              "value": "Пшеница",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 17,
+              "name": "Пшено",
+              "value": "Пшено",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 18,
+              "name": "Рис",
+              "value": "Рис",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 19,
+              "name": "Хлеб",
+              "value": "Хлеб",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 193,
+              "name": "Ячмень",
+              "value": "Ячмень",
+              "order": 0,
+              "data": []
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "name": "Жиры",
+          "value": "Жиры",
+          "order": 3,
+          "data": [
+            {
+              "id": 20,
+              "name": "Животные",
+              "value": "Животные",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 21,
+              "name": "Растительные",
+              "value": "Растительные",
+              "order": 0,
+              "data": []
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "name": "Клетчатка",
+          "value": "Клетчатка",
+          "order": 4,
+          "data": [
+            {
+              "id": 22,
+              "name": "Клетчатка в чистом виде",
+              "value": "Клетчатка в чистом виде",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 23,
+              "name": "Овощи",
+              "value": "Овощи",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 24,
+              "name": "Фрукты",
+              "value": "Фрукты",
+              "order": 0,
+              "data": []
+            }
+          ]
+        },
+        {
+          "id": 7,
+          "name": "Добавки",
+          "value": "Добавки",
+          "order": 5,
+          "data": [
+            {
+              "id": 224,
+              "name": "8 в 1",
+              "value": "8 в 1",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 225,
+              "name": "Anivital",
+              "value": "Anivital",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 2726,
+              "name": "Award",
+              "value": "Award",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 227,
+              "name": "Beaphar",
+              "value": "Beaphar",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 42,
+              "name": "Canina pharma",
+              "value": "Canina pharma",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 637,
+              "name": "Farmina",
+              "value": "Farmina",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 653,
+              "name": "Gelacan",
+              "value": "Gelacan",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 231,
+              "name": "Gimpet",
+              "value": "Gimpet",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 258,
+              "name": "Happy Dog",
+              "value": "Happy Dog",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 3014,
+              "name": "Optifibre",
+              "value": "Optifibre",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 240,
+              "name": "POLIDEX",
+              "value": "POLIDEX",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 3017,
+              "name": "ProPhyto",
+              "value": "ProPhyto",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 262,
+              "name": "Purina",
+              "value": "Purina",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 614,
+              "name": "Royal Canin",
+              "value": "Royal Canin",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 2988,
+              "name": "Unitabs",
+              "value": "Unitabs",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 649,
+              "name": "vetdietolog",
+              "value": "vetdietolog",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 242,
+              "name": "Wolmar",
+              "value": "Wolmar",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 2565,
+              "name": "Wolmar",
+              "value": "Wolmar",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 2986,
+              "name": "Yapa Lapa",
+              "value": "Yapa Lapa",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 2985,
+              "name": "АВЗ",
+              "value": "АВЗ",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 43,
+              "name": "Аптека ветеринарная",
+              "value": "Аптека ветеринарная",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 44,
+              "name": "Аптека медицинская",
+              "value": "Аптека медицинская",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 45,
+              "name": "Натуральные добавки",
+              "value": "Натуральные добавки",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 2987,
+              "name": "Фармакс",
+              "value": "Фармакс",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 46,
+              "name": "Чистые соединения",
+              "value": "Чистые соединения",
+              "order": 0,
+              "data": []
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "name": "Сухие корма",
+          "value": "Сухие корма",
+          "order": 6,
+          "data": [
+            {
+              "id": 192,
+              "name": "1st Choice",
+              "value": "1st Choice",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 264,
+              "name": "Acana + Orijen",
+              "value": "Acana + Orijen",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 2991,
+              "name": "Acari ciar (сухие корма)",
+              "value": "Acari ciar (сухие корма)",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 2983,
+              "name": "Ajo",
+              "value": "Ajo",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 2705,
+              "name": "Alleva",
+              "value": "Alleva",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 266,
+              "name": "Almo Nature",
+              "value": "Almo Nature",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 2713,
+              "name": "Alphapet сухие",
+              "value": "Alphapet сухие",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 191,
+              "name": "Arden Grange",
+              "value": "Arden Grange",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 2703,
+              "name": "Award сухие корма",
+              "value": "Award сухие корма",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 190,
+              "name": "Barking Heads",
+              "value": "Barking Heads",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 3006,
+              "name": "Best dinner (сухие корма)",
+              "value": "Best dinner (сухие корма)",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 978,
+              "name": "Bewital",
+              "value": "Bewital",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 2989,
+              "name": "Blitz",
+              "value": "Blitz",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 189,
+              "name": "Bosch",
+              "value": "Bosch",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 3002,
+              "name": "BowlWow сухие",
+              "value": "BowlWow сухие",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 751,
+              "name": "Bozita",
+              "value": "Bozita",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 211,
+              "name": "Brit",
+              "value": "Brit",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 2707,
+              "name": "Brit",
+              "value": "Brit",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 2702,
+              "name": "Craftia сухие корма",
+              "value": "Craftia сухие корма",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 268,
+              "name": "Eukanuba",
+              "value": "Eukanuba",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 247,
+              "name": "Farmina",
+              "value": "Farmina",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 674,
+              "name": "Flatazor",
+              "value": "Flatazor",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 2715,
+              "name": "Forza 10 сухие",
+              "value": "Forza 10 сухие",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 844,
+              "name": "Gina",
+              "value": "Gina",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 209,
+              "name": "Grandorf",
+              "value": "Grandorf",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 208,
+              "name": "Happy Cat",
+              "value": "Happy Cat",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 207,
+              "name": "Happy Dog",
+              "value": "Happy Dog",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 206,
+              "name": "Hill's",
+              "value": "Hill's",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 995,
+              "name": "Iams",
+              "value": "Iams",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 828,
+              "name": "MERA",
+              "value": "MERA",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 2716,
+              "name": "Miratorg + Winner сухие корма",
+              "value": "Miratorg + Winner сухие корма",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 204,
+              "name": "Monge",
+              "value": "Monge",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 2712,
+              "name": "Ownat сухие корма",
+              "value": "Ownat сухие корма",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 670,
+              "name": "Petcurean",
+              "value": "Petcurean",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 201,
+              "name": "Platinum",
+              "value": "Platinum",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 199,
+              "name": "Pronature",
+              "value": "Pronature",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 198,
+              "name": "Purina Россия",
+              "value": "Purina Россия",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 25,
+              "name": "Royal Canin",
+              "value": "Royal Canin",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 197,
+              "name": "Select Gold",
+              "value": "Select Gold",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 2984,
+              "name": "Sirius",
+              "value": "Sirius",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 194,
+              "name": "Wolfsblut + Wildcat",
+              "value": "Wolfsblut + Wildcat",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 2710,
+              "name": "Флорида",
+              "value": "Флорида",
+              "order": 0,
+              "data": []
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "name": "Влажные корма",
+          "value": "Влажные корма",
+          "order": 7,
+          "data": [
+            {
+              "id": 2992,
+              "name": "Acari ciar (влажные корма)",
+              "value": "Acari ciar (влажные корма)",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 178,
+              "name": "Almo Nature",
+              "value": "Almo Nature",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 2709,
+              "name": "Alphapet влажные",
+              "value": "Alphapet влажные",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 2706,
+              "name": "Award влажные корма",
+              "value": "Award влажные корма",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 2426,
+              "name": "Beaphar",
+              "value": "Beaphar",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 182,
+              "name": "Berkley",
+              "value": "Berkley",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 3007,
+              "name": "Best dinner (влажные корма)",
+              "value": "Best dinner (влажные корма)",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 212,
+              "name": "Bewital",
+              "value": "Bewital",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 2990,
+              "name": "Blitz",
+              "value": "Blitz",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 3003,
+              "name": "BowlWow влажные",
+              "value": "BowlWow влажные",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 183,
+              "name": "Bozita",
+              "value": "Bozita",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 2711,
+              "name": "Brit влажные корма",
+              "value": "Brit влажные корма",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 186,
+              "name": "Eukanuba",
+              "value": "Eukanuba",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 188,
+              "name": "Farmina",
+              "value": "Farmina",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 2714,
+              "name": "Forza 10 влажные корма",
+              "value": "Forza 10 влажные корма",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 858,
+              "name": "Gina",
+              "value": "Gina",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 661,
+              "name": "Grandorf",
+              "value": "Grandorf",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 647,
+              "name": "Happy Cat",
+              "value": "Happy Cat",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 265,
+              "name": "Happy Dog",
+              "value": "Happy Dog",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 259,
+              "name": "Hill's",
+              "value": "Hill's",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 832,
+              "name": "MERA",
+              "value": "MERA",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 2704,
+              "name": "Miratorg + Winner влажные корма",
+              "value": "Miratorg + Winner влажные корма",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 260,
+              "name": "Monge",
+              "value": "Monge",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 2708,
+              "name": "Ownat влажные корма",
+              "value": "Ownat влажные корма",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 261,
+              "name": "Purina Россия",
+              "value": "Purina Россия",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 263,
+              "name": "Royal Canin",
+              "value": "Royal Canin",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 3005,
+              "name": "Solid Natura (влажные)",
+              "value": "Solid Natura (влажные)",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 760,
+              "name": "Wolfsblut + Wildcat",
+              "value": "Wolfsblut + Wildcat",
+              "order": 0,
+              "data": []
+            }
+          ]
+        },
+        {
+          "id": 8,
+          "name": "Лакомства",
+          "value": "Лакомства",
+          "order": 8,
+          "data": [
+            {
+              "id": 655,
+              "name": "Acana",
+              "value": "Acana",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 420,
+              "name": "Beaphar",
+              "value": "Beaphar",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 249,
+              "name": "Bosch",
+              "value": "Bosch",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 947,
+              "name": "Brit",
+              "value": "Brit",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 645,
+              "name": "Happy Dog",
+              "value": "Happy Dog",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 248,
+              "name": "Orijen",
+              "value": "Orijen",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 652,
+              "name": "Platinum",
+              "value": "Platinum",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 716,
+              "name": "Purina",
+              "value": "Purina",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 764,
+              "name": "Wolfsblut",
+              "value": "Wolfsblut",
+              "order": 0,
+              "data": []
+            },
+            {
+              "id": 246,
+              "name": "Сушеное мясо",
+              "value": "Сушеное мясо",
+              "order": 0,
+              "data": []
+            }
+          ]
+        },
+        {
+          "id": 706,
+          "name": "Архив",
+          "value": "Архив",
+          "order": 9,
+          "data": []
+        }
+      ]
+    }
+  ]
