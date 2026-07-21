@@ -1,14 +1,19 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { PetWithRelations } from "@/lib/types";
+import type {
+  AppointmentWithPet,
+  CommunicationLogEntry,
+  Consultation,
+  CustomTemplate,
+  DietPlan,
+  LesionPhoto,
+  PetWithRelations,
+} from "@/lib/types";
 import type { NutritionProductDto, NutritionProductsResponse } from "@/lib/nutrition-products";
+import { api } from "@/lib/api-client";
 
-async function fetchPets() {
-  const res = await fetch("/api/pets");
-  if (!res.ok) throw new Error("Failed to load pets");
-  return res.json() as Promise<PetWithRelations[]>;
-}
+const fetchPets = () => api.get<PetWithRelations[]>("/api/pets", "Failed to load pets");
 
 export function usePets() {
   return useQuery({
@@ -36,9 +41,10 @@ export function useNutritionProducts(
       });
       if (subcategory !== "all") params.set("subcategory", subcategory);
       if (search) params.set("search", search);
-      const res = await fetch(`/api/nutrition-products?${params}`);
-      if (!res.ok) throw new Error("Не удалось загрузить каталог продуктов");
-      return res.json() as Promise<NutritionProductsResponse>;
+      return api.get<NutritionProductsResponse>(
+        `/api/nutrition-products?${params}`,
+        "Не удалось загрузить каталог продуктов",
+      );
     },
     placeholderData: (previousData) => previousData,
     staleTime: 60_000,
@@ -51,9 +57,10 @@ export function useNutritionProductSearch(query: string) {
   return useQuery({
     queryKey: ["nutrition-product-search", q],
     queryFn: async () => {
-      const res = await fetch(`/api/nutrition-products?q=${encodeURIComponent(q)}`);
-      if (!res.ok) throw new Error("Не удалось выполнить поиск по каталогу");
-      const data = (await res.json()) as { products: NutritionProductDto[] };
+      const data = await api.get<{ products: NutritionProductDto[] }>(
+        `/api/nutrition-products?q=${encodeURIComponent(q)}`,
+        "Не удалось выполнить поиск по каталогу",
+      );
       return data.products;
     },
     enabled: q.length >= 2,
@@ -68,9 +75,10 @@ export function useNutritionProductsByIds(ids: number[]) {
   return useQuery({
     queryKey: ["nutrition-products-by-ids", sorted.join(",")],
     queryFn: async () => {
-      const res = await fetch(`/api/nutrition-products?ids=${sorted.join(",")}`);
-      if (!res.ok) throw new Error("Не удалось загрузить продукты каталога");
-      const data = (await res.json()) as { products: NutritionProductDto[] };
+      const data = await api.get<{ products: NutritionProductDto[] }>(
+        `/api/nutrition-products?ids=${sorted.join(",")}`,
+        "Не удалось загрузить продукты каталога",
+      );
       return data.products;
     },
     enabled: sorted.length > 0,
@@ -81,15 +89,8 @@ export function useNutritionProductsByIds(ids: number[]) {
 export function useCreatePet() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: Record<string, unknown>) => {
-      const res = await fetch("/api/pets", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Failed to create pet");
-      return res.json();
-    },
+    mutationFn: (data: Record<string, unknown>) =>
+      api.post<PetWithRelations>("/api/pets", data, "Failed to create pet"),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pets"] }),
   });
 }
@@ -97,15 +98,8 @@ export function useCreatePet() {
 export function useUpdatePet() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => {
-      const res = await fetch(`/api/pets/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Failed to update pet");
-      return res.json();
-    },
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
+      api.patch<PetWithRelations>(`/api/pets/${id}`, data, "Failed to update pet"),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pets"] }),
   });
 }
@@ -113,10 +107,7 @@ export function useUpdatePet() {
 export function useDeletePet() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/pets/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete pet");
-    },
+    mutationFn: (id: string) => api.delete(`/api/pets/${id}`, "Failed to delete pet"),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pets"] }),
   });
 }
@@ -124,15 +115,8 @@ export function useDeletePet() {
 export function useAddConsultation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ petId, data }: { petId: string; data: Record<string, unknown> }) => {
-      const res = await fetch(`/api/pets/${petId}/consultations`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Failed to add consultation");
-      return res.json();
-    },
+    mutationFn: ({ petId, data }: { petId: string; data: Record<string, unknown> }) =>
+      api.post<Consultation>(`/api/pets/${petId}/consultations`, data, "Failed to add consultation"),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pets"] }),
   });
 }
@@ -140,10 +124,8 @@ export function useAddConsultation() {
 export function useDeleteConsultation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/consultations/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete consultation");
-    },
+    mutationFn: (id: string) =>
+      api.delete(`/api/consultations/${id}`, "Failed to delete consultation"),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pets"] }),
   });
 }
@@ -151,15 +133,8 @@ export function useDeleteConsultation() {
 export function useUpdateConsultation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => {
-      const res = await fetch(`/api/consultations/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Failed to update consultation");
-      return res.json();
-    },
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
+      api.patch<Consultation>(`/api/consultations/${id}`, data, "Failed to update consultation"),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pets"] }),
   });
 }
@@ -167,15 +142,8 @@ export function useUpdateConsultation() {
 export function useAddPhoto() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ petId, data }: { petId: string; data: Record<string, unknown> }) => {
-      const res = await fetch(`/api/pets/${petId}/photos`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Failed to add photo");
-      return res.json();
-    },
+    mutationFn: ({ petId, data }: { petId: string; data: Record<string, unknown> }) =>
+      api.post<LesionPhoto>(`/api/pets/${petId}/photos`, data, "Failed to add photo"),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pets"] }),
   });
 }
@@ -183,10 +151,7 @@ export function useAddPhoto() {
 export function useDeletePhoto() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/photos/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete photo");
-    },
+    mutationFn: (id: string) => api.delete(`/api/photos/${id}`, "Failed to delete photo"),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pets"] }),
   });
 }
@@ -194,15 +159,8 @@ export function useDeletePhoto() {
 export function useCreateDietPlan() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: Record<string, unknown>) => {
-      const res = await fetch("/api/diet-plans", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Failed to save diet plan");
-      return res.json();
-    },
+    mutationFn: (data: Record<string, unknown>) =>
+      api.post<DietPlan>("/api/diet-plans", data, "Failed to save diet plan"),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pets"] }),
   });
 }
@@ -210,22 +168,16 @@ export function useCreateDietPlan() {
 export function useDeleteDietPlan() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/diet-plans/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete diet plan");
-    },
+    mutationFn: (id: string) =>
+      api.delete(`/api/diet-plans/${id}`, "Failed to delete diet plan"),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pets"] }),
   });
 }
 
 // --- Appointments ---
-import type { AppointmentWithPet } from "@/lib/types";
 
-async function fetchAppointments() {
-  const res = await fetch("/api/appointments");
-  if (!res.ok) throw new Error("Failed to load appointments");
-  return res.json() as Promise<AppointmentWithPet[]>;
-}
+const fetchAppointments = () =>
+  api.get<AppointmentWithPet[]>("/api/appointments", "Failed to load appointments");
 
 export function useAppointments() {
   return useQuery({
@@ -237,15 +189,8 @@ export function useAppointments() {
 export function useCreateAppointment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: Record<string, unknown>) => {
-      const res = await fetch("/api/appointments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Failed to create appointment");
-      return res.json();
-    },
+    mutationFn: (data: Record<string, unknown>) =>
+      api.post<AppointmentWithPet>("/api/appointments", data, "Failed to create appointment"),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["appointments"] });
       qc.invalidateQueries({ queryKey: ["pets"] });
@@ -256,15 +201,8 @@ export function useCreateAppointment() {
 export function useUpdateAppointment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => {
-      const res = await fetch(`/api/appointments/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Failed to update appointment");
-      return res.json();
-    },
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
+      api.patch<AppointmentWithPet>(`/api/appointments/${id}`, data, "Failed to update appointment"),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["appointments"] });
       qc.invalidateQueries({ queryKey: ["pets"] });
@@ -275,10 +213,8 @@ export function useUpdateAppointment() {
 export function useDeleteAppointment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/appointments/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete appointment");
-    },
+    mutationFn: (id: string) =>
+      api.delete(`/api/appointments/${id}`, "Failed to delete appointment"),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["appointments"] });
       qc.invalidateQueries({ queryKey: ["pets"] });
@@ -287,13 +223,9 @@ export function useDeleteAppointment() {
 }
 
 // --- Custom Treatment Templates ---
-import type { CustomTemplate, CommunicationLogEntry } from "@/lib/types";
 
-async function fetchCustomTemplates() {
-  const res = await fetch("/api/custom-templates");
-  if (!res.ok) throw new Error("Failed to load custom templates");
-  return res.json() as Promise<CustomTemplate[]>;
-}
+const fetchCustomTemplates = () =>
+  api.get<CustomTemplate[]>("/api/custom-templates", "Failed to load custom templates");
 
 export function useCustomTemplates() {
   return useQuery({
@@ -305,15 +237,8 @@ export function useCustomTemplates() {
 export function useCreateCustomTemplate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: Record<string, unknown>) => {
-      const res = await fetch("/api/custom-templates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Failed to create template");
-      return res.json();
-    },
+    mutationFn: (data: Record<string, unknown>) =>
+      api.post<CustomTemplate>("/api/custom-templates", data, "Failed to create template"),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["custom-templates"] }),
   });
 }
@@ -321,15 +246,8 @@ export function useCreateCustomTemplate() {
 export function useUpdateCustomTemplate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => {
-      const res = await fetch(`/api/custom-templates/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Failed to update template");
-      return res.json();
-    },
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
+      api.patch<CustomTemplate>(`/api/custom-templates/${id}`, data, "Failed to update template"),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["custom-templates"] }),
   });
 }
@@ -337,10 +255,8 @@ export function useUpdateCustomTemplate() {
 export function useDeleteCustomTemplate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/custom-templates/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete template");
-    },
+    mutationFn: (id: string) =>
+      api.delete(`/api/custom-templates/${id}`, "Failed to delete template"),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["custom-templates"] }),
   });
 }
@@ -349,11 +265,10 @@ export function useDeleteCustomTemplate() {
 export function useCommunications(petId: string | null) {
   return useQuery({
     queryKey: ["communications", petId],
-    queryFn: async () => {
-      const res = await fetch(`/api/communications?petId=${petId}`);
-      if (!res.ok) throw new Error("Failed to load communications");
-      return res.json() as Promise<CommunicationLogEntry[]>;
-    },
+    queryFn: () => api.get<CommunicationLogEntry[]>(
+      `/api/communications?petId=${encodeURIComponent(petId ?? "")}`,
+      "Failed to load communications",
+    ),
     enabled: !!petId,
   });
 }
@@ -361,15 +276,8 @@ export function useCommunications(petId: string | null) {
 export function useCreateCommunication() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: Record<string, unknown>) => {
-      const res = await fetch("/api/communications", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Failed to log communication");
-      return res.json();
-    },
+    mutationFn: (data: Record<string, unknown>) =>
+      api.post<CommunicationLogEntry>("/api/communications", data, "Failed to log communication"),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["communications", vars.petId] });
     },
@@ -379,15 +287,8 @@ export function useCreateCommunication() {
 export function useUpdateCommunication() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, petId, data }: { id: string; petId: string; data: Record<string, unknown> }) => {
-      const res = await fetch(`/api/communications/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Failed to update communication");
-      return res.json();
-    },
+    mutationFn: ({ id, data }: { id: string; petId: string; data: Record<string, unknown> }) =>
+      api.patch<CommunicationLogEntry>(`/api/communications/${id}`, data, "Failed to update communication"),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["communications", vars.petId] });
     },
@@ -397,10 +298,8 @@ export function useUpdateCommunication() {
 export function useDeleteCommunication() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, petId }: { id: string; petId: string }) => {
-      const res = await fetch(`/api/communications/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete communication");
-    },
+    mutationFn: ({ id }: { id: string; petId: string }) =>
+      api.delete(`/api/communications/${id}`, "Failed to delete communication"),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["communications", vars.petId] });
     },
@@ -423,11 +322,10 @@ export interface ShareTokenInfo {
 export function useShareTokens(petId: string | null) {
   return useQuery({
     queryKey: ["share-tokens", petId],
-    queryFn: async () => {
-      const res = await fetch(`/api/share-tokens?petId=${petId}`);
-      if (!res.ok) throw new Error("Failed to load share tokens");
-      return res.json() as Promise<ShareTokenInfo[]>;
-    },
+    queryFn: () => api.get<ShareTokenInfo[]>(
+      `/api/share-tokens?petId=${encodeURIComponent(petId ?? "")}`,
+      "Failed to load share tokens",
+    ),
     enabled: !!petId,
   });
 }
@@ -435,15 +333,8 @@ export function useShareTokens(petId: string | null) {
 export function useCreateShareToken() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { petId: string; expiresInDays?: number; label?: string }) => {
-      const res = await fetch("/api/share-tokens", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Failed to create share token");
-      return res.json() as Promise<ShareTokenInfo>;
-    },
+    mutationFn: (data: { petId: string; expiresInDays?: number; label?: string }) =>
+      api.post<ShareTokenInfo>("/api/share-tokens", data, "Failed to create share token"),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["share-tokens", vars.petId] });
     },
@@ -453,15 +344,8 @@ export function useCreateShareToken() {
 export function useRevokeShareToken() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, petId }: { id: string; petId: string }) => {
-      const res = await fetch(`/api/share-tokens/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ revoked: true }),
-      });
-      if (!res.ok) throw new Error("Failed to revoke");
-      return res.json();
-    },
+    mutationFn: ({ id }: { id: string; petId: string }) =>
+      api.patch(`/api/share-tokens/${id}`, { revoked: true }, "Failed to revoke"),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["share-tokens", vars.petId] });
     },
@@ -471,10 +355,8 @@ export function useRevokeShareToken() {
 export function useDeleteShareToken() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, petId }: { id: string; petId: string }) => {
-      const res = await fetch(`/api/share-tokens/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete");
-    },
+    mutationFn: ({ id }: { id: string; petId: string }) =>
+      api.delete(`/api/share-tokens/${id}`, "Failed to delete"),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["share-tokens", vars.petId] });
     },
@@ -496,26 +378,18 @@ export interface CustomHandoutInfo {
 export function useCustomHandouts() {
   return useQuery({
     queryKey: ["custom-handouts"],
-    queryFn: async () => {
-      const res = await fetch("/api/custom-handouts");
-      if (!res.ok) throw new Error("Failed to load custom handouts");
-      return res.json() as Promise<CustomHandoutInfo[]>;
-    },
+    queryFn: () => api.get<CustomHandoutInfo[]>(
+      "/api/custom-handouts",
+      "Failed to load custom handouts",
+    ),
   });
 }
 
 export function useCreateCustomHandout() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: Record<string, unknown>) => {
-      const res = await fetch("/api/custom-handouts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Failed to create handout");
-      return res.json();
-    },
+    mutationFn: (data: Record<string, unknown>) =>
+      api.post<CustomHandoutInfo>("/api/custom-handouts", data, "Failed to create handout"),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["custom-handouts"] }),
   });
 }
@@ -523,15 +397,8 @@ export function useCreateCustomHandout() {
 export function useUpdateCustomHandout() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => {
-      const res = await fetch(`/api/custom-handouts/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Failed to update handout");
-      return res.json();
-    },
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
+      api.patch<CustomHandoutInfo>(`/api/custom-handouts/${id}`, data, "Failed to update handout"),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["custom-handouts"] }),
   });
 }
@@ -539,10 +406,8 @@ export function useUpdateCustomHandout() {
 export function useDeleteCustomHandout() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/custom-handouts/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete handout");
-    },
+    mutationFn: (id: string) =>
+      api.delete(`/api/custom-handouts/${id}`, "Failed to delete handout"),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["custom-handouts"] }),
   });
 }

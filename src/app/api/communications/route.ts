@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { handleApiError } from "@/lib/api-server";
 
 // GET /api/communications?petId=... — list communications for a pet
 export async function GET(req: NextRequest) {
@@ -32,8 +33,7 @@ export async function POST(req: NextRequest) {
       },
     });
     return NextResponse.json(log, { status: 201 });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 400 });
+  } catch (error) {
+    return handleApiError(error, "create communication log");
   }
 }

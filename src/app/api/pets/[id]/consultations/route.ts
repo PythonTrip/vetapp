@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { handleApiError } from "@/lib/api-server";
 
 // POST /api/pets/[id]/consultations - add a consultation entry
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -36,9 +37,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       await db.pet.update({ where: { id }, data: { currentWeight: Number(body.weight) } });
     }
     return NextResponse.json(consultation, { status: 201 });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 400 });
+  } catch (error) {
+    return handleApiError(error, "create consultation");
   }
 }
-// force recompile

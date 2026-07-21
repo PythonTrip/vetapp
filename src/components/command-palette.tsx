@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import {
-  Search, PawPrint, LayoutDashboard, Users, Calculator, BookOpen,
-  FileText, Plus, Download, Moon, Sun, ArrowRight,
+  PawPrint, LayoutDashboard, Users, Calculator, BookOpen,
+  FileText, Plus, Moon, Sun, ArrowRight,
 } from "lucide-react";
 import {
   CommandDialog, CommandInput, CommandList, CommandEmpty,

@@ -4,7 +4,7 @@ import * as React from "react";
 import {
   Plus, Search, PawPrint, Users, ArrowLeft, FileText, Pencil, Trash2,
   Calendar, Scale, Activity, Image as ImageIcon, ClipboardList, Stethoscope,
-  Download, ChevronDown, ChevronUp, MessageSquare, Upload, Radio, Pill, Share2,
+  Download, MessageSquare, Upload, Radio, Share2,
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,

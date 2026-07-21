@@ -1,20 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { handleApiError, parseDate, parseJson } from "@/lib/api-server";
+import { z } from "zod";
+
+const shareTokenUpdateSchema = z.object({
+  label: z.string().trim().max(300).nullable().optional(),
+  revoked: z.boolean().optional(),
+  expiresAt: z.string().min(1).optional(),
+});
 
 // PATCH /api/share-tokens/[id] — update label or revoke
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
-    const body = await req.json();
+    const body = await parseJson(req, shareTokenUpdateSchema);
     const data: Record<string, unknown> = {};
     if (body.label !== undefined) data.label = body.label;
     if (body.revoked !== undefined) data.revoked = !!body.revoked;
-    if (body.expiresAt) data.expiresAt = new Date(body.expiresAt);
+    if (body.expiresAt) data.expiresAt = parseDate(body.expiresAt, "expiresAt");
     const token = await db.shareToken.update({ where: { id }, data });
     return NextResponse.json(token);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 400 });
+  } catch (error) {
+    return handleApiError(error, "update share token");
   }
 }
 

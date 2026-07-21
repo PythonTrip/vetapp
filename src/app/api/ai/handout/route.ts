@@ -1,13 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import ZAI from "z-ai-web-dev-sdk";
+import { handleApiError, HttpError, parseJson } from "@/lib/api-server";
+import { z } from "zod";
+
+const requestSchema = z.object({
+  templateId: z.string().min(1).max(100),
+  petName: z.string().trim().max(200).default(""),
+  species: z.string().trim().max(100).default("pet"),
+  context: z.string().max(20_000).optional(),
+  customPrompt: z.string().max(20_000).optional(),
+  customTitle: z.string().trim().max(300).optional(),
+}).refine(
+  ({ templateId, customPrompt }) => templateId !== "custom" || Boolean(customPrompt?.trim()),
+  { path: ["customPrompt"], message: "Custom prompt is required" },
+);
 
 // POST /api/ai/handout
 // Body: { templateId: string, petName: string, species: string, context?: string, customPrompt?: string, customTitle?: string }
 // Returns: { title, content (markdown) }
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { templateId, petName, species, context, customPrompt, customTitle } = body;
+    const { templateId, petName, species, context, customPrompt, customTitle } =
+      await parseJson(req, requestSchema);
 
     const templates: Record<string, { title: string; prompt: string }> = {
       "elimination-rules": {
@@ -69,7 +83,7 @@ export async function POST(req: NextRequest) {
         completion = await zai.chat.completions.create({
           messages: [
             {
-              role: "assistant",
+              role: "system",
               content:
                 "You are a veterinary assistant writing a professional, friendly client handout. Use Markdown formatting with a main title (##), section headings (###), bullet lists, and tables where helpful. Be specific, practical, and jargon-free. Address the owner directly. Keep it to roughly 250-400 words.",
             },
@@ -95,11 +109,10 @@ ${prompt}`,
       }
     }
 
-    const content = completion?.choices[0]?.message?.content ?? "";
+    const content = completion?.choices[0]?.message?.content?.trim();
+    if (!content) throw new HttpError(502, "AI returned an empty response");
     return NextResponse.json({ title, content });
-  } catch (e) {
-    console.error("Handout error:", e);
-    const msg = e instanceof Error ? e.message : "Handout generation failed";
-    return NextResponse.json({ error: msg }, { status: 500 });
+  } catch (error) {
+    return handleApiError(error, "generate handout");
   }
 }

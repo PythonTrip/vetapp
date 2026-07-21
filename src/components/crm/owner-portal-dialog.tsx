@@ -3,7 +3,7 @@
 import * as React from "react";
 import {
   Share2, Link2, Copy, Trash2, Eye, Clock, Plus, Check, Loader2, ExternalLink,
-  ShieldAlert, ShieldCheck, Calendar, X, QrCode,
+  ShieldAlert, ShieldCheck, Calendar, X,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";

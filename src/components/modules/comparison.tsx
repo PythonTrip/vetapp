@@ -11,15 +11,12 @@ import {
   LineChart, Line, Legend,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { usePets } from "@/lib/hooks";
 import { useAppStore } from "@/lib/store";
 import { calculateAge, bcsDescription, vasDescription } from "@/lib/nutrition";
 import { speciesLabelEn } from "@/lib/clinical-data";
-import type { PetWithRelations } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const CHART_COLORS = [
@@ -101,7 +98,7 @@ export function ComparisonPanel() {
   }));
 
   // VAS comparison
-  const vasData = metrics.map((m, i) => ({
+  const vasData = metrics.map((m) => ({
     name: m.pet.name,
     current: m.lastVas ?? 0,
     fill: m.lastVas != null ? (m.lastVas <= 3 ? "oklch(0.65 0.15 145)" : m.lastVas <= 6 ? "oklch(0.7 0.14 85)" : "oklch(0.6 0.2 16)") : "oklch(0.7 0.02 172)",
@@ -155,7 +152,7 @@ export function ComparisonPanel() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-            {pets.map((p, i) => {
+            {pets.map((p) => {
               const isSelected = selectedIds.includes(p.id);
               const disabled = !isSelected && selectedIds.length >= 4;
               return (

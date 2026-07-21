@@ -1,9 +1,7 @@
 "use client";
 
 import * as React from "react";
-import {
-  Activity, Scale, HeartPulse, TrendingDown, TrendingUp, PawPrint,
-} from "lucide-react";
+import { Activity, HeartPulse } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { HealthMetricSpark } from "@/components/crm/sparkline";

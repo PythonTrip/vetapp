@@ -1,19 +1,15 @@
 "use client";
 // Dashboard module with overview and analytics tabs
 import * as React from "react";
-import Link from "next/link";
 import {
   PawPrint,
   Users,
   Activity,
-  TrendingDown,
-  TrendingUp,
   Stethoscope,
   Mic,
   FileText,
   ArrowRight,
   Calendar,
-  HeartPulse,
   Scale,
   BarChart3,
   LayoutDashboard,
@@ -27,7 +23,6 @@ import { useAppStore } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { calculateAge, bcsDescription, vasDescription } from "@/lib/nutrition";

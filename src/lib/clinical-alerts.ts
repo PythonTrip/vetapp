@@ -98,9 +98,6 @@ const BREED_PREDISPOSITIONS: Record<string, { species: string; conditions: { con
   },
 };
 
-// Map of known food allergen keywords (lowercase) for compliance checks
-const COMMON_ALLERGEN_TERMS = ["beef", "chicken", "dairy", "wheat", "soy", "egg", "fish", "lamb", "corn"];
-
 function daysSince(date: string | Date): number {
   return Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60 * 60 * 24));
 }

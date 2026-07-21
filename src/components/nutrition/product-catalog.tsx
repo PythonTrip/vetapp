@@ -13,7 +13,6 @@ import {
   FlaskConical,
   FolderTree,
   Leaf,
-  Loader2,
   PackageOpen,
   Pill,
   Plus,

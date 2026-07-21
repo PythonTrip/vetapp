@@ -2,9 +2,9 @@
 
 import * as React from "react";
 import {
-  Mic, MicOff, Square, Loader2, Sparkles, Wand2, CheckCircle2, RotateCcw,
-  Activity, Pill, Clock, Plus, Save, X, Timer, Zap, Thermometer, Scale,
-  Heart, Stethoscope, ChevronRight, AlertTriangle,
+  Mic, MicOff, Square, Loader2, Wand2, CheckCircle2, RotateCcw,
+  Activity, Pill, Plus, Save, X, Timer, Zap, Thermometer, Scale,
+  Heart, Stethoscope,
 } from "lucide-react";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter,
@@ -15,7 +15,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -191,7 +190,7 @@ export function LiveConsultMode({ pet, open, onOpenChange }: LiveConsultModeProp
         const data = await res.json();
         setTranscript(data.text || "");
         toast.success("Transcription complete");
-      } catch (e) {
+      } catch {
         toast.error("Transcription failed");
       } finally {
         setTranscribing(false);
@@ -271,7 +270,7 @@ export function LiveConsultMode({ pet, open, onOpenChange }: LiveConsultModeProp
         description: `Added to ${pet!.name}'s timeline. ${Object.keys(updates).length > 0 ? "Patient card updated." : ""}`,
       });
       onOpenChange(false);
-    } catch (e) {
+    } catch {
       toast.error("Failed to save consultation");
     }
   }

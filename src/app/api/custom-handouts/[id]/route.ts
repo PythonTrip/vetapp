@@ -1,21 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { handleApiError, parseJson } from "@/lib/api-server";
+import { z } from "zod";
+
+const handoutUpdateSchema = z.object({
+  title: z.string().trim().min(1).max(300).optional(),
+  description: z.string().max(2_000).nullable().optional(),
+  prompt: z.string().max(20_000).optional(),
+  category: z.string().min(1).max(100).optional(),
+  icon: z.string().min(1).max(100).optional(),
+});
 
 // PATCH /api/custom-handouts/[id]
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
-    const body = await req.json();
-    const data: Record<string, unknown> = {};
-    const fields = ["title", "description", "prompt", "category", "icon"];
-    for (const f of fields) {
-      if (body[f] !== undefined) data[f] = body[f];
-    }
+    const data = await parseJson(req, handoutUpdateSchema);
     const handout = await db.customHandout.update({ where: { id }, data });
     return NextResponse.json(handout);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 400 });
+  } catch (error) {
+    return handleApiError(error, "update custom handout");
   }
 }
 

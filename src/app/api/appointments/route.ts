@@ -1,5 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { handleApiError, parseDate, parseJson } from "@/lib/api-server";
+import { z } from "zod";
+
+const appointmentSchema = z.object({
+  petId: z.string().min(1),
+  date: z.string().min(1),
+  duration: z.coerce.number().int().positive().max(24 * 60).default(30),
+  type: z.string().min(1).max(100).default("consultation"),
+  reason: z.string().max(2_000).default(""),
+  status: z.string().min(1).max(100).default("scheduled"),
+  notes: z.string().max(20_000).nullish(),
+});
 
 // GET /api/appointments - list all appointments (with pet info)
 export async function GET(req: NextRequest) {
@@ -25,22 +37,21 @@ export async function GET(req: NextRequest) {
 // POST /api/appointments - create a new appointment
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const body = await parseJson(req, appointmentSchema);
     const appt = await db.appointment.create({
       data: {
         petId: body.petId,
-        date: new Date(body.date),
-        duration: Number(body.duration) || 30,
-        type: body.type ?? "consultation",
-        reason: body.reason ?? "",
-        status: body.status ?? "scheduled",
+        date: parseDate(body.date),
+        duration: body.duration,
+        type: body.type,
+        reason: body.reason,
+        status: body.status,
         notes: body.notes ?? null,
       },
       include: { pet: true },
     });
     return NextResponse.json(appt, { status: 201 });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 400 });
+  } catch (error) {
+    return handleApiError(error, "create appointment");
   }
 }

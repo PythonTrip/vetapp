@@ -4,7 +4,6 @@ import * as React from "react";
 import {
   Bell, Calendar, Clock, ChevronRight, X, AlertTriangle,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Popover, PopoverContent, PopoverTrigger,

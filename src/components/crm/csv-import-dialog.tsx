@@ -65,7 +65,7 @@ export function CsvImportDialog({ open, onOpenChange }: CsvImportDialogProps) {
         setStats({ totalRows: result.totalRows, validRows: result.validRows, errorRows: result.errorRows });
         setPhase("preview");
         toast.success(`Parsed ${result.totalRows} row${result.totalRows === 1 ? "" : "s"} · ${result.validRows} valid, ${result.errorRows} with errors`);
-      } catch (err) {
+      } catch {
         toast.error("Failed to parse CSV");
         setPhase("idle");
       }

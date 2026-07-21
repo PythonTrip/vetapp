@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { handleApiError } from "@/lib/api-server";
 
 // PATCH /api/communications/[id] — update entry (e.g., toggle follow-up)
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -17,9 +18,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     const log = await db.communicationLog.update({ where: { id }, data });
     return NextResponse.json(log);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 400 });
+  } catch (error) {
+    return handleApiError(error, "update communication log");
   }
 }
 

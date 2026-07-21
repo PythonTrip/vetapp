@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { handleApiError } from "@/lib/api-server";
 
 // POST /api/diet-plans - create a diet plan
 export async function POST(req: NextRequest) {
@@ -18,8 +19,7 @@ export async function POST(req: NextRequest) {
       },
     });
     return NextResponse.json(plan, { status: 201 });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 400 });
+  } catch (error) {
+    return handleApiError(error, "create diet plan");
   }
 }

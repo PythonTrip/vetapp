@@ -2,11 +2,11 @@
 
 import * as React from "react";
 import {
-  Target, TrendingDown, Calendar, Flag, Scale, Info,
+  Target, TrendingDown, Flag, Scale, Info,
 } from "lucide-react";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  ReferenceLine, ReferenceArea, Area, ComposedChart,
+  Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  ReferenceLine, Area, ComposedChart,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";

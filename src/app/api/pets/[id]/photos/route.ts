@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { handleApiError } from "@/lib/api-server";
 
 // POST /api/pets/[id]/photos - add a lesion photo
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -18,8 +19,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       },
     });
     return NextResponse.json(photo, { status: 201 });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 400 });
+  } catch (error) {
+    return handleApiError(error, "create lesion photo");
   }
 }

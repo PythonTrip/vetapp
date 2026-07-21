@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { handleApiError } from "@/lib/api-server";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -22,9 +23,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (body.date) data.date = new Date(body.date);
     const c = await db.consultation.update({ where: { id }, data });
     return NextResponse.json(c);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 400 });
+  } catch (error) {
+    return handleApiError(error, "update consultation");
   }
 }
 

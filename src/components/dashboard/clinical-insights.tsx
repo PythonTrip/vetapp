@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import {
-  AlertTriangle, TrendingUp, TrendingDown, Heart, Activity, Scale, Calendar,
-  PawPrint, ChevronRight, Clock, Stethoscope, Sparkles, ArrowRight,
+  AlertTriangle, TrendingDown, Heart, Activity, Scale,
+  PawPrint, ChevronRight, Clock, Sparkles, ArrowRight,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,6 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { usePets } from "@/lib/hooks";
 import { useAppStore } from "@/lib/store";
-import { calculateAge, bcsDescription, vasDescription } from "@/lib/nutrition";
 import { speciesAvatarClass } from "@/lib/clinical-data";
 import { cn } from "@/lib/utils";
 import type { PetWithRelations } from "@/lib/types";

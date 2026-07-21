@@ -319,7 +319,7 @@ export function ConsultationWorkspace({ pet, onEditPet }: { pet: PetWithRelation
         suggestedVas: vasScore ? Number(vasScore) : null,
         sections,
       });
-      setTemplateMeta({ key: created.templateKey, name: created.name, version: created.version });
+      setTemplateMeta({ key: created.templateKey ?? created.id, name: created.name, version: created.version });
       setTemplateDialogOpen(false);
       setTemplateName("");
       toast.success("Шаблон создан", { description: "Это версия 1; дальнейшие изменения сохранятся как новые версии." });

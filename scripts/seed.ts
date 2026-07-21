@@ -103,7 +103,7 @@ async function seed() {
     },
   });
 
-  const diet1 = await db.dietPlan.create({
+  await db.dietPlan.create({
     data: {
       petId: pet1.id,
       name: "Elimination: Hydrolyzed Soy",

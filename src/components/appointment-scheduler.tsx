@@ -3,7 +3,7 @@
 import * as React from "react";
 import {
   CalendarDays, Clock, Plus, Trash2, Video, Stethoscope, Syringe,
-  ChevronRight, CheckCircle2, XCircle, CalendarX, PawPrint,
+  ChevronRight, CheckCircle2, CalendarX, PawPrint,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,13 +30,6 @@ const APPT_TYPE_META: Record<string, { label: string; icon: React.ElementType; c
   recheck: { label: "Recheck", icon: CheckCircle2, color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10" },
   procedure: { label: "Procedure", icon: Syringe, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10" },
   telemedicine: { label: "Telemedicine", icon: Video, color: "text-violet-600 dark:text-violet-400", bg: "bg-violet-500/10" },
-};
-
-const STATUS_META: Record<string, { label: string; color: string }> = {
-  scheduled: { label: "Scheduled", color: "bg-teal-500/10 text-teal-700 dark:text-teal-400" },
-  completed: { label: "Completed", color: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" },
-  cancelled: { label: "Cancelled", color: "bg-muted text-muted-foreground line-through" },
-  no_show: { label: "No-show", color: "bg-red-500/10 text-red-700 dark:text-red-400" },
 };
 
 function relativeDay(date: Date): { label: string; sub: string; isToday: boolean; isTomorrow: boolean } {

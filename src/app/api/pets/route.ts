@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { handleApiError } from "@/lib/api-server";
 
 // GET /api/pets - list all pets
 export async function GET() {
@@ -46,8 +47,7 @@ export async function POST(req: NextRequest) {
       include: { consultations: true, photos: true, dietPlans: true, appointments: true },
     });
     return NextResponse.json(pet, { status: 201 });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 400 });
+  } catch (error) {
+    return handleApiError(error, "create pet");
   }
 }

@@ -5,7 +5,7 @@ import { useState } from "react";
 import {
   BookOpen, ClipboardCheck, ShieldAlert, FlaskConical, Pill, ArrowRightLeft,
   NotebookPen, Search, Loader2, FileText, Download, Check, ChevronRight,
-  Leaf, Wind, Bug, Apple, AlertTriangle, Lightbulb, Wand2, Plus, Pencil,
+  Leaf, Wind, Apple, AlertTriangle, Lightbulb, Wand2, Plus, Pencil,
   Trash2, Save, X, BookMarked, User, Sparkles, FilePlus,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";

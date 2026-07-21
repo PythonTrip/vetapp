@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { handleApiError } from "@/lib/api-server";
 
 // GET /api/pets/[id]
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -50,9 +51,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       include: { consultations: true, photos: true, dietPlans: true, appointments: true },
     });
     return NextResponse.json(pet);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 400 });
+  } catch (error) {
+    return handleApiError(error, "update pet");
   }
 }
 

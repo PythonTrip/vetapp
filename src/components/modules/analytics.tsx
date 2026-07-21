@@ -6,7 +6,7 @@ import {
   Award, AlertTriangle, Target,
 } from "lucide-react";
 import {
-  PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
+  PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   AreaChart, Area,
@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { usePets } from "@/lib/hooks";
-import { bcsDescription, calculateAge } from "@/lib/nutrition";
+import { bcsDescription } from "@/lib/nutrition";
 import { speciesAvatarClass } from "@/lib/clinical-data";
 
 const CHART_COLORS = {

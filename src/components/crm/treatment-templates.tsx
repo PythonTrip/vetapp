@@ -4,7 +4,7 @@ import * as React from "react";
 import {
   Flame, Ear, Utensils, ShieldAlert, TrendingDown, ArrowRightLeft, Beef,
   HeartPulse, Syringe, AlertTriangle, Shield, Apple, Plus, Search, Clock,
-  Zap, Sparkles, Stethoscope, Pencil, Trash2, Save, X, BookMarked, User,
+  Sparkles, Stethoscope, Pencil, Trash2, Save, X, BookMarked, User,
   Loader2,
 } from "lucide-react";
 import {
@@ -17,7 +17,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,

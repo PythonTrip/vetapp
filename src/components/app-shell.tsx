@@ -19,7 +19,6 @@ import { cn } from "@/lib/utils";
 import { useAppStore, type ModuleId } from "@/lib/store";
 import { usePets } from "@/lib/hooks";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { DashboardModule } from "@/components/modules/dashboard";
 import { CrmModule } from "@/components/modules/crm";

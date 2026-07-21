@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import {
-  Phone, Mail, MessageSquare, Send, Trash2, Plus, Clock, PhoneCall,
+  MessageSquare, Send, Trash2, Plus, Clock, PhoneCall,
   Mail as MailIcon, MessagesSquare, Video, User, Check, RotateCcw, Loader2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -187,7 +187,6 @@ export function OwnerCommunicationLog({ pet }: { pet: PetWithRelations }) {
         open={open}
         onOpenChange={setOpen}
         onAdd={addComm}
-        ownerName={pet.ownerName}
         submitting={createMut.isPending}
       />
     </Card>
@@ -195,12 +194,11 @@ export function OwnerCommunicationLog({ pet }: { pet: PetWithRelations }) {
 }
 
 function AddCommDialog({
-  open, onOpenChange, onAdd, ownerName, submitting,
+  open, onOpenChange, onAdd, submitting,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onAdd: (entry: Omit<CommunicationLogEntry, "id" | "petId" | "createdAt">) => void;
-  ownerName: string;
   submitting: boolean;
 }) {
   const [channel, setChannel] = React.useState<CommChannel>("phone");
