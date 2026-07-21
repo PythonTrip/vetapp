@@ -37,9 +37,9 @@ export async function GET(request: NextRequest) {
     let products: Array<{ id: number } & Record<string, unknown>> = [];
     if (q.length > 0) {
       const idRows = await db.$queryRaw<Array<{ id: number }>>(Prisma.sql`
-        SELECT id FROM NutritionProduct
-        WHERE instr(searchName, ${q}) > 0
-        ORDER BY instr(searchName, ${q}) ASC, length(name) ASC, name ASC
+        SELECT id FROM "NutritionProduct"
+        WHERE strpos("searchName", ${q}) > 0
+        ORDER BY strpos("searchName", ${q}) ASC, length(name) ASC, name ASC
         LIMIT 20
       `);
       const rows = idRows.length > 0
@@ -82,21 +82,21 @@ export async function GET(request: NextRequest) {
   };
   const sqlFilters = [Prisma.sql`p.category = ${category}`];
   if (subcategory) sqlFilters.push(Prisma.sql`p.subcategory = ${subcategory}`);
-  if (search) sqlFilters.push(Prisma.sql`instr(p.searchName, ${search}) > 0`);
+  if (search) sqlFilters.push(Prisma.sql`strpos(p."searchName", ${search}) > 0`);
 
   const sqlDirection = sortDirection === "desc" ? Prisma.raw("DESC") : Prisma.raw("ASC");
   const sqlOrder = sortBy === "name"
     ? Prisma.sql`p.name ${sqlDirection}`
-    : Prisma.sql`n.value IS NULL ASC, n.value ${sqlDirection}, p.name ASC`;
+    : Prisma.sql`(n.value IS NULL) ASC, n.value ${sqlDirection}, p.name ASC`;
   const nutrientJoin = sortBy === "name"
     ? Prisma.empty
-    : Prisma.sql`LEFT JOIN NutritionProductNutrient AS n ON n.productId = p.id AND n.code = ${sortBy}`;
+    : Prisma.sql`LEFT JOIN "NutritionProductNutrient" AS n ON n."productId" = p.id AND n.code = ${sortBy}`;
   const offset = (page - 1) * pageSize;
 
   const [productIds, total, groupedCounts, groupedSubcategoryCounts] = await Promise.all([
     db.$queryRaw<Array<{ id: number }>>(Prisma.sql`
       SELECT p.id
-      FROM NutritionProduct AS p
+      FROM "NutritionProduct" AS p
       ${nutrientJoin}
       WHERE ${Prisma.join(sqlFilters, " AND ")}
       ORDER BY ${sqlOrder}
