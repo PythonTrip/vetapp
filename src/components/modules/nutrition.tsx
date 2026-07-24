@@ -28,9 +28,14 @@ import {
 import type { Species, LifeStage, ActivityLevel, DietType, DietTemplateComponent, PetWithRelations } from "@/lib/types";
 import type { BuiltDietComponent } from "@/lib/nutrition";
 import {
-  aggregateDietNutrients, buildNormComparison, formatNutrientValue, productToDietComponent,
-  NUTRIENT_DAY_SPECS, type NormComparisonRow,
+  aggregateDietNutrients, buildNormComparison, resolveNorms, formatNutrientValue,
+  productToDietComponent, NUTRIENT_DAY_SPECS, NORM_STANDARD_LABELS,
+  type NormComparisonRow, type NormStandard,
 } from "@/lib/nutrition-analysis";
+import {
+  fediafStageOptions, defaultFediafStage, fediafStage, estimateFediafMER,
+} from "@/lib/fediaf";
+import { FEDIAF_EDITION, FEDIAF_SOURCE_URL } from "@/lib/fediaf-data";
 import {
   usePets, useCreateDietPlan, useNutritionProductSearch, useNutritionProductsByIds,
 } from "@/lib/hooks";
@@ -192,6 +197,14 @@ function RERMERCalculator() {
     return calculateRERMER(w, species, lifeStage, activity, neutered, parseInt(bcs) || 5, targetWeight ? parseFloat(targetWeight) : null);
   }, [weight, species, lifeStage, activity, neutered, bcs, targetWeight]);
 
+  // FEDIAF 2025 direct MER estimate (allometric, life-stage specific) shown
+  // alongside the RER × factor estimate; only computed for dogs & cats.
+  const fediafMer = React.useMemo(() => {
+    const w = parseFloat(weight);
+    if (!w || w <= 0 || (species !== "dog" && species !== "cat")) return null;
+    return estimateFediafMER(species, lifeStage, activity, neutered, w);
+  }, [weight, species, lifeStage, activity, neutered]);
+
   const pets = usePets();
   const createDiet = useCreateDietPlan();
 
@@ -279,7 +292,7 @@ function RERMERCalculator() {
           <CardTitle className="text-base flex items-center gap-2">
             <Flame className="h-4 w-4 text-orange-500" /> Energy Requirements
           </CardTitle>
-          <CardDescription className="text-xs">RER allometric formula · MER with life-stage factors</CardDescription>
+          <CardDescription className="text-xs">RER × factor и прямая оценка FEDIAF 2025 по формулам МЭ</CardDescription>
         </CardHeader>
         <CardContent>
           {!result ? (
@@ -312,6 +325,58 @@ function RERMERCalculator() {
                   ))}
                 </div>
               </div>
+
+              {/* FEDIAF 2025 direct energy estimate */}
+              {fediafMer && (
+                <div className="space-y-2 rounded-xl border border-primary/20 bg-primary/5 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-primary">FEDIAF 2025 · MER</span>
+                    <Badge variant="outline" className="shrink-0 text-[9px]">{fediafMer.phase.labelRu}</Badge>
+                  </div>
+                  {fediafMer.kcal != null ? (
+                    <div className="flex items-end gap-3">
+                      <div>
+                        <div className="text-2xl font-bold tabular-nums text-primary">{fediafMer.kcal}</div>
+                        <div className="text-[10px] text-muted-foreground">ккал ME / день</div>
+                      </div>
+                      {fediafMer.low != null && fediafMer.high != null && (
+                        <div className="pb-1 text-[11px] tabular-nums text-muted-foreground">
+                          диапазон {fediafMer.low}–{fediafMer.high} ккал
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
+                      <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      Прямой расчёт для этой стадии требует доп. параметров — ниже приведена формула FEDIAF.
+                    </div>
+                  )}
+                  <div className="rounded-md bg-background/60 p-2 text-[10px] leading-4 text-muted-foreground">
+                    <span className="font-medium text-foreground">Формула:</span> {fediafMer.phase.formula}
+                    {fediafMer.phase.range ? ` (${fediafMer.phase.range})` : ""}
+                    {fediafMer.phase.page ? ` · с. ${fediafMer.phase.page}` : ""}
+                    {fediafMer.note && <div className="mt-1">{fediafMer.note}</div>}
+                    {fediafMer.alternates.length > 0 && (
+                      <div className="mt-1">
+                        Альтернативы: {fediafMer.alternates.map((a) => `${a.labelRu} — ${a.formula}`).join("; ")}
+                      </div>
+                    )}
+                  </div>
+                  {fediafMer.kcal != null && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 w-full gap-1.5 text-xs"
+                      onClick={() => {
+                        sendKcalToBuilder(fediafMer.kcal!, patient ? `FEDIAF MER — ${patient.name}` : "FEDIAF MER");
+                        toast.success(`Целевая калорийность ${fediafMer.kcal} ккал (FEDIAF) передана в конструктор`);
+                      }}
+                    >
+                      <Beef className="h-3.5 w-3.5" /> Использовать {fediafMer.kcal} ккал (FEDIAF) в конструкторе
+                    </Button>
+                  )}
+                </div>
+              )}
 
               {/* Weight status */}
               <div className={`rounded-lg p-3 text-sm flex items-start gap-2 ${result.weightStatus === "ideal" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : result.weightStatus === "underweight" ? "bg-amber-500/10 text-amber-700 dark:text-amber-400" : "bg-red-500/10 text-red-700 dark:text-red-400"}`}>
@@ -891,6 +956,21 @@ const ENERGY_SPLIT_COLORS = {
 function DietNutrientAnalysis({ built, dailyKcal }: { built: BuiltDietComponent[]; dailyKcal: number }) {
   const patient = useSelectedPatient();
   const species: Species = patient?.species === "cat" ? "cat" : "dog";
+  const lifeStage: LifeStage = patient?.lifeStage ?? "adult";
+
+  const normStandard = useNutritionWorkspace((s) => s.normStandard);
+  const setNormStandard = useNutritionWorkspace((s) => s.setNormStandard);
+  const normStageRaw = useNutritionWorkspace((s) => s.normStage);
+  const setNormStage = useNutritionWorkspace((s) => s.setNormStage);
+
+  const stageOptions = React.useMemo(() => fediafStageOptions(species), [species]);
+  const effectiveStage = React.useMemo(() => {
+    if (normStandard !== "fediaf2025") return "";
+    const fallback = defaultFediafStage(species, lifeStage);
+    // Honour an explicit choice only while it belongs to the current species.
+    return normStageRaw && stageOptions.some((o) => o.code === normStageRaw) ? normStageRaw : fallback;
+  }, [normStandard, normStageRaw, species, lifeStage, stageOptions]);
+  const stageMeta = normStandard === "fediaf2025" ? fediafStage(effectiveStage) : undefined;
 
   const linkedIds = React.useMemo(
     () => [...new Set(built.filter((c) => c.productId != null && c.grams > 0).map((c) => c.productId as number))],
@@ -903,9 +983,13 @@ function DietNutrientAnalysis({ built, dailyKcal }: { built: BuiltDietComponent[
     return aggregateDietNutrients(built, productsById);
   }, [built, productsQuery.data]);
 
+  const norms = React.useMemo(
+    () => resolveNorms(normStandard, species, effectiveStage),
+    [normStandard, species, effectiveStage]
+  );
   const normRows = React.useMemo(
-    () => buildNormComparison(analysis, species, dailyKcal),
-    [analysis, species, dailyKcal]
+    () => buildNormComparison(analysis, dailyKcal, norms),
+    [analysis, dailyKcal, norms]
   );
 
   if (linkedIds.length === 0) {
@@ -933,6 +1017,7 @@ function DietNutrientAnalysis({ built, dailyKcal }: { built: BuiltDietComponent[
   const coveragePct = Math.round(analysis.coverage * 100);
 
   const normByCode = new Map<string, NormComparisonRow>(normRows.map((row) => [row.code, row]));
+  const standardLabel = NORM_STANDARD_LABELS[normStandard];
 
   const pctRows = (codes: string[]): NutrientChartRow[] =>
     codes.flatMap((code) => {
@@ -957,7 +1042,7 @@ function DietNutrientAnalysis({ built, dailyKcal }: { built: BuiltDietComponent[
       deficit: norm != null && norm.pct < 90,
       tooltip: norm
         ? `${Math.round(norm.pct)}% от нормы (${formatNutrientValue(norm.norm)} ${norm.unit})`
-        : "Справочно — без нормы NRC",
+        : "Справочно — без нормы",
     }];
   };
 
@@ -968,17 +1053,28 @@ function DietNutrientAnalysis({ built, dailyKcal }: { built: BuiltDietComponent[
     ...absRow("Клетчатка", analysis.fiberG, "г"),
   ];
   const mineralRows = pctRows(["Ca", "P", "Mg", "Na", "K", "Cl", "Fe", "Cu", "Zn", "Mn", "Se", "J"]);
-  const vitaminRows = pctRows(["E", "B1", "B2", "B3", "B4", "B5", "B6", "B9", "B12"]);
+  // A/D carry a norm under FEDIAF (given in IU); pctRows silently drops codes
+  // without a norm, so they only chart when the active standard provides one.
+  const vitaminRows = pctRows(["A", "D", "E", "B1", "B2", "B3", "B4", "B5", "B6", "B9", "B12"]);
   const aminoRows = NUTRIENT_DAY_SPECS
     .filter((spec) => spec.group === "amino")
     .flatMap((spec) => absRow(spec.label, analysis.totals[spec.code], spec.unit, spec.code));
-  const fattyRows = NUTRIENT_DAY_SPECS
-    .filter((spec) => spec.group === "fatty")
-    .flatMap((spec) => absRow(spec.label, analysis.totals[spec.code], spec.unit));
-  // Vitamins with catalog data but no norm comparison (unit «МЕ» or no NRC RA)
+  const fattyRows = [
+    ...absRow("Линолевая (ω6)", analysis.totals["LA"], "г", "LA"),
+    ...absRow("Арахидоновая (ω6)", analysis.totals["AA"], "г", "AA"),
+    ...absRow("α-линоленовая (ω3)", analysis.totals["ALA"], "г", "ALA"),
+    ...absRow("EPA (ω3)", analysis.totals["EPA"], "г"),
+    ...absRow("DHA (ω3)", analysis.totals["DHA"], "г"),
+    ...(normByCode.has("EPA_DHA")
+      ? absRow("ЭПК+ДГК (ω3)", (analysis.totals["EPA"] ?? 0) + (analysis.totals["DHA"] ?? 0) || undefined, "г", "EPA_DHA")
+      : []),
+  ];
+  // Vitamins with catalog data but no norm under the active standard (unit «МЕ»
+  // under NRC, or no reference allowance) — shown as plain reference tiles.
   const referenceVitamins = ["A", "D", "C", "B7"]
     .map((code) => NUTRIENT_DAY_SPECS.find((spec) => spec.code === code))
-    .flatMap((spec) => (spec && analysis.totals[spec.code] != null ? [{ ...spec, value: analysis.totals[spec.code] }] : []));
+    .flatMap((spec) => (spec && analysis.totals[spec.code] != null && !normByCode.has(spec.code)
+      ? [{ ...spec, value: analysis.totals[spec.code] }] : []));
 
   return (
     <Card>
@@ -992,9 +1088,26 @@ function DietNutrientAnalysis({ built, dailyKcal }: { built: BuiltDietComponent[
               По данным каталога · покрыто {coveragePct}% массы рациона ({Math.round(analysis.coveredGrams)} из {Math.round(analysis.totalGrams)} г)
             </CardDescription>
           </div>
-          <Badge variant="secondary" className="gap-1.5">
-            {species === "cat" ? "Кошка" : "Собака"} · нормы NRC (взрослые), на {Math.round(dailyKcal)} ккал
-          </Badge>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={normStandard} onValueChange={(v) => setNormStandard(v as NormStandard)}>
+              <SelectTrigger className="h-8 w-[9.5rem] text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="fediaf2025">FEDIAF 2025</SelectItem>
+                <SelectItem value="nrc2006">NRC 2006</SelectItem>
+              </SelectContent>
+            </Select>
+            {normStandard === "fediaf2025" && (
+              <Select value={effectiveStage} onValueChange={(v) => setNormStage(v)}>
+                <SelectTrigger className="h-8 w-[13.5rem] text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {stageOptions.map((o) => <SelectItem key={o.code} value={o.code}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+            <Badge variant="secondary" className="gap-1.5">
+              {species === "cat" ? "Кошка" : "Собака"} · на {Math.round(dailyKcal)} ккал
+            </Badge>
+          </div>
         </div>
         {coveragePct < 60 && (
           <div className="mt-1 flex items-start gap-2 rounded-lg bg-amber-500/10 p-2 text-[11px] text-amber-700 dark:text-amber-400">
@@ -1068,8 +1181,8 @@ function DietNutrientAnalysis({ built, dailyKcal }: { built: BuiltDietComponent[
         {/* Charts by nutrient group */}
         <div className="grid gap-x-8 gap-y-6 lg:grid-cols-2">
           <NutrientChartSection title="Основные" subtitle="г/день по покрытой массе" rows={mainRows} unit="г" />
-          <NutrientChartSection title="Минералы" subtitle="% от нормы NRC" rows={mineralRows} reference />
-          <NutrientChartSection title="Витамины" subtitle="% от нормы NRC" rows={vitaminRows} reference>
+          <NutrientChartSection title="Минералы" subtitle={`% от нормы ${standardLabel}`} rows={mineralRows} reference />
+          <NutrientChartSection title="Витамины" subtitle={`% от нормы ${standardLabel}`} rows={vitaminRows} reference>
             {referenceVitamins.length > 0 && (
               <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
                 {referenceVitamins.map((item) => (
@@ -1103,10 +1216,25 @@ function DietNutrientAnalysis({ built, dailyKcal }: { built: BuiltDietComponent[
             </span>
           </div>
           <p className="text-[10px] leading-4 text-muted-foreground">
-            Ориентир — рекомендуемые нормы NRC 2006 для взрослых животных на 1000 ккал МЭ, масштабированные к целевой
-            калорийности рациона. Шкала «% от нормы» обрезана на 300% (фактический процент — в подписи и тултипе).
-            Значения справочные и учитывают только массу, покрытую каталогом; для клинических решений сверяйтесь
-            с актуальными таблицами NRC/FEDIAF.
+            {normStandard === "fediaf2025" ? (
+              <>
+                Ориентир — минимально рекомендуемые уровни {FEDIAF_EDITION}
+                {stageMeta ? ` (${stageMeta.labelRu}${stageMeta.merReference ? `, ${stageMeta.merReference}` : ""})` : ""}{" "}
+                на 1000 ккал МЭ, масштабированные к целевой калорийности. Селен и таурин взяты для сухих рационов;
+                витамин E — в МЕ.
+              </>
+            ) : (
+              <>
+                Ориентир — рекомендуемые нормы NRC 2006 для взрослых животных на 1000 ккал МЭ, масштабированные
+                к целевой калорийности рациона.
+              </>
+            )}{" "}
+            Шкала «% от нормы» обрезана на 300% (фактический процент — в подписи и тултипе). Значения справочные
+            и учитывают только массу, покрытую каталогом; для клинических решений сверяйтесь с актуальными таблицами{" "}
+            <a href={FEDIAF_SOURCE_URL} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-foreground">
+              FEDIAF
+            </a>
+            /NRC.
           </p>
         </div>
       </CardContent>

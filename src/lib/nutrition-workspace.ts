@@ -10,6 +10,7 @@
 
 import { create } from "zustand";
 import type { DietTemplateComponent, DietType } from "@/lib/types";
+import type { NormStandard } from "@/lib/nutrition-analysis";
 
 export type NutritionTab = "catalog" | "rer-mer" | "dm" | "template";
 
@@ -50,6 +51,13 @@ interface NutritionWorkspaceState {
   setComponents: (components: DietTemplateComponent[]) => void;
   /** Returns false if this catalog product is already in the ration. */
   addProductToDiet: (component: DietTemplateComponent) => boolean;
+
+  // Nutrient-analysis reference standard (persists across tab switches).
+  // `null` stage = follow the selected patient's life stage automatically.
+  normStandard: NormStandard;
+  setNormStandard: (standard: NormStandard) => void;
+  normStage: string | null;
+  setNormStage: (stage: string | null) => void;
 }
 
 export const useNutritionWorkspace = create<NutritionWorkspaceState>((set, get) => ({
@@ -90,4 +98,9 @@ export const useNutritionWorkspace = create<NutritionWorkspaceState>((set, get) 
     set({ components: [...components, { ...component, percentage: remainder }] });
     return true;
   },
+
+  normStandard: "fediaf2025",
+  setNormStandard: (standard) => set({ normStandard: standard }),
+  normStage: null,
+  setNormStage: (stage) => set({ normStage: stage }),
 }));

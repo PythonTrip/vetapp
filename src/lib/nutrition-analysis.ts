@@ -1,11 +1,14 @@
 // Diet nutrient analysis: aggregates per-day micro/macronutrient totals for a
 // built ration from linked catalog products and compares them against reference
-// adult-maintenance norms (NRC 2006, per 1000 kcal ME). Reference values are
-// informational — clinical decisions must be checked against current NRC/FEDIAF tables.
+// norms per 1000 kcal ME. Two standards are supported: FEDIAF 2025 (life-stage
+// aware, see fediaf.ts) and NRC 2006 (adult maintenance, embedded below).
+// Reference values are informational — clinical decisions must be checked
+// against the current FEDIAF/NRC tables.
 
 import type { BuiltDietComponent } from "./nutrition";
 import type { DietComponentCategory, DietTemplateComponent, Species } from "./types";
 import type { NutritionProductDto } from "./nutrition-products";
+import { fediafNormsPer1000 } from "./fediaf";
 
 export type NutrientGroupId = "minerals" | "trace" | "vitamins" | "amino" | "fatty";
 
@@ -45,10 +48,16 @@ export const NUTRIENT_DAY_SPECS: NutrientDaySpec[] = [
   { code: "B9", label: "B9 (фолат)", group: "vitamins", unit: "мкг" },
   { code: "B12", label: "B12", group: "vitamins", unit: "мкг" },
   { code: "Tau", label: "Таурин", group: "amino", unit: "г" },
+  { code: "Arg", label: "Аргинин", group: "amino", unit: "г" },
+  { code: "His", label: "Гистидин", group: "amino", unit: "г" },
+  { code: "Ile", label: "Изолейцин", group: "amino", unit: "г" },
+  { code: "Leu", label: "Лейцин", group: "amino", unit: "г" },
   { code: "Lys", label: "Лизин", group: "amino", unit: "г" },
   { code: "Met", label: "Метионин", group: "amino", unit: "г" },
+  { code: "Phe", label: "Фенилаланин", group: "amino", unit: "г" },
+  { code: "Thr", label: "Треонин", group: "amino", unit: "г" },
   { code: "Trp", label: "Триптофан", group: "amino", unit: "г" },
-  { code: "Arg", label: "Аргинин", group: "amino", unit: "г" },
+  { code: "Val", label: "Валин", group: "amino", unit: "г" },
   { code: "LA", label: "Линолевая (ω6)", group: "fatty", unit: "г" },
   { code: "AA", label: "Арахидоновая (ω6)", group: "fatty", unit: "г" },
   { code: "ALA", label: "α-линоленовая (ω3)", group: "fatty", unit: "г" },
@@ -169,22 +178,44 @@ export interface NormComparisonRow {
   pct: number; // value / norm × 100
 }
 
+/** Reference standard the ration is compared against. */
+export type NormStandard = "fediaf2025" | "nrc2006";
+
+export const NORM_STANDARD_LABELS: Record<NormStandard, string> = {
+  fediaf2025: "FEDIAF 2025",
+  nrc2006: "NRC 2006",
+};
+
 /**
- * Compare per-day totals against reference norms scaled to the ration's kcal.
- * Returns only nutrients that have both a norm and catalog data in the ration.
+ * Resolve the per-1000-kcal norm table (in app units) for a standard.
+ * FEDIAF is life-stage aware (via `fediafStageCode`); NRC 2006 here is the
+ * adult-maintenance table, so its life stage is fixed.
+ */
+export function resolveNorms(
+  standard: NormStandard,
+  species: Species,
+  fediafStageCode: string
+): Record<string, number> {
+  if (standard === "fediaf2025") return fediafNormsPer1000(fediafStageCode);
+  return NRC_ADULT_NORMS_PER_1000KCAL[species === "cat" ? "cat" : "dog"];
+}
+
+/**
+ * Compare per-day totals against a per-1000-kcal norm table scaled to the
+ * ration's kcal. Returns only nutrients that have both a norm and catalog data.
+ * `norms` comes from {@link resolveNorms}; keys are the app's nutrient codes.
  */
 export function buildNormComparison(
   analysis: DietNutrientAnalysis,
-  species: Species,
-  dailyKcal: number
+  dailyKcal: number,
+  norms: Record<string, number>
 ): NormComparisonRow[] {
-  const table = NRC_ADULT_NORMS_PER_1000KCAL[species === "cat" ? "cat" : "dog"];
   const factor = dailyKcal / 1000;
   if (factor <= 0) return [];
 
   const rows: NormComparisonRow[] = [];
   const push = (code: string, label: string, unit: string, value: number | undefined) => {
-    const normPer1000 = table[code];
+    const normPer1000 = norms[code];
     if (normPer1000 == null || value == null) return;
     const norm = normPer1000 * factor;
     rows.push({ code, label, unit, value, norm, pct: norm > 0 ? (value / norm) * 100 : 0 });
@@ -195,6 +226,9 @@ export function buildNormComparison(
   for (const spec of NUTRIENT_DAY_SPECS) {
     push(spec.code, spec.label, spec.unit, analysis.totals[spec.code]);
   }
+  // Combined EPA + DHA floor (FEDIAF ω-3 minimum is given for the pair).
+  const epaDha = (analysis.totals["EPA"] ?? 0) + (analysis.totals["DHA"] ?? 0);
+  push("EPA_DHA", "ЭПК+ДГК (ω3)", "г", epaDha > 0 ? epaDha : undefined);
   return rows;
 }
 
