@@ -6,6 +6,7 @@ import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { QueryProvider } from "@/components/query-provider";
 import { I18nProvider } from "@/lib/i18n";
+import { LegacyTranslationBoundary } from "@/components/legacy-translation-boundary";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -41,11 +42,13 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <I18nProvider>
-            <QueryProvider>
-              {children}
-              <Toaster />
-              <SonnerToaster richColors position="bottom-right" />
-            </QueryProvider>
+            <LegacyTranslationBoundary>
+              <QueryProvider>
+                {children}
+                <Toaster />
+                <SonnerToaster richColors position="bottom-right" />
+              </QueryProvider>
+            </LegacyTranslationBoundary>
           </I18nProvider>
         </ThemeProvider>
       </body>
