@@ -42,23 +42,23 @@ import {
 import { useNutritionWorkspace, type NutritionTab } from "@/lib/nutrition-workspace";
 import { toast } from "sonner";
 import { NutritionProductCatalog } from "@/components/nutrition/product-catalog";
+import { useI18n } from "@/lib/i18n";
 
 export function NutritionModule() {
   const activeTab = useNutritionWorkspace((s) => s.activeTab);
   const setActiveTab = useNutritionWorkspace((s) => s.setActiveTab);
+  const { t } = useI18n();
 
   return (
     <div className="w-full min-w-0 p-4 sm:p-6 lg:p-8 space-y-6 max-w-6xl mx-auto">
       <div>
         <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-primary mb-1">
           <Calculator className="h-3.5 w-3.5" />
-          Nutritionist Assistant
+          {t("nutrition.eyebrow")}
         </div>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Nutritional Assistant</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t("nutrition.title")}</h1>
         <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-          Единый поток работы: выберите пациента, рассчитайте потребность в энергии (RER/MER),
-          сравните корма по сухому веществу и соберите рацион из продуктов каталога — граммовка
-          считается по реальной энергетической ценности.
+          {t("nutrition.description")}
         </p>
       </div>
 
@@ -68,16 +68,16 @@ export function NutritionModule() {
         <div className="w-full min-w-0 overflow-x-auto scrollbar-thin">
         <TabsList className="flex h-10 w-max min-w-full max-w-3xl [&>*]:shrink-0 sm:grid sm:w-full sm:grid-cols-4">
           <TabsTrigger value="catalog" className="text-xs sm:text-sm gap-1.5">
-            <ShoppingCart className="h-3.5 w-3.5" /> Каталог
+            <ShoppingCart className="h-3.5 w-3.5" /> {t("nutrition.catalog")}
           </TabsTrigger>
           <TabsTrigger value="rer-mer" className="text-xs sm:text-sm gap-1.5">
             <Flame className="h-3.5 w-3.5" /> RER / MER
           </TabsTrigger>
           <TabsTrigger value="dm" className="text-xs sm:text-sm gap-1.5">
-            <Droplet className="h-3.5 w-3.5" /> Dry Matter
+            <Droplet className="h-3.5 w-3.5" /> {t("nutrition.dryMatter")}
           </TabsTrigger>
           <TabsTrigger value="template" className="text-xs sm:text-sm gap-1.5">
-            <Beef className="h-3.5 w-3.5" /> Diet Builder
+            <Beef className="h-3.5 w-3.5" /> {t("nutrition.dietBuilder")}
           </TabsTrigger>
         </TabsList>
         </div>

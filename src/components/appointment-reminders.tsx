@@ -11,7 +11,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useAppointments } from "@/lib/hooks";
-import { useAppStore } from "@/lib/store";
+import { useAppNavigation } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import type { AppointmentWithPet } from "@/lib/types";
 
@@ -52,7 +52,7 @@ const URGENCY_STYLES: Record<string, string> = {
 
 export function AppointmentReminders() {
   const { data: appointments, isLoading } = useAppointments();
-  const { setActiveModule, setActivePetId } = useAppStore();
+  const { goToSection, openProject } = useAppNavigation();
   const [open, setOpen] = React.useState(false);
   const [dismissed, setDismissed] = React.useState<Set<string>>(new Set());
 
@@ -81,8 +81,7 @@ export function AppointmentReminders() {
   }
 
   function handleClick(appt: AppointmentWithPet) {
-    setActiveModule("crm");
-    setActivePetId(appt.petId);
+    openProject(appt.petId);
     setOpen(false);
   }
 
@@ -198,7 +197,7 @@ export function AppointmentReminders() {
             <AlertTriangle className="h-3 w-3 text-amber-500" /> Click to open patient
           </span>
           <button
-            onClick={() => setActiveModule("dashboard")}
+            onClick={() => goToSection("dashboard")}
             className="flex items-center gap-0.5 hover:text-foreground transition-colors font-medium"
           >
             View all <ChevronRight className="h-3 w-3" />

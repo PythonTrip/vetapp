@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   useAppointments, useCreateAppointment, useUpdateAppointment, useDeleteAppointment, usePets,
 } from "@/lib/hooks";
-import { useAppStore } from "@/lib/store";
+import { useAppNavigation } from "@/lib/navigation";
 import { speciesAvatarClass } from "@/lib/clinical-data";
 import type { AppointmentWithPet } from "@/lib/types";
 import { toast } from "sonner";
@@ -56,7 +56,7 @@ function relativeDay(date: Date): { label: string; sub: string; isToday: boolean
 
 export function AppointmentScheduler() {
   const { data: appointments, isLoading } = useAppointments();
-  const { setActivePetId, setActiveModule } = useAppStore();
+  const { openProject } = useAppNavigation();
   const [showForm, setShowForm] = React.useState(false);
 
   const now = new Date();
@@ -80,8 +80,7 @@ export function AppointmentScheduler() {
     : null;
 
   const openPet = (petId: string) => {
-    setActivePetId(petId);
-    setActiveModule("crm");
+    openProject(petId);
   };
 
   return (

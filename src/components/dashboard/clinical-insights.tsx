@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { usePets } from "@/lib/hooks";
-import { useAppStore } from "@/lib/store";
+import { useAppNavigation } from "@/lib/navigation";
 import { speciesAvatarClass } from "@/lib/clinical-data";
 import { cn } from "@/lib/utils";
 import type { PetWithRelations } from "@/lib/types";
@@ -24,7 +24,7 @@ interface AtRiskPatient {
 
 export function ClinicalInsights() {
   const { data: pets, isLoading } = usePets();
-  const { setActiveModule, setActivePetId } = useAppStore();
+  const { goToSection, openProject } = useAppNavigation();
 
   // Identify at-risk patients
   const atRisk: AtRiskPatient[] = React.useMemo(() => {
@@ -170,8 +170,7 @@ export function ClinicalInsights() {
   }
 
   function openPet(id: string) {
-    setActivePetId(id);
-    setActiveModule("crm");
+    openProject(id);
   }
 
   return (
@@ -228,7 +227,7 @@ export function ClinicalInsights() {
                 {atRisk.length} patient{atRisk.length === 1 ? "" : "s"} need attention
               </CardDescription>
             </div>
-            <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={() => setActiveModule("crm")}>
+            <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={() => goToSection("projects")}>
               View all <ArrowRight className="h-3 w-3" />
             </Button>
           </CardHeader>

@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { QueryProvider } from "@/components/query-provider";
+import { I18nProvider } from "@/lib/i18n";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,7 +18,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "VetDietDerm — Micro-CRM for Veterinary Nutritionists & Dermatologists",
+  title: "VetDietDerm — Veterinary Nutrition & Dermatology CRM",
   description:
     "A lightweight digital workspace for independent veterinary nutritionists and dermatologists. AI voice scribe, nutrition calculators, dermatology tracking, and one-click branded PDF reports.",
   keywords: ["veterinary", "nutrition", "dermatology", "CRM", "AI scribe", "pet health", "elimination diet"],
@@ -39,11 +40,13 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <QueryProvider>
-            {children}
-            <Toaster />
-            <SonnerToaster richColors position="bottom-right" />
-          </QueryProvider>
+          <I18nProvider>
+            <QueryProvider>
+              {children}
+              <Toaster />
+              <SonnerToaster richColors position="bottom-right" />
+            </QueryProvider>
+          </I18nProvider>
         </ThemeProvider>
       </body>
     </html>

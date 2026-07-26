@@ -3,17 +3,18 @@
 import * as React from "react";
 import {
   PawPrint, LayoutDashboard, Users, Calculator, BookOpen,
-  FileText, Plus, Moon, Sun, ArrowRight,
+  FileText, Plus, Moon, Sun, ArrowRight, Settings,
 } from "lucide-react";
 import {
   CommandDialog, CommandInput, CommandList, CommandEmpty,
   CommandGroup, CommandItem, CommandShortcut, CommandSeparator,
 } from "@/components/ui/command";
 import { usePets } from "@/lib/hooks";
-import { useAppStore, type ModuleId } from "@/lib/store";
 import { useTheme } from "next-themes";
 import { calculateAge, bcsDescription } from "@/lib/nutrition";
 import { speciesAvatarClass } from "@/lib/clinical-data";
+import { useAppNavigation, type AppSection } from "@/lib/navigation";
+import { useI18n } from "@/lib/i18n";
 
 interface CommandPaletteProps {
   open: boolean;
@@ -22,47 +23,51 @@ interface CommandPaletteProps {
 
 export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const { data: pets } = usePets();
-  const { setActiveModule, setActivePetId } = useAppStore();
+  const { goToSection, openProject } = useAppNavigation();
+  const { t } = useI18n();
   const { setTheme, theme } = useTheme();
 
-  const go = (m: ModuleId) => {
-    setActiveModule(m);
+  const go = (section: AppSection) => {
+    goToSection(section);
     onOpenChange(false);
   };
 
   const openPet = (id: string) => {
-    setActivePetId(id);
-    setActiveModule("crm");
+    openProject(id);
     onOpenChange(false);
   };
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange} className="max-w-xl">
-      <CommandInput placeholder="Search patients, navigate, or run commands..." />
+      <CommandInput placeholder={t("command.placeholder")} />
       <CommandList>
-        <CommandEmpty>No results found.</CommandEmpty>
+        <CommandEmpty>{t("command.empty")}</CommandEmpty>
 
         {/* Quick Navigation */}
-        <CommandGroup heading="Navigate">
+        <CommandGroup heading={t("command.navigate")}>
           <CommandItem onSelect={() => go("dashboard")}>
             <LayoutDashboard className="h-4 w-4 text-primary" />
-            <span>Go to Dashboard</span>
+            <span>{t("command.goHome")}</span>
             <CommandShortcut>Overview</CommandShortcut>
           </CommandItem>
-          <CommandItem onSelect={() => go("crm")}>
+          <CommandItem onSelect={() => go("projects")}>
             <Users className="h-4 w-4 text-primary" />
-            <span>Go to Patients CRM</span>
+            <span>{t("command.goProjects")}</span>
             <CommandShortcut>Records</CommandShortcut>
           </CommandItem>
           <CommandItem onSelect={() => go("nutrition")}>
             <Calculator className="h-4 w-4 text-primary" />
-            <span>Go to Nutritionist Assistant</span>
+            <span>{t("command.goNutrition")}</span>
             <CommandShortcut>Calculators</CommandShortcut>
           </CommandItem>
           <CommandItem onSelect={() => go("knowledge")}>
             <BookOpen className="h-4 w-4 text-primary" />
-            <span>Go to Knowledge Base</span>
+            <span>{t("command.goKnowledge")}</span>
             <CommandShortcut>Protocols</CommandShortcut>
+          </CommandItem>
+          <CommandItem onSelect={() => go("settings")}>
+            <Settings className="h-4 w-4 text-primary" />
+            <span>{t("command.goSettings")}</span>
           </CommandItem>
         </CommandGroup>
 
@@ -70,7 +75,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
         {/* Patient Search */}
         {pets && pets.length > 0 && (
-          <CommandGroup heading="Patients">
+          <CommandGroup heading={t("command.patients")}>
             {pets.map((p) => {
               const age = calculateAge(p.birthDate);
               const bcsInfo = bcsDescription(p.bcs);
@@ -99,7 +104,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
         <CommandSeparator />
 
         {/* Quick Actions */}
-        <CommandGroup heading="Actions">
+        <CommandGroup heading={t("command.actions")}>
           <CommandItem
             onSelect={() => {
               setTheme(theme === "dark" ? "light" : "dark");
@@ -109,12 +114,12 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             <span>Toggle {theme === "dark" ? "Light" : "Dark"} Mode</span>
           </CommandItem>
-          <CommandItem onSelect={() => go("crm")}>
+          <CommandItem onSelect={() => go("projects")}>
             <Plus className="h-4 w-4 text-emerald-600" />
             <span>Add New Patient</span>
             <CommandShortcut>CRM</CommandShortcut>
           </CommandItem>
-          <CommandItem onSelect={() => go("crm")}>
+          <CommandItem onSelect={() => go("projects")}>
             <FileText className="h-4 w-4 text-primary" />
             <span>Generate Consultation Report</span>
           </CommandItem>

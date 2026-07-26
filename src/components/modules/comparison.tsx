@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { usePets } from "@/lib/hooks";
-import { useAppStore } from "@/lib/store";
+import { useAppNavigation } from "@/lib/navigation";
 import { calculateAge, bcsDescription, vasDescription } from "@/lib/nutrition";
 import { speciesLabelEn } from "@/lib/clinical-data";
 import { cn } from "@/lib/utils";
@@ -30,7 +30,7 @@ const CHART_COLORS = [
 
 export function ComparisonPanel() {
   const { data: pets } = usePets();
-  const { setActivePetId, setActiveModule } = useAppStore();
+  const { openProject } = useAppNavigation();
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
 
   // Default: select all (max 4)
@@ -211,7 +211,7 @@ export function ComparisonPanel() {
                     {metrics.map((m, i) => (
                       <th key={m.pet.id} className="text-left py-2 px-2 min-w-[120px]">
                         <button
-                          onClick={() => { setActivePetId(m.pet.id); setActiveModule("crm"); }}
+                          onClick={() => openProject(m.pet.id)}
                           className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
                         >
                           <span className="h-3 w-3 rounded-full shrink-0" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />

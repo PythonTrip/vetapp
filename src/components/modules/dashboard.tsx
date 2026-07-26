@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import { usePets } from "@/lib/hooks";
 import { speciesAvatarClass } from "@/lib/clinical-data";
-import { useAppStore } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,10 +32,13 @@ import { AppointmentScheduler } from "@/components/appointment-scheduler";
 import { GitCompare } from "lucide-react";
 import { toast } from "sonner";
 import { ClinicalInsights } from "@/components/dashboard/clinical-insights";
+import { useAppNavigation } from "@/lib/navigation";
+import { useI18n } from "@/lib/i18n";
 
 export function DashboardModule() {
   const { data: pets, isLoading } = usePets();
-  const { setActiveModule, setActivePetId } = useAppStore();
+  const { goToSection, openProject } = useAppNavigation();
+  const { t } = useI18n();
   const [tab, setTab] = React.useState<"overview" | "analytics" | "compare">("overview");
   const [backingUp, setBackingUp] = React.useState(false);
 
@@ -93,8 +95,7 @@ export function DashboardModule() {
     .slice(0, 6);
 
   const openPet = (id: string) => {
-    setActivePetId(id);
-    setActiveModule("crm");
+    openProject(id);
   };
 
   return (
@@ -104,11 +105,11 @@ export function DashboardModule() {
         <div>
           <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-primary mb-1">
             <Stethoscope className="h-3.5 w-3.5" />
-            Clinical Overview
+            {t("dashboard.eyebrow")}
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Welcome back, Doctor</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t("dashboard.title")}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Here's your practice at a glance. Start a hands-free consultation or review recent activity.
+            {t("dashboard.description")}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -116,7 +117,7 @@ export function DashboardModule() {
             <>
               <Button variant="outline" className="gap-2" onClick={handleBackup} disabled={backingUp} title="Download full JSON backup of all data">
                 {backingUp ? <Loader2 className="h-4 w-4 animate-spin" /> : <DatabaseBackup className="h-4 w-4" />}
-                <span className="hidden sm:inline">Backup</span>
+                <span className="hidden sm:inline">{t("dashboard.backup")}</span>
               </Button>
               <Button variant="outline" className="gap-2" onClick={() => exportPatientsCSV(pets)} title="Export patients to CSV">
                 <Download className="h-4 w-4" />
@@ -124,9 +125,9 @@ export function DashboardModule() {
               </Button>
             </>
           )}
-          <Button onClick={() => setActiveModule("crm")} className="gap-2">
+          <Button onClick={() => goToSection("projects")} className="gap-2">
             <Mic className="h-4 w-4" />
-            Start Consultation
+            {t("dashboard.start")}
           </Button>
         </div>
       </div>
@@ -135,13 +136,13 @@ export function DashboardModule() {
       <Tabs value={tab} onValueChange={(v) => setTab(v as "overview" | "analytics" | "compare")}>
         <TabsList className="grid w-full max-w-md grid-cols-3 h-9">
           <TabsTrigger value="overview" className="text-xs gap-1.5">
-            <LayoutDashboard className="h-3.5 w-3.5" /> Overview
+            <LayoutDashboard className="h-3.5 w-3.5" /> {t("dashboard.overview")}
           </TabsTrigger>
           <TabsTrigger value="analytics" className="text-xs gap-1.5">
-            <BarChart3 className="h-3.5 w-3.5" /> Analytics
+            <BarChart3 className="h-3.5 w-3.5" /> {t("dashboard.analytics")}
           </TabsTrigger>
           <TabsTrigger value="compare" className="text-xs gap-1.5">
-            <GitCompare className="h-3.5 w-3.5" /> Compare
+            <GitCompare className="h-3.5 w-3.5" /> {t("dashboard.compare")}
           </TabsTrigger>
         </TabsList>
 
@@ -151,33 +152,33 @@ export function DashboardModule() {
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <StatCard
           icon={Users}
-          label="Active Patients"
+          label={t("dashboard.activePatients")}
           value={isLoading ? "—" : String(totalPets)}
-          sub={`${overweight} need weight management`}
+          sub={`${overweight} ${t("dashboard.needWeight")}`}
           tint="primary"
           loading={isLoading}
         />
         <StatCard
           icon={Activity}
-          label="Avg. Pruritus (VAS)"
+          label={t("dashboard.avgPruritus")}
           value={isLoading ? "—" : avgVas.toFixed(1)}
-          sub={`out of 10 · latest visits`}
+          sub={t("dashboard.latestVisits")}
           tint={avgVas > 5 ? "amber" : "emerald"}
           loading={isLoading}
         />
         <StatCard
           icon={Scale}
-          label="Overweight / Obese"
+          label={t("dashboard.overweight")}
           value={isLoading ? "—" : String(overweight)}
-          sub={`${totalPets > 0 ? Math.round((overweight / totalPets) * 100) : 0}% of caseload`}
+          sub={`${totalPets > 0 ? Math.round((overweight / totalPets) * 100) : 0}% ${t("dashboard.ofCaseload")}`}
           tint="orange"
           loading={isLoading}
         />
         <StatCard
           icon={Calendar}
-          label="Total Visits"
+          label={t("dashboard.totalVisits")}
           value={isLoading ? "—" : String(totalConsults)}
-          sub="consultation entries logged"
+          sub={t("dashboard.entriesLogged")}
           tint="cyan"
           loading={isLoading}
         />
@@ -188,18 +189,18 @@ export function DashboardModule() {
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <div>
-              <CardTitle className="text-base">Recent Consultation Activity</CardTitle>
-              <CardDescription className="text-xs">Latest entries across all patients</CardDescription>
+              <CardTitle className="text-base">{t("dashboard.recent")}</CardTitle>
+              <CardDescription className="text-xs">{t("dashboard.recentDesc")}</CardDescription>
             </div>
-            <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={() => setActiveModule("crm")}>
-              View all <ArrowRight className="h-3 w-3" />
+            <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={() => goToSection("projects")}>
+              {t("dashboard.viewAll")} <ArrowRight className="h-3 w-3" />
             </Button>
           </CardHeader>
           <CardContent className="space-y-2">
             {isLoading ? (
               Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)
             ) : recent.length === 0 ? (
-              <div className="text-center py-8 text-sm text-muted-foreground">No consultations yet.</div>
+              <div className="text-center py-8 text-sm text-muted-foreground">{t("dashboard.noConsultations")}</div>
             ) : (
               recent.map((c) => {
                 const vas = c.vasScore;
@@ -240,8 +241,8 @@ export function DashboardModule() {
         {/* Patient quick list */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Your Patients</CardTitle>
-            <CardDescription className="text-xs">Click to open full record</CardDescription>
+            <CardTitle className="text-base">{t("dashboard.patients")}</CardTitle>
+            <CardDescription className="text-xs">{t("dashboard.patientsDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2 max-h-[420px] overflow-y-auto scrollbar-thin">
             {isLoading ? (
@@ -292,27 +293,26 @@ export function DashboardModule() {
       <div className="grid gap-4 md:grid-cols-3">
         <QuickAction
           icon={Mic}
-          title="AI Voice Scribe"
-          desc="Record live consultations. We transcribe and auto-fill the patient card — no more typing mid-visit."
-          action="Open Patients"
-          onClick={() => setActiveModule("crm")}
+          title={t("dashboard.voiceTitle")}
+          desc={t("dashboard.voiceDesc")}
+          action={t("dashboard.openPatients")}
+          onClick={() => goToSection("projects")}
         />
         <QuickAction
           icon={Scale}
-          title="Nutrition Calculators"
-          desc="RER/MER, Dry Matter converter, and a flexible home-cooked / BARF diet template builder."
-          action="Open Tools"
-          onClick={() => setActiveModule("nutrition")}
+          title={t("dashboard.calculatorsTitle")}
+          desc={t("dashboard.calculatorsDesc")}
+          action={t("dashboard.openTools")}
+          onClick={() => goToSection("nutrition")}
         />
         <QuickAction
           icon={FileText}
-          title="One-Click PDF Report"
-          desc="Aggregate notes, diet plan, progress charts, and handouts into a branded report for the owner."
-          action="Build Report"
+          title={t("dashboard.reportTitle")}
+          desc={t("dashboard.reportDesc")}
+          action={t("dashboard.buildReport")}
           onClick={() => {
             if (pets && pets.length > 0) {
-              setActivePetId(pets[0].id);
-              setActiveModule("crm");
+              openProject(pets[0].id);
             }
           }}
         />

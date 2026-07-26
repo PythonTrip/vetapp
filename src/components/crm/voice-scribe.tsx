@@ -10,7 +10,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useAddConsultation, useUpdatePet } from "@/lib/hooks";
-import { useAppStore } from "@/lib/store";
 import type { PetWithRelations, ParsedNoteFields } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -32,8 +31,6 @@ export function VoiceScribe({ pet, onSaved }: VoiceScribeProps) {
 
   const addConsultation = useAddConsultation();
   const updatePet = useUpdatePet();
-  const { setActivePetId } = useAppStore();
-  void setActivePetId;
 
   // Clean up on unmount
   React.useEffect(() => {

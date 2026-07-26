@@ -33,6 +33,7 @@ import {
 } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useI18n } from "@/lib/i18n";
 
 const CATEGORY_META: Record<Allergen["category"], { label: string; icon: React.ElementType; color: string }> = {
   environmental: { label: "Environmental", icon: Wind, color: "bg-sky-500/10 text-sky-600 dark:text-sky-400" },
@@ -45,17 +46,17 @@ const HANDOUT_ICONS: Record<string, React.ElementType> = {
 };
 
 export function KnowledgeModule() {
+  const { t } = useI18n();
   return (
     <div className="w-full min-w-0 p-4 sm:p-6 lg:p-8 space-y-6 max-w-6xl mx-auto">
       <div>
         <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-primary mb-1">
           <BookOpen className="h-3.5 w-3.5" />
-          Knowledge Base & Dermatologist Assistant
+          {t("knowledge.eyebrow")}
         </div>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Clinical Resources</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t("knowledge.title")}</h1>
         <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-          Quick-access protocols, allergen cross-reference matrix, and a 2-click client handout generator —
-          everything you need at your fingertips during a consultation.
+          {t("knowledge.description")}
         </p>
       </div>
 
@@ -63,16 +64,16 @@ export function KnowledgeModule() {
         <div className="w-full min-w-0 overflow-x-auto scrollbar-thin">
         <TabsList className="flex h-10 w-max min-w-full max-w-3xl [&>*]:shrink-0 lg:grid lg:w-full lg:grid-cols-4">
           <TabsTrigger value="elimination" className="text-xs sm:text-sm gap-1.5">
-            <ClipboardCheck className="h-3.5 w-3.5" /> Elimination Protocol
+            <ClipboardCheck className="h-3.5 w-3.5" /> {t("knowledge.protocol")}
           </TabsTrigger>
           <TabsTrigger value="wizard" className="text-xs sm:text-sm gap-1.5">
-            <Wand2 className="h-3.5 w-3.5" /> Diet Wizard
+            <Wand2 className="h-3.5 w-3.5" /> {t("knowledge.wizard")}
           </TabsTrigger>
           <TabsTrigger value="allergens" className="text-xs sm:text-sm gap-1.5">
-            <Leaf className="h-3.5 w-3.5" /> Allergen Directory
+            <Leaf className="h-3.5 w-3.5" /> {t("knowledge.allergens")}
           </TabsTrigger>
           <TabsTrigger value="handouts" className="text-xs sm:text-sm gap-1.5">
-            <FileText className="h-3.5 w-3.5" /> Handout Builder
+            <FileText className="h-3.5 w-3.5" /> {t("knowledge.handouts")}
           </TabsTrigger>
         </TabsList>
         </div>

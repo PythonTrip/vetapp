@@ -11,7 +11,6 @@ import {
 } from "recharts";
 import { usePets, useDeletePet } from "@/lib/hooks";
 import { useQueryClient } from "@tanstack/react-query";
-import { useAppStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -42,12 +41,16 @@ import { DrugInteractionChecker } from "@/components/crm/drug-interaction-checke
 import { OwnerPortalDialog } from "@/components/crm/owner-portal-dialog";
 import { ConsultationWorkspace } from "@/components/crm/consultation-workspace";
 import { toast } from "sonner";
+import { useAppNavigation } from "@/lib/navigation";
+import { useI18n } from "@/lib/i18n";
 
-export function CrmModule() {
+export function CrmModule({ projectId = null }: { projectId?: string | null }) {
   const { data: pets, isLoading } = usePets();
   const deletePet = useDeletePet();
   const queryClient = useQueryClient();
-  const { activePetId, setActivePetId } = useAppStore();
+  const { openProject, showProjects } = useAppNavigation();
+  const { t } = useI18n();
+  const activePetId = projectId;
   const [search, setSearch] = React.useState("");
   const [showForm, setShowForm] = React.useState(false);
   const [editingPet, setEditingPet] = React.useState<PetWithRelations | null>(null);
@@ -86,9 +89,9 @@ export function CrmModule() {
             <div>
               <h2 className="text-lg font-bold flex items-center gap-2">
                 <Users className="h-5 w-5 text-primary" />
-                Patients
+                {t("projects.title")}
               </h2>
-              <p className="text-xs text-muted-foreground">{pets?.length ?? 0} in your care</p>
+              <p className="text-xs text-muted-foreground">{pets?.length ?? 0} {t("projects.count")}</p>
             </div>
             <div className="flex items-center gap-1">
               {pets && pets.length > 0 && (
@@ -114,14 +117,14 @@ export function CrmModule() {
                 </>
               )}
               <Button size="sm" className="gap-1.5" onClick={handleNew}>
-                <Plus className="h-4 w-4" /> New
+                <Plus className="h-4 w-4" /> {t("projects.new")}
               </Button>
             </div>
           </div>
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search name, breed, owner..."
+              placeholder={t("projects.search")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-8 h-9 text-sm"
@@ -135,9 +138,9 @@ export function CrmModule() {
             ) : filtered.length === 0 ? (
               <div className="text-center py-12 px-4">
                 <PawPrint className="h-10 w-10 mx-auto text-muted-foreground/30 mb-2" />
-                <p className="text-sm text-muted-foreground">No patients found.</p>
+                <p className="text-sm text-muted-foreground">{t("projects.empty")}</p>
                 <Button size="sm" variant="outline" className="mt-3 gap-1.5" onClick={handleNew}>
-                  <Plus className="h-4 w-4" /> Add first patient
+                  <Plus className="h-4 w-4" /> {t("projects.addFirst")}
                 </Button>
               </div>
             ) : (
@@ -149,7 +152,7 @@ export function CrmModule() {
                 return (
                   <button
                     key={p.id}
-                    onClick={() => setActivePetId(p.id)}
+                    onClick={() => openProject(p.id)}
                     className={`w-full text-left rounded-xl p-3 transition-all border ${isActive ? "border-primary bg-primary/5 shadow-sm" : "border-transparent hover:bg-muted/60"}`}
                   >
                     <div className="flex items-start gap-2.5">
@@ -194,7 +197,7 @@ export function CrmModule() {
           <div className="shrink-0 border-b bg-background px-4 sm:px-6 py-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="flex items-start gap-3 min-w-0">
-                <Button variant="ghost" size="icon" className="2xl:hidden -ml-2 shrink-0" onClick={() => setActivePetId(null)}>
+                <Button variant="ghost" size="icon" className="2xl:hidden -ml-2 shrink-0" onClick={showProjects}>
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div className={`flex h-12 w-12 items-center justify-center rounded-xl shrink-0 ${speciesAvatarClass(activePet.species)}`}>
@@ -213,10 +216,10 @@ export function CrmModule() {
               </div>
               <div className="flex flex-wrap items-center gap-1.5 sm:shrink-0">
                 <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleEdit(activePet)} title="Edit patient" aria-label="Edit patient">
-                  <Pencil className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Edit</span>
+                  <Pencil className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{t("projects.edit")}</span>
                 </Button>
                 <Button variant="outline" size="sm" className="gap-1.5 text-destructive hover:text-destructive" onClick={() => setDeleteId(activePet.id)} title="Delete patient" aria-label="Delete patient">
-                  <Trash2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Delete</span>
+                  <Trash2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{t("projects.delete")}</span>
                 </Button>
                 <Button
                   size="sm"
@@ -225,7 +228,7 @@ export function CrmModule() {
                   title="Open Live Consultation Mode"
                 >
                   <Radio className="h-3.5 w-3.5 animate-pulse" />
-                  <span className="hidden sm:inline">Live Consult</span>
+                  <span className="hidden sm:inline">{t("projects.live")}</span>
                 </Button>
                 <Button
                   size="sm"
@@ -235,10 +238,10 @@ export function CrmModule() {
                   title="Generate shareable link for owner"
                 >
                   <Share2 className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Share</span>
+                  <span className="hidden sm:inline">{t("projects.share")}</span>
                 </Button>
                 <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setShowReport(true)} title="Open clinical report" aria-label="Open clinical report">
-                  <FileText className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Report</span>
+                  <FileText className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{t("projects.report")}</span>
                 </Button>
               </div>
             </div>
@@ -260,12 +263,12 @@ export function CrmModule() {
                 <div className="w-full min-w-0 overflow-x-auto scrollbar-thin">
                   <TabsList className="flex h-9 w-max min-w-full max-w-4xl lg:grid lg:w-full lg:grid-cols-7">
                     <TabsTrigger value="visit" className="shrink-0 gap-1 text-xs font-semibold"><ClipboardList className="h-3.5 w-3.5" /> Приём</TabsTrigger>
-                    <TabsTrigger value="profile" className="shrink-0 gap-1 text-xs"><Stethoscope className="h-3.5 w-3.5" /> Profile</TabsTrigger>
-                    <TabsTrigger value="timeline" className="shrink-0 gap-1 text-xs"><Calendar className="h-3.5 w-3.5" /> Timeline</TabsTrigger>
-                    <TabsTrigger value="gallery" className="shrink-0 gap-1 text-xs"><ImageIcon className="h-3.5 w-3.5" /> Gallery</TabsTrigger>
-                    <TabsTrigger value="diet" className="shrink-0 gap-1 text-xs"><Scale className="h-3.5 w-3.5" /> Diet</TabsTrigger>
-                    <TabsTrigger value="comms" className="shrink-0 gap-1 text-xs"><MessageSquare className="h-3.5 w-3.5" /> Comms</TabsTrigger>
-                    <TabsTrigger value="scribe" className="shrink-0 gap-1 text-xs"><Activity className="h-3.5 w-3.5" /> Scribe</TabsTrigger>
+                    <TabsTrigger value="profile" className="shrink-0 gap-1 text-xs"><Stethoscope className="h-3.5 w-3.5" /> {t("projects.profile")}</TabsTrigger>
+                    <TabsTrigger value="timeline" className="shrink-0 gap-1 text-xs"><Calendar className="h-3.5 w-3.5" /> {t("projects.timeline")}</TabsTrigger>
+                    <TabsTrigger value="gallery" className="shrink-0 gap-1 text-xs"><ImageIcon className="h-3.5 w-3.5" /> {t("projects.gallery")}</TabsTrigger>
+                    <TabsTrigger value="diet" className="shrink-0 gap-1 text-xs"><Scale className="h-3.5 w-3.5" /> {t("projects.diet")}</TabsTrigger>
+                    <TabsTrigger value="comms" className="shrink-0 gap-1 text-xs"><MessageSquare className="h-3.5 w-3.5" /> {t("projects.comms")}</TabsTrigger>
+                    <TabsTrigger value="scribe" className="shrink-0 gap-1 text-xs"><Activity className="h-3.5 w-3.5" /> {t("projects.scribe")}</TabsTrigger>
                   </TabsList>
                 </div>
 
@@ -300,12 +303,12 @@ export function CrmModule() {
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary mx-auto mb-4">
               <PawPrint className="h-8 w-8" />
             </div>
-            <h3 className="font-semibold text-lg">Select a patient</h3>
+            <h3 className="font-semibold text-lg">{t("projects.select")}</h3>
             <p className="text-sm text-muted-foreground mt-1">
-              Choose a patient from the list to view their full record, or create a new one to get started.
+              {t("projects.selectDescription")}
             </p>
             <Button className="mt-4 gap-1.5" onClick={handleNew}>
-              <Plus className="h-4 w-4" /> New Patient
+              <Plus className="h-4 w-4" /> {t("projects.newProject")}
             </Button>
           </div>
         </div>
@@ -325,7 +328,7 @@ export function CrmModule() {
           try {
             await deletePet.mutateAsync(deleteId);
             toast.success("Patient deleted");
-            setActivePetId(null);
+            showProjects();
             setDeleteId(null);
             await queryClient.invalidateQueries({ queryKey: ["pets"] });
             await queryClient.invalidateQueries({ queryKey: ["appointments"] });
