@@ -7,9 +7,24 @@
 import { DatabaseSync } from "node:sqlite";
 import { PrismaClient } from "@prisma/client";
 
-const sqlitePath = process.argv[2] ?? "db/custom.db";
+const sqlitePath = process.argv.find((a) => a.endsWith(".db")) ?? "db/custom.db";
 const sqlite = new DatabaseSync(sqlitePath, { readOnly: true });
-const dbUrl = process.env.DIRECT_URL || process.env.DATABASE_URL;
+
+// Prefer pooled URL for bulk inserts — Neon's direct endpoint drops idle/long sessions.
+function resolveDbUrl() {
+  const raw = process.env.DATABASE_URL || process.env.DIRECT_URL;
+  if (!raw) throw new Error("DATABASE_URL or DIRECT_URL is required");
+  const url = new URL(raw);
+  if (!url.searchParams.has("connect_timeout")) {
+    url.searchParams.set("connect_timeout", "30");
+  }
+  if (!url.searchParams.has("sslmode")) {
+    url.searchParams.set("sslmode", "require");
+  }
+  return url.toString();
+}
+
+const dbUrl = resolveDbUrl();
 
 function createDb() {
   return new PrismaClient({
@@ -25,11 +40,12 @@ async function reconnect() {
   } catch {
     // ignore
   }
+  await new Promise((r) => setTimeout(r, 1500));
   db = createDb();
   await db.$queryRaw`SELECT 1`;
 }
 
-async function withRetry(label, fn, attempts = 8) {
+async function withRetry(label, fn, attempts = 12) {
   let last;
   for (let i = 1; i <= attempts; i++) {
     try {
@@ -42,7 +58,7 @@ async function withRetry(label, fn, attempts = 8) {
       if (code === "P1017" || /closed the connection|timed out|Can't reach/i.test(msg)) {
         await reconnect();
       }
-      await new Promise((r) => setTimeout(r, 1000 * i));
+      await new Promise((r) => setTimeout(r, Math.min(15000, 1500 * i)));
     }
   }
   throw last;
@@ -130,6 +146,8 @@ async function createManyBatched(label, getModel, rows, batchSize = 500) {
     if (rows.length > batchSize) {
       process.stdout.write(`\r${label}: ${done}/${rows.length}`);
     }
+    // Brief pause keeps Neon pooler from dropping the session under burst load.
+    await new Promise((r) => setTimeout(r, 50));
   }
   if (rows.length > batchSize) process.stdout.write("\n");
   console.log(`${label}: ${rows.length} rows`);
@@ -137,7 +155,7 @@ async function createManyBatched(label, getModel, rows, batchSize = 500) {
 
 async function main() {
   console.log(`Source: ${sqlitePath}`);
-  console.log("Target: Neon/Postgres via Prisma");
+  console.log(`Target host: ${new URL(dbUrl).hostname}`);
   await withRetry("warmup", () => db.$queryRaw`SELECT 1`);
 
   // Clear destination in FK-safe order (children first), one table at a time.
@@ -181,12 +199,12 @@ async function main() {
   await createManyBatched("CommunicationLog", () => db.communicationLog, communications);
   await createManyBatched("CustomHandout", () => db.customHandout, handouts);
   await createManyBatched("ShareToken", () => db.shareToken, tokens);
-  await createManyBatched("NutritionProduct", () => db.nutritionProduct, products, 100);
+  await createManyBatched("NutritionProduct", () => db.nutritionProduct, products, 50);
   await createManyBatched(
     "NutritionProductNutrient",
     () => db.nutritionProductNutrient,
     nutrients,
-    400,
+    200,
   );
 
   // Keep serial sequences in sync after explicit id inserts.
