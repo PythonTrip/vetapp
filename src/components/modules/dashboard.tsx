@@ -1,18 +1,14 @@
 "use client";
-// Dashboard module with overview and analytics tabs
 import * as React from "react";
 import {
   PawPrint,
   Users,
   Activity,
   Stethoscope,
-  Mic,
   FileText,
   ArrowRight,
   Calendar,
   Scale,
-  BarChart3,
-  LayoutDashboard,
   Download,
   DatabaseBackup,
   Loader2,
@@ -23,23 +19,17 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { calculateAge, bcsDescription, vasDescription } from "@/lib/nutrition";
-import { AnalyticsPanel } from "@/components/modules/analytics";
-import { ComparisonPanel } from "@/components/modules/comparison";
 import { exportPatientsCSV } from "@/lib/export-utils";
 import { AppointmentScheduler } from "@/components/appointment-scheduler";
-import { GitCompare } from "lucide-react";
 import { toast } from "sonner";
-import { ClinicalInsights } from "@/components/dashboard/clinical-insights";
 import { useAppNavigation } from "@/lib/navigation";
 import { useI18n } from "@/lib/i18n";
 
 export function DashboardModule() {
   const { data: pets, isLoading } = usePets();
-  const { goToSection, openProject } = useAppNavigation();
+  const { goToSection, openPatient } = useAppNavigation();
   const { t } = useI18n();
-  const [tab, setTab] = React.useState<"overview" | "analytics" | "compare">("overview");
   const [backingUp, setBackingUp] = React.useState(false);
 
   async function handleBackup() {
@@ -95,7 +85,7 @@ export function DashboardModule() {
     .slice(0, 6);
 
   const openPet = (id: string) => {
-    openProject(id);
+    openPatient(id);
   };
 
   return (
@@ -125,28 +115,12 @@ export function DashboardModule() {
               </Button>
             </>
           )}
-          <Button onClick={() => goToSection("projects")} className="gap-2">
-            <Mic className="h-4 w-4" />
+          <Button onClick={() => goToSection("patients")} className="gap-2">
+            <Stethoscope className="h-4 w-4" />
             {t("dashboard.start")}
           </Button>
         </div>
       </div>
-
-      {/* View toggle */}
-      <Tabs value={tab} onValueChange={(v) => setTab(v as "overview" | "analytics" | "compare")}>
-        <TabsList className="grid w-full max-w-md grid-cols-3 h-9">
-          <TabsTrigger value="overview" className="text-xs gap-1.5">
-            <LayoutDashboard className="h-3.5 w-3.5" /> {t("dashboard.overview")}
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="text-xs gap-1.5">
-            <BarChart3 className="h-3.5 w-3.5" /> {t("dashboard.analytics")}
-          </TabsTrigger>
-          <TabsTrigger value="compare" className="text-xs gap-1.5">
-            <GitCompare className="h-3.5 w-3.5" /> {t("dashboard.compare")}
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="mt-4 space-y-6">
 
       {/* Stat cards */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
@@ -192,7 +166,7 @@ export function DashboardModule() {
               <CardTitle className="text-base">{t("dashboard.recent")}</CardTitle>
               <CardDescription className="text-xs">{t("dashboard.recentDesc")}</CardDescription>
             </div>
-            <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={() => goToSection("projects")}>
+            <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={() => goToSection("patients")}>
               {t("dashboard.viewAll")} <ArrowRight className="h-3 w-3" />
             </Button>
           </CardHeader>
@@ -292,11 +266,11 @@ export function DashboardModule() {
       {/* Quick actions / value prop */}
       <div className="grid gap-4 md:grid-cols-3">
         <QuickAction
-          icon={Mic}
-          title={t("dashboard.voiceTitle")}
-          desc={t("dashboard.voiceDesc")}
+          icon={Stethoscope}
+          title={t("dashboard.visitTitle")}
+          desc={t("dashboard.visitDesc")}
           action={t("dashboard.openPatients")}
-          onClick={() => goToSection("projects")}
+          onClick={() => goToSection("patients")}
         />
         <QuickAction
           icon={Scale}
@@ -312,24 +286,11 @@ export function DashboardModule() {
           action={t("dashboard.buildReport")}
           onClick={() => {
             if (pets && pets.length > 0) {
-              openProject(pets[0].id);
+              openPatient(pets[0].id);
             }
           }}
         />
       </div>
-
-      {/* Clinical Insights panel */}
-      <ClinicalInsights />
-        </TabsContent>
-
-        <TabsContent value="analytics" className="mt-4">
-          <AnalyticsPanel />
-        </TabsContent>
-
-        <TabsContent value="compare" className="mt-4">
-          <ComparisonPanel />
-        </TabsContent>
-      </Tabs>
 
     </div>
   );

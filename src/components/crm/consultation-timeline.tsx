@@ -138,7 +138,7 @@ export function ConsultationTimeline({ pet }: { pet: PetWithRelations }) {
             </div>
             <p className="text-sm font-medium text-foreground">No consultations yet</p>
             <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
-              Start the timeline with a quick template, add a manual entry, or use the AI Voice Scribe during a live visit.
+              Start the timeline with a clinical template or add a structured entry manually.
             </p>
             <div className="flex items-center justify-center gap-2 mt-4">
               <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setTemplateOpen(true)}>

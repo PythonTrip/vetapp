@@ -56,7 +56,7 @@ export function DietPlanPanel({ pet }: { pet: PetWithRelations }) {
               { name: "Fat", value: macros.fat ?? 0, fill: "oklch(0.7 0.14 85)" },
               { name: "Carbs", value: macros.carbs ?? 0, fill: "oklch(0.65 0.15 145)" },
             ];
-            let template: { category: string; ingredient: string; percentage: number }[] = [];
+            let template: { category: string; ingredient: string; grams?: number; percentage?: number }[] = [];
             try { template = plan.template ? JSON.parse(plan.template) : []; } catch { /* */ }
             return (
               <div key={plan.id} className="rounded-xl border p-4 group">
@@ -131,7 +131,9 @@ export function DietPlanPanel({ pet }: { pet: PetWithRelations }) {
                         <div key={i} className="flex items-center gap-2 text-xs">
                           <Badge variant="secondary" className="text-[9px] capitalize w-20 justify-center">{t.category}</Badge>
                           <span className="flex-1 truncate">{t.ingredient}</span>
-                          <span className="font-semibold tabular-nums">{t.percentage}%</span>
+                          <span className="font-semibold tabular-nums">
+                            {t.grams != null ? `${t.grams} г` : `${t.percentage ?? 0}%`}
+                          </span>
                         </div>
                       ))}
                     </div>

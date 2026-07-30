@@ -2,11 +2,11 @@
 
 import { useRouter } from "next/navigation";
 
-export type AppSection = "dashboard" | "projects" | "nutrition" | "knowledge" | "settings";
+export type AppSection = "dashboard" | "patients" | "nutrition" | "knowledge" | "settings";
 
 export const SECTION_PATHS: Record<AppSection, string> = {
   dashboard: "/",
-  projects: "/projects",
+  patients: "/patients",
   nutrition: "/nutrition",
   knowledge: "/knowledge",
   settings: "/settings",
@@ -14,21 +14,16 @@ export const SECTION_PATHS: Record<AppSection, string> = {
 
 export function sectionFromPathname(pathname: string): AppSection {
   if (pathname === "/") return "dashboard";
-  if (pathname === "/projects" || pathname.startsWith("/projects/")) return "projects";
+  if (
+    pathname === "/patients" ||
+    pathname.startsWith("/patients/") ||
+    pathname === "/projects" ||
+    pathname.startsWith("/projects/")
+  ) return "patients";
   if (pathname === "/nutrition" || pathname.startsWith("/nutrition/")) return "nutrition";
   if (pathname === "/knowledge" || pathname.startsWith("/knowledge/")) return "knowledge";
   if (pathname === "/settings" || pathname.startsWith("/settings/")) return "settings";
   return "dashboard";
-}
-
-export function projectIdFromPathname(pathname: string): string | null {
-  const match = pathname.match(/^\/projects\/([^/]+)\/?$/);
-  if (!match) return null;
-  try {
-    return decodeURIComponent(match[1]);
-  } catch {
-    return match[1];
-  }
 }
 
 export function useAppNavigation() {
@@ -38,11 +33,11 @@ export function useAppNavigation() {
     goToSection(section: AppSection) {
       router.push(SECTION_PATHS[section]);
     },
-    openProject(id: string) {
-      router.push(`/projects/${encodeURIComponent(id)}`);
+    openPatient(id: string) {
+      router.push(`/patients/${encodeURIComponent(id)}`);
     },
-    showProjects() {
-      router.push("/projects");
+    showPatients() {
+      router.push("/patients");
     },
   };
 }

@@ -7,6 +7,7 @@ import { translateLegacyText } from "@/lib/legacy-ui-messages";
 const TRANSLATABLE_ATTRIBUTES = ["placeholder", "title", "aria-label"] as const;
 let originalText = new WeakMap<Text, string>();
 let originalAttributes = new WeakMap<Element, Map<string, string>>();
+let lastAppliedText = new WeakMap<Text, string>();
 
 export function LegacyTranslationBoundary({ children }: { children: React.ReactNode }) {
   const { locale } = useI18n();
@@ -17,6 +18,7 @@ export function LegacyTranslationBoundary({ children }: { children: React.ReactN
     // instead of reusing nodes remembered under the previous locale.
     originalText = new WeakMap<Text, string>();
     originalAttributes = new WeakMap<Element, Map<string, string>>();
+    lastAppliedText = new WeakMap<Text, string>();
     let applying = false;
 
     const translateNode = (node: Node) => {
@@ -35,7 +37,10 @@ export function LegacyTranslationBoundary({ children }: { children: React.ReactN
         }
         const source = originalText.get(textNode) ?? textNode.data;
         const next = translateLegacyText(source, locale);
-        if (textNode.data !== next) textNode.data = next;
+        if (textNode.data !== next) {
+          lastAppliedText.set(textNode, next);
+          textNode.data = next;
+        }
         return;
       }
 
@@ -72,7 +77,18 @@ export function LegacyTranslationBoundary({ children }: { children: React.ReactN
       if (applying) return;
       for (const mutation of mutations) {
         if (mutation.type === "characterData") {
-          apply(mutation.target);
+          const textNode = mutation.target as Text;
+          const translatedValue = lastAppliedText.get(textNode);
+          if (translatedValue === textNode.data) {
+            lastAppliedText.delete(textNode);
+            continue;
+          }
+          // React updated an existing text node (for example, a calculated
+          // weight or kcal total). Treat the new value as fresh source text;
+          // otherwise the translator would restore the value captured when
+          // the node first mounted.
+          originalText.set(textNode, textNode.data);
+          apply(textNode);
         } else {
           for (const addedNode of Array.from(mutation.addedNodes)) apply(addedNode);
         }

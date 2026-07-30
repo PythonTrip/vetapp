@@ -207,10 +207,10 @@ export function resolveNorms(
  */
 export function buildNormComparison(
   analysis: DietNutrientAnalysis,
-  dailyKcal: number,
+  rationKcal: number,
   norms: Record<string, number>
 ): NormComparisonRow[] {
-  const factor = dailyKcal / 1000;
+  const factor = rationKcal / 1000;
   if (factor <= 0) return [];
 
   const rows: NormComparisonRow[] = [];
@@ -250,7 +250,7 @@ export function productToDietComponent(product: NutritionProductDto): DietTempla
   return {
     category: CATALOG_TO_DIET_CATEGORY[product.category] ?? "protein",
     ingredient: product.name,
-    percentage: 0,
+    grams: 0,
     productId: product.id,
     meKcalPerKg: nutrientMap.get("ME") ?? null,
     proteinPct: nutrientMap.get("CP") ?? null,

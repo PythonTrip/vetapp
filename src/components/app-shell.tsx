@@ -23,19 +23,10 @@ import { cn } from "@/lib/utils";
 import { usePets } from "@/lib/hooks";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { DashboardModule } from "@/components/modules/dashboard";
-import { CrmModule } from "@/components/modules/crm";
-import { NutritionModule } from "@/components/modules/nutrition";
-import { KnowledgeModule } from "@/components/modules/knowledge";
-import { SettingsModule } from "@/components/modules/settings";
 import { CommandPalette } from "@/components/command-palette";
 import { AppointmentReminders } from "@/components/appointment-reminders";
 import { useI18n, type MessageKey } from "@/lib/i18n";
-import {
-  projectIdFromPathname,
-  sectionFromPathname,
-  type AppSection,
-} from "@/lib/navigation";
+import { sectionFromPathname, type AppSection } from "@/lib/navigation";
 
 const NAV_ITEMS: {
   id: AppSection;
@@ -45,7 +36,7 @@ const NAV_ITEMS: {
   desc: MessageKey;
 }[] = [
   { id: "dashboard", href: "/", label: "nav.home", icon: LayoutDashboard, desc: "nav.homeDesc" },
-  { id: "projects", href: "/projects", label: "nav.projects", icon: Users, desc: "nav.projectsDesc" },
+  { id: "patients", href: "/patients", label: "nav.patients", icon: Users, desc: "nav.patientsDesc" },
   { id: "nutrition", href: "/nutrition", label: "nav.nutrition", icon: Calculator, desc: "nav.nutritionDesc" },
   { id: "knowledge", href: "/knowledge", label: "nav.knowledge", icon: BookOpen, desc: "nav.knowledgeDesc" },
   { id: "settings", href: "/settings", label: "nav.settings", icon: Settings, desc: "nav.settingsDesc" },
@@ -87,10 +78,9 @@ function LanguageToggle() {
   );
 }
 
-export function AppShell() {
+export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const activeSection = sectionFromPathname(pathname);
-  const activeProjectId = projectIdFromPathname(pathname);
   const { data: pets } = usePets();
   const { t } = useI18n();
   const [cmdOpen, setCmdOpen] = React.useState(false);
@@ -134,7 +124,7 @@ export function AppShell() {
           </button>
         </div>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 scrollbar-thin" aria-label="Main navigation">
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3 scrollbar-thin" aria-label={t("shell.mainNav")}>
           {NAV_ITEMS.map((item) => {
             const active = activeSection === item.id;
             return (
@@ -179,7 +169,7 @@ export function AppShell() {
           <div className="rounded-xl border border-border/50 bg-gradient-to-br from-sidebar-accent/80 to-sidebar-accent/40 p-3">
             <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               <HeartPulse className="h-3.5 w-3.5 text-primary" />
-              {t("shell.activeProjects")}
+              {t("shell.activePatients")}
             </div>
             <div className="flex items-baseline gap-1.5">
               <span className="text-2xl font-bold tabular-nums">{pets?.length ?? 0}</span>
@@ -233,7 +223,7 @@ export function AppShell() {
           </div>
         </header>
 
-        <nav className="flex shrink-0 gap-1 overflow-x-auto border-b px-2 py-2 scrollbar-thin md:hidden" aria-label="Main navigation">
+        <nav className="flex shrink-0 gap-1 overflow-x-auto border-b px-2 py-2 scrollbar-thin md:hidden" aria-label={t("shell.mainNav")}>
           {NAV_ITEMS.map((item) => {
             const active = activeSection === item.id;
             return (
@@ -254,11 +244,7 @@ export function AppShell() {
         </nav>
 
         <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
-          {activeSection === "dashboard" && <DashboardModule />}
-          {activeSection === "projects" && <CrmModule projectId={activeProjectId} />}
-          {activeSection === "nutrition" && <NutritionModule />}
-          {activeSection === "knowledge" && <KnowledgeModule />}
-          {activeSection === "settings" && <SettingsModule />}
+          {children}
         </main>
       </div>
 

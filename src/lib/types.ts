@@ -174,7 +174,7 @@ export type DietComponentCategory =
 export interface DietTemplateComponent {
   category: DietComponentCategory;
   ingredient: string;
-  percentage: number;
+  grams: number;
   // Optional link to a NutritionProduct from the catalog — enables accurate
   // energy density (ME) and macro math instead of category defaults
   productId?: number | null;

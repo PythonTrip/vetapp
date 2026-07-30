@@ -52,7 +52,7 @@ const URGENCY_STYLES: Record<string, string> = {
 
 export function AppointmentReminders() {
   const { data: appointments, isLoading } = useAppointments();
-  const { goToSection, openProject } = useAppNavigation();
+  const { goToSection, openPatient } = useAppNavigation();
   const [open, setOpen] = React.useState(false);
   const [dismissed, setDismissed] = React.useState<Set<string>>(new Set());
 
@@ -81,7 +81,7 @@ export function AppointmentReminders() {
   }
 
   function handleClick(appt: AppointmentWithPet) {
-    openProject(appt.petId);
+    openPatient(appt.petId);
     setOpen(false);
   }
 

@@ -19,10 +19,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "VetDietDerm — Veterinary Nutrition & Dermatology CRM",
+  title: "VetDietDerm — менеджер ветеринарных пациентов и приёмов",
   description:
-    "A lightweight digital workspace for independent veterinary nutritionists and dermatologists. AI voice scribe, nutrition calculators, dermatology tracking, and one-click branded PDF reports.",
-  keywords: ["veterinary", "nutrition", "dermatology", "CRM", "AI scribe", "pet health", "elimination diet"],
+    "Рабочее пространство ветеринарного врача: карточки пациентов, структурированные приёмы, расписание, питание и клиническая история.",
+  keywords: ["ветеринария", "пациенты", "приёмы", "диетология", "дерматология", "CRM"],
   authors: [{ name: "VetDietDerm" }],
   icons: { icon: "/logo.svg" },
 };

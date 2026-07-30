@@ -23,7 +23,7 @@ interface CommandPaletteProps {
 
 export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const { data: pets } = usePets();
-  const { goToSection, openProject } = useAppNavigation();
+  const { goToSection, openPatient } = useAppNavigation();
   const { t } = useI18n();
   const { setTheme, theme } = useTheme();
 
@@ -33,7 +33,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   };
 
   const openPet = (id: string) => {
-    openProject(id);
+    openPatient(id);
     onOpenChange(false);
   };
 
@@ -50,9 +50,9 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             <span>{t("command.goHome")}</span>
             <CommandShortcut>Overview</CommandShortcut>
           </CommandItem>
-          <CommandItem onSelect={() => go("projects")}>
+          <CommandItem onSelect={() => go("patients")}>
             <Users className="h-4 w-4 text-primary" />
-            <span>{t("command.goProjects")}</span>
+            <span>{t("command.goPatients")}</span>
             <CommandShortcut>Records</CommandShortcut>
           </CommandItem>
           <CommandItem onSelect={() => go("nutrition")}>
@@ -114,12 +114,12 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             <span>Toggle {theme === "dark" ? "Light" : "Dark"} Mode</span>
           </CommandItem>
-          <CommandItem onSelect={() => go("projects")}>
+          <CommandItem onSelect={() => go("patients")}>
             <Plus className="h-4 w-4 text-emerald-600" />
             <span>Add New Patient</span>
             <CommandShortcut>CRM</CommandShortcut>
           </CommandItem>
-          <CommandItem onSelect={() => go("projects")}>
+          <CommandItem onSelect={() => go("patients")}>
             <FileText className="h-4 w-4 text-primary" />
             <span>Generate Consultation Report</span>
           </CommandItem>

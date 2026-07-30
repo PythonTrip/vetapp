@@ -20,7 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import {
-  calculateRERMER, convertToDryMatter, estimateMEKcal, buildDietTemplate, summarizeDiet,
+  calculateRERMER, convertToDryMatter, estimateMEKcal, calculateDietComponents, summarizeDiet,
 } from "@/lib/nutrition";
 import {
   SPECIES_OPTIONS, LIFE_STAGE_OPTIONS, ACTIVITY_OPTIONS, NOVEL_PROTEINS,
@@ -174,7 +174,6 @@ function RERMERCalculator() {
   const [targetWeight, setTargetWeight] = useState("");
 
   const patient = useSelectedPatient();
-  const sendKcalToBuilder = useNutritionWorkspace((s) => s.sendKcalToBuilder);
 
   // Prefill inputs from the shared patient (once per patient change,
   // so manual tweaks are not overwritten by query refetches)
@@ -224,12 +223,6 @@ function RERMERCalculator() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to save");
     }
-  }
-
-  function useInBuilder() {
-    if (!result) return;
-    sendKcalToBuilder(result.mer, patient ? `MER — ${patient.name}` : "MER из калькулятора");
-    toast.success(`Целевая калорийность ${result.mer} ккал передана в конструктор рациона`);
   }
 
   return (
@@ -362,19 +355,6 @@ function RERMERCalculator() {
                       </div>
                     )}
                   </div>
-                  {fediafMer.kcal != null && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 w-full gap-1.5 text-xs"
-                      onClick={() => {
-                        sendKcalToBuilder(fediafMer.kcal!, patient ? `FEDIAF MER — ${patient.name}` : "FEDIAF MER");
-                        toast.success(`Целевая калорийность ${fediafMer.kcal} ккал (FEDIAF) передана в конструктор`);
-                      }}
-                    >
-                      <Beef className="h-3.5 w-3.5" /> Использовать {fediafMer.kcal} ккал (FEDIAF) в конструкторе
-                    </Button>
-                  )}
                 </div>
               )}
 
@@ -389,11 +369,8 @@ function RERMERCalculator() {
                 </div>
               </div>
 
-              {/* Hand off to builder + save */}
+              {/* Save */}
               <div className="pt-2 border-t space-y-2">
-                <Button className="w-full gap-1.5" onClick={useInBuilder}>
-                  <Beef className="h-4 w-4" /> Использовать {result.mer} ккал в конструкторе рациона
-                </Button>
                 {patient ? (
                   <Button variant="outline" className="w-full" disabled={createDiet.isPending} onClick={() => saveToPet(patient.id)}>
                     Сохранить план для {patient.name}
@@ -564,51 +541,16 @@ const CATEGORY_META: Record<string, { label: string; color: string; icon: React.
 function DietTemplateBuilder() {
   const type = useNutritionWorkspace((s) => s.dietType);
   const setType = useNutritionWorkspace((s) => s.setDietType);
-  const dailyKcal = useNutritionWorkspace((s) => s.dailyKcal);
-  const setDailyKcal = useNutritionWorkspace((s) => s.setDailyKcal);
   const components = useNutritionWorkspace((s) => s.components);
-  const setComponents = useNutritionWorkspace((s) => s.setComponents);
-  const targetKcal = useNutritionWorkspace((s) => s.targetKcal);
-  const targetKcalSource = useNutritionWorkspace((s) => s.targetKcalSource);
+  const updateDietComponent = useNutritionWorkspace((s) => s.updateDietComponent);
+  const removeDietComponent = useNutritionWorkspace((s) => s.removeDietComponent);
 
   const patient = useSelectedPatient();
 
-  const totalPct = components.reduce((s, c) => s + c.percentage, 0);
-  const isBalanced = Math.abs(totalPct - 100) < 0.5;
+  const built = calculateDietComponents(components);
+  const summary = summarizeDiet(built);
 
-  const built = React.useMemo(() => {
-    const kcal = parseFloat(dailyKcal) || 0;
-    if (kcal <= 0) return [];
-    return buildDietTemplate(components, kcal);
-  }, [components, dailyKcal]);
-
-  const summary = React.useMemo(() => summarizeDiet(built), [built]);
-
-  function updateComponent(i: number, field: "category" | "percentage", value: string | number) {
-    setComponents(components.map((c, idx) => (
-      idx === i ? ({ ...c, [field]: value } as DietTemplateComponent) : c
-    )));
-  }
-  function removeComponent(i: number) {
-    setComponents(components.filter((_, idx) => idx !== i));
-  }
-
-  // Proportionally rescale all shares so they sum to exactly 100%
-  function normalizeTo100() {
-    const total = components.reduce((sum, c) => sum + c.percentage, 0);
-    if (total <= 0) return;
-    let allocated = 0;
-    setComponents(components.map((c, i) => {
-      if (i === components.length - 1) {
-        return { ...c, percentage: Math.round((100 - allocated) * 10) / 10 };
-      }
-      const pct = Math.round((c.percentage / total) * 1000) / 10;
-      allocated += pct;
-      return { ...c, percentage: pct };
-    }));
-  }
-
-  const pieData = components.filter((c) => c.percentage > 0).map((c) => ({
+  const pieData = built.filter((c) => c.grams > 0).map((c) => ({
     name: c.ingredient || c.category,
     value: c.percentage,
     fill: CATEGORY_META[c.category]?.color ?? "oklch(0.7 0.02 172)",
@@ -618,27 +560,40 @@ function DietTemplateBuilder() {
   const createDiet = useCreateDietPlan();
 
   async function saveToPet(petId: string) {
-    const kcal = parseFloat(dailyKcal) || 0;
+    if (summary.totalGrams <= 0) {
+      toast.error("Укажите граммовку хотя бы одного продукта");
+      return;
+    }
+    const targetPet = pets.data?.find((p) => p.id === petId);
+    const energyNeeds = targetPet
+      ? calculateRERMER(
+          targetPet.currentWeight,
+          targetPet.species,
+          targetPet.lifeStage,
+          targetPet.activityLevel,
+          targetPet.neutered,
+          targetPet.bcs,
+          targetPet.targetWeight
+        )
+      : null;
     try {
       await createDiet.mutateAsync({
         petId,
         name: `${type.toUpperCase()} Diet Template`,
         type,
-        rer: kcal / 1.6,
-        mer: kcal,
+        rer: energyNeeds?.rer ?? summary.totalKcal,
+        mer: energyNeeds?.mer ?? summary.totalKcal,
         macros: JSON.stringify(
           summary.proteinG != null ? { proteinG: summary.proteinG, fatG: summary.fatG } : {}
         ),
         template: JSON.stringify(components),
-        notes: `Daily target: ${kcal} kcal · ~${summary.totalGrams} g/day. Components: ${components.map((c) => `${c.ingredient} ${c.percentage}%`).join(", ")}.`,
+        notes: `Ration total: ${Math.round(summary.totalKcal)} kcal · ${summary.totalGrams} g/day. Components: ${components.map((c) => `${c.ingredient} ${c.grams} g`).join(", ")}.`,
       });
       toast.success("Diet template saved to patient");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to save");
     }
   }
-
-  const showApplyTarget = targetKcal != null && String(targetKcal) !== dailyKcal;
 
   return (
     <div className="space-y-4">
@@ -652,13 +607,13 @@ function DietTemplateBuilder() {
                 <Beef className="h-4 w-4 text-primary" /> Recipe Constructor
               </CardTitle>
               <CardDescription className="text-xs">
-                Рацион собирается из продуктов каталога — найдите их поиском ниже или на вкладке «Каталог»
+                Добавьте продукты из каталога и укажите их массу в граммах на день
               </CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="max-w-xs">
             <Field label="Diet Type">
               <Select value={type} onValueChange={(v) => setType(v as DietType)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -670,23 +625,7 @@ function DietTemplateBuilder() {
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="Daily Target kcal">
-              <Input type="number" value={dailyKcal} onChange={(e) => setDailyKcal(e.target.value)} />
-            </Field>
           </div>
-
-          {showApplyTarget && (
-            <button
-              type="button"
-              onClick={() => setDailyKcal(String(targetKcal))}
-              className="flex w-full items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 p-2.5 text-left text-xs transition-colors hover:bg-primary/10"
-            >
-              <Flame className="h-3.5 w-3.5 shrink-0 text-primary" />
-              <span className="flex-1">
-                {targetKcalSource}: <b className="tabular-nums">{targetKcal} ккал</b> — нажмите, чтобы применить
-              </span>
-            </button>
-          )}
 
           <Separator />
 
@@ -696,14 +635,17 @@ function DietTemplateBuilder() {
                 <Database className="mx-auto mb-2 h-6 w-6 text-muted-foreground/50" />
                 <p className="text-xs font-medium">Рацион пуст</p>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  Найдите продукты через поиск ниже — граммовка и анализ посчитаются по данным каталога
+                  Найдите продукты через поиск ниже и укажите их суточную граммовку
                 </p>
               </div>
             )}
             {components.map((c, i) => {
               return (
-                <div key={i} className="flex items-center gap-2 rounded-lg border p-2">
-                  <Select value={c.category} onValueChange={(v) => updateComponent(i, "category", v)}>
+                <div key={c.productId ?? `${c.ingredient}-${i}`} className="flex items-center gap-2 rounded-lg border p-2">
+                  <Select
+                    value={c.category}
+                    onValueChange={(v) => updateDietComponent(i, { category: v as DietTemplateComponent["category"] })}
+                  >
                     <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {Object.entries(CATEGORY_META).map(([k, m]) => (
@@ -723,21 +665,20 @@ function DietTemplateBuilder() {
                     <Input
                       type="number"
                       min={0}
-                      max={100}
-                      step={0.5}
-                      value={c.percentage}
+                      step={0.1}
+                      value={Number.isFinite(Number(c.grams)) ? Number(c.grams) : 0}
                       onChange={(e) => {
-                        const parsed = parseFloat(e.target.value) || 0;
-                        updateComponent(i, "percentage", Math.min(100, Math.max(0, parsed)));
+                        const value = e.currentTarget.valueAsNumber;
+                        updateDietComponent(i, {
+                          grams: Number.isFinite(value) ? Math.max(0, value) : 0,
+                        });
                       }}
+                      data-testid={`diet-component-grams-${c.productId ?? i}`}
                       className="h-8 w-[4.5rem] text-right text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
-                    <span className="text-xs text-muted-foreground">%</span>
+                    <span className="text-xs text-muted-foreground">г</span>
                   </div>
-                  {built[i] && (
-                    <Badge variant="secondary" className="text-[10px] tabular-nums shrink-0">{built[i].grams}g</Badge>
-                  )}
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => removeComponent(i)}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => removeDietComponent(i)}>
                     ×
                   </Button>
                 </div>
@@ -746,23 +687,10 @@ function DietTemplateBuilder() {
             <InlineCatalogSearch />
           </div>
 
-          {components.length > 0 && (
-            <div className={`rounded-lg p-2.5 text-sm flex items-center gap-2 ${isBalanced ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-amber-500/10 text-amber-700 dark:text-amber-400"}`}>
-              {isBalanced ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
-              <span className="flex-1">
-                Total: <span className="font-bold tabular-nums">{Math.round(totalPct * 10) / 10}%</span>{" "}
-                {isBalanced ? "✓ Balanced recipe" : `— should total 100% (off by ${Math.round((100 - totalPct) * 10) / 10}%)`}
-              </span>
-              {!isBalanced && totalPct > 0 && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 shrink-0 border-current/30 text-xs text-inherit hover:text-inherit"
-                  onClick={normalizeTo100}
-                >
-                  Выровнять до 100%
-                </Button>
-              )}
+          {components.length > 0 && summary.totalGrams <= 0 && (
+            <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 p-2.5 text-sm text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="h-4 w-4" />
+              Укажите суточную граммовку продуктов — все итоги будут рассчитаны по ней.
             </div>
           )}
         </CardContent>
@@ -787,7 +715,7 @@ function DietTemplateBuilder() {
                     <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={2}>
                       {pieData.map((d, i) => <Cell key={i} fill={d.fill} />)}
                     </Pie>
-                    <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid oklch(0.9 0.01 172)", fontSize: 11 }} formatter={(v: number) => `${v}%`} />
+                    <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid oklch(0.9 0.01 172)", fontSize: 11 }} formatter={(v: number) => `${v.toFixed(1)}%`} />
                     <Legend wrapperStyle={{ fontSize: 10 }} />
                   </PieChart>
                 </ResponsiveContainer>
@@ -798,8 +726,8 @@ function DietTemplateBuilder() {
                 <div key={i} className="flex items-center gap-2 text-xs">
                   <span className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ background: CATEGORY_META[c.category]?.color }} />
                   <span className="flex-1 truncate">{c.ingredient || c.category}</span>
-                  <span className="font-semibold tabular-nums">{c.grams}g</span>
-                  <span className="text-muted-foreground tabular-nums">{c.kcal} kcal</span>
+                  <span className="font-semibold tabular-nums">{c.grams} г</span>
+                  <span className="text-muted-foreground tabular-nums">{Math.round(c.kcal)} ккал</span>
                 </div>
               ))}
             </div>
@@ -808,7 +736,7 @@ function DietTemplateBuilder() {
               <div className="mt-3 space-y-1.5 rounded-lg bg-muted/40 p-3">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-semibold">Итого в день</span>
-                  <span className="font-bold tabular-nums">{summary.totalGrams} г · {summary.totalKcal} ккал</span>
+                  <span className="font-bold tabular-nums">{summary.totalGrams} г · {Math.round(summary.totalKcal)} ккал</span>
                 </div>
                 {summary.proteinG != null && (
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -821,7 +749,7 @@ function DietTemplateBuilder() {
                 {summary.linkedCount > 0 && (
                   <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                     <Database className="h-3 w-3 text-primary" />
-                    {summary.linkedCount} комп. из каталога — граммовка по реальной ME
+                    {summary.linkedCount} комп. из каталога — энергия рассчитана по реальной ME
                   </div>
                 )}
               </div>
@@ -838,7 +766,7 @@ function DietTemplateBuilder() {
             {components.length === 0 ? (
               <p className="text-xs text-muted-foreground">Добавьте продукты, чтобы сохранить рацион.</p>
             ) : patient ? (
-              <Button className="w-full" disabled={createDiet.isPending} onClick={() => saveToPet(patient.id)}>
+              <Button className="w-full" disabled={createDiet.isPending || summary.totalGrams <= 0} onClick={() => saveToPet(patient.id)}>
                 Сохранить рацион для {patient.name}
               </Button>
             ) : pets.data && pets.data.length > 0 ? (
@@ -870,7 +798,7 @@ function DietTemplateBuilder() {
       </div>
     </div>
 
-    <DietNutrientAnalysis built={built} dailyKcal={parseFloat(dailyKcal) || 0} />
+    <DietNutrientAnalysis built={built} rationKcal={summary.totalKcal} />
     </div>
   );
 }
@@ -953,7 +881,7 @@ const ENERGY_SPLIT_COLORS = {
   carbs: "oklch(0.7 0.12 305)",
 } as const;
 
-function DietNutrientAnalysis({ built, dailyKcal }: { built: BuiltDietComponent[]; dailyKcal: number }) {
+function DietNutrientAnalysis({ built, rationKcal }: { built: BuiltDietComponent[]; rationKcal: number }) {
   const patient = useSelectedPatient();
   const species: Species = patient?.species === "cat" ? "cat" : "dog";
   const lifeStage: LifeStage = patient?.lifeStage ?? "adult";
@@ -988,8 +916,8 @@ function DietNutrientAnalysis({ built, dailyKcal }: { built: BuiltDietComponent[
     [normStandard, species, effectiveStage]
   );
   const normRows = React.useMemo(
-    () => buildNormComparison(analysis, dailyKcal, norms),
-    [analysis, dailyKcal, norms]
+    () => buildNormComparison(analysis, rationKcal, norms),
+    [analysis, rationKcal, norms]
   );
 
   if (linkedIds.length === 0) {
@@ -998,7 +926,7 @@ function DietNutrientAnalysis({ built, dailyKcal }: { built: BuiltDietComponent[
         <CardContent className="flex items-center gap-3 py-5">
           <FlaskConical className="h-5 w-5 shrink-0 text-muted-foreground" />
           <p className="text-xs text-muted-foreground">
-            Нутриентный анализ появится, когда в рационе будут продукты из каталога (с долей &gt; 0%) —
+            Нутриентный анализ появится, когда в рационе будут продукты из каталога (с граммовкой &gt; 0) —
             найдите их через поиск выше или добавьте на вкладке «Каталог».
           </p>
         </CardContent>
@@ -1105,7 +1033,7 @@ function DietNutrientAnalysis({ built, dailyKcal }: { built: BuiltDietComponent[
               </Select>
             )}
             <Badge variant="secondary" className="gap-1.5">
-              {species === "cat" ? "Кошка" : "Собака"} · на {Math.round(dailyKcal)} ккал
+              {species === "cat" ? "Кошка" : "Собака"} · рацион {Math.round(rationKcal)} ккал
             </Badge>
           </div>
         </div>
@@ -1220,13 +1148,13 @@ function DietNutrientAnalysis({ built, dailyKcal }: { built: BuiltDietComponent[
               <>
                 Ориентир — минимально рекомендуемые уровни {FEDIAF_EDITION}
                 {stageMeta ? ` (${stageMeta.labelRu}${stageMeta.merReference ? `, ${stageMeta.merReference}` : ""})` : ""}{" "}
-                на 1000 ккал МЭ, масштабированные к целевой калорийности. Селен и таурин взяты для сухих рационов;
+                на 1000 ккал МЭ, масштабированные к рассчитанной энергетической ценности рациона. Селен и таурин взяты для сухих рационов;
                 витамин E — в МЕ.
               </>
             ) : (
               <>
                 Ориентир — рекомендуемые нормы NRC 2006 для взрослых животных на 1000 ккал МЭ, масштабированные
-                к целевой калорийности рациона.
+                к рассчитанной энергетической ценности рациона.
               </>
             )}{" "}
             Шкала «% от нормы» обрезана на 300% (фактический процент — в подписи и тултипе). Значения справочные

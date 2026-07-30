@@ -56,7 +56,7 @@ function relativeDay(date: Date): { label: string; sub: string; isToday: boolean
 
 export function AppointmentScheduler() {
   const { data: appointments, isLoading } = useAppointments();
-  const { openProject } = useAppNavigation();
+  const { openPatient } = useAppNavigation();
   const [showForm, setShowForm] = React.useState(false);
 
   const now = new Date();
@@ -80,7 +80,7 @@ export function AppointmentScheduler() {
     : null;
 
   const openPet = (petId: string) => {
-    openProject(petId);
+    openPatient(petId);
   };
 
   return (
@@ -338,7 +338,6 @@ function AppointmentFormDialog({ open, onOpenChange }: { open: boolean; onOpenCh
                 <SelectItem value="consultation">Consultation</SelectItem>
                 <SelectItem value="recheck">Recheck</SelectItem>
                 <SelectItem value="procedure">Procedure</SelectItem>
-                <SelectItem value="telemedicine">Telemedicine</SelectItem>
               </SelectContent>
             </Select>
           </div>

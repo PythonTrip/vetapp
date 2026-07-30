@@ -211,20 +211,18 @@ export const DIET_CATEGORY_DENSITY: Record<string, number> = {
 };
 
 export interface BuiltDietComponent extends DietTemplateComponent {
-  grams: number;
   kcal: number;
   kcalPerGram: number;
+  percentage: number;
 }
 
 /**
- * Build a home-cooked / BARF diet template from component percentages + total daily kcal.
- * Percentages follow the BARF convention: share of the ration WEIGHT.
- * Total grams are solved so that summed component energy hits dailyKcal, using each
- * component's real ME (kcal/kg, when linked to the catalog) or a category default.
+ * Calculate a home-cooked / BARF ration directly from the entered component
+ * weights. Energy uses each component's real ME (kcal/kg, when linked to the
+ * catalog) or a category default. Percentages are derived only for display.
  */
-export function buildDietTemplate(
+export function calculateDietComponents(
   components: DietTemplateComponent[],
-  dailyKcal: number,
   fallbackDensity = 1.6 // kcal/g when category is unknown
 ): BuiltDietComponent[] {
   const densityOf = (c: DietTemplateComponent) =>
@@ -232,24 +230,23 @@ export function buildDietTemplate(
       ? c.meKcalPerKg / 1000
       : DIET_CATEGORY_DENSITY[c.category] ?? fallbackDensity;
 
-  // Weighted kcal/g of the whole ration: Σ (share_i × density_i)
-  const weightedDensity = components.reduce(
-    (sum, c) => sum + (c.percentage / 100) * densityOf(c),
-    0
-  );
-  if (weightedDensity <= 0 || dailyKcal <= 0) {
-    return components.map((c) => ({ ...c, grams: 0, kcal: 0, kcalPerGram: densityOf(c) }));
-  }
+  // Values may temporarily arrive as strings from an HTML number input or be
+  // absent in an in-memory pre-migration component kept by Fast Refresh.
+  const gramsOf = (c: DietTemplateComponent) => {
+    const value = Number(c.grams);
+    return Number.isFinite(value) ? Math.max(0, value) : 0;
+  };
 
-  const totalGrams = dailyKcal / weightedDensity;
+  const totalGrams = components.reduce((sum, c) => sum + gramsOf(c), 0);
   return components.map((c) => {
     const density = densityOf(c);
-    const grams = (c.percentage / 100) * totalGrams;
+    const grams = gramsOf(c);
     return {
       ...c,
-      grams: Math.round(grams),
-      kcal: Math.round(grams * density),
+      grams,
+      kcal: grams * density,
       kcalPerGram: density,
+      percentage: totalGrams > 0 ? (grams / totalGrams) * 100 : 0,
     };
   });
 }
