@@ -1,12 +1,11 @@
 // Diet nutrient analysis: aggregates per-day micro/macronutrient totals for a
-// built ration from linked catalog products and compares them against reference
-// norms per 1000 kcal ME. Two standards are supported: FEDIAF 2025 (life-stage
-// aware, see fediaf.ts) and NRC 2006 (adult maintenance, embedded below).
+// built ration from linked catalog products and compares them against FEDIAF
+// 2025 reference norms per 1000 kcal ME (life-stage aware, see fediaf.ts).
 // Reference values are informational — clinical decisions must be checked
-// against the current FEDIAF/NRC tables.
+// against the current FEDIAF tables.
 
 import type { BuiltDietComponent } from "./nutrition";
-import type { DietComponentCategory, DietTemplateComponent, Species } from "./types";
+import type { DietComponentCategory, DietTemplateComponent } from "./types";
 import type { NutritionProductDto } from "./nutrition-products";
 import { fediafNormsPer1000 } from "./fediaf";
 
@@ -71,27 +70,6 @@ export const NUTRIENT_GROUP_LABELS: Record<NutrientGroupId, string> = {
   vitamins: "Витамины",
   amino: "Аминокислоты",
   fatty: "Жирные кислоты",
-};
-
-/**
- * Reference adult-maintenance recommended allowances per 1000 kcal ME
- * (NRC 2006, rounded). Units match NUTRIENT_DAY_SPECS (protein/fat in grams).
- * Informational only — verify against current NRC/FEDIAF for clinical use.
- */
-export const NRC_ADULT_NORMS_PER_1000KCAL: Record<"dog" | "cat", Record<string, number>> = {
-  dog: {
-    CP: 25, CFa: 13.8,
-    Ca: 1000, P: 750, Mg: 150, Na: 200, K: 1000, Cl: 300,
-    Fe: 7.5, Cu: 1.5, Zn: 15, Mn: 1.2, Se: 87.5, J: 220,
-    E: 7.5, B1: 0.56, B2: 1.3, B3: 4.25, B4: 425, B5: 3.75, B6: 0.375, B9: 67.5, B12: 8.75,
-  },
-  cat: {
-    CP: 50, CFa: 22.5,
-    Ca: 720, P: 640, Mg: 100, Na: 170, K: 1300, Cl: 240,
-    Fe: 20, Cu: 1.2, Zn: 18.5, Mn: 1.2, Se: 75, J: 350,
-    E: 9.4, B1: 1.4, B2: 1.0, B3: 10, B4: 637, B5: 1.44, B6: 0.625, B9: 188, B12: 5.6,
-    Tau: 0.1,
-  },
 };
 
 export interface DietNutrientAnalysis {
@@ -178,26 +156,12 @@ export interface NormComparisonRow {
   pct: number; // value / norm × 100
 }
 
-/** Reference standard the ration is compared against. */
-export type NormStandard = "fediaf2025" | "nrc2006";
-
-export const NORM_STANDARD_LABELS: Record<NormStandard, string> = {
-  fediaf2025: "FEDIAF 2025",
-  nrc2006: "NRC 2006",
-};
-
 /**
- * Resolve the per-1000-kcal norm table (in app units) for a standard.
- * FEDIAF is life-stage aware (via `fediafStageCode`); NRC 2006 here is the
- * adult-maintenance table, so its life stage is fixed.
+ * Resolve the FEDIAF per-1000-kcal norm table (in app units) for the
+ * clinician-confirmed life stage.
  */
-export function resolveNorms(
-  standard: NormStandard,
-  species: Species,
-  fediafStageCode: string
-): Record<string, number> {
-  if (standard === "fediaf2025") return fediafNormsPer1000(fediafStageCode);
-  return NRC_ADULT_NORMS_PER_1000KCAL[species === "cat" ? "cat" : "dog"];
+export function resolveNorms(fediafStageCode: string): Record<string, number> {
+  return fediafNormsPer1000(fediafStageCode);
 }
 
 /**

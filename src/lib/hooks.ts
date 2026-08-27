@@ -5,6 +5,7 @@ import type {
   AppointmentWithPet,
   CommunicationLogEntry,
   Consultation,
+  CreateDietPlanInput,
   CustomTemplate,
   DietPlan,
   LesionPhoto,
@@ -159,7 +160,7 @@ export function useDeletePhoto() {
 export function useCreateDietPlan() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Record<string, unknown>) =>
+    mutationFn: (data: CreateDietPlanInput) =>
       api.post<DietPlan>("/api/diet-plans", data, "Failed to save diet plan"),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pets"] }),
   });

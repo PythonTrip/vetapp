@@ -19,23 +19,36 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import {
   calculateRERMER, convertToDryMatter, estimateMEKcal, calculateDietComponents, summarizeDiet,
 } from "@/lib/nutrition";
 import {
   SPECIES_OPTIONS, LIFE_STAGE_OPTIONS, ACTIVITY_OPTIONS, NOVEL_PROTEINS,
 } from "@/lib/clinical-data";
-import type { Species, LifeStage, ActivityLevel, DietType, DietTemplateComponent, PetWithRelations } from "@/lib/types";
+import type {
+  Species, LifeStage, ActivityLevel, DietType, DietTemplateComponent,
+  DietPlanFediafMeta, PetWithRelations,
+} from "@/lib/types";
 import type { BuiltDietComponent } from "@/lib/nutrition";
 import {
   aggregateDietNutrients, buildNormComparison, resolveNorms, formatNutrientValue,
-  productToDietComponent, NUTRIENT_DAY_SPECS, NORM_STANDARD_LABELS,
-  type NormComparisonRow, type NormStandard,
+  productToDietComponent, NUTRIENT_DAY_SPECS, type NormComparisonRow,
 } from "@/lib/nutrition-analysis";
 import {
-  fediafStageOptions, defaultFediafStage, fediafStage, estimateFediafMER,
+  fediafStageOptions, fediafStage, calculateFediafMER, deriveFediafAge,
+  fediafEnergyFormula, fediafEnergyFormulaOptions,
+  isFediafSpecies, suggestFediafSelection,
 } from "@/lib/fediaf";
-import { FEDIAF_EDITION, FEDIAF_SOURCE_URL } from "@/lib/fediaf-data";
+import {
+  FEDIAF_DATABASE_META,
+  FEDIAF_CLINICAL_WARNING_RU,
+  FEDIAF_EDITION,
+  FEDIAF_SIZE_CLASSES,
+  FEDIAF_SOURCE_TITLE,
+  FEDIAF_SOURCE_URL,
+  FEDIAF_VERSION,
+} from "@/lib/fediaf-data";
 import {
   usePets, useCreateDietPlan, useNutritionProductSearch, useNutritionProductsByIds,
 } from "@/lib/hooks";
@@ -43,6 +56,51 @@ import { useNutritionWorkspace, type NutritionTab } from "@/lib/nutrition-worksp
 import { toast } from "sonner";
 import { NutritionProductCatalog } from "@/components/nutrition/product-catalog";
 import { useI18n } from "@/lib/i18n";
+
+function buildFediafDietPlanMeta(
+  species: Species,
+  stageConfirmed: boolean,
+  confirmedStageCode: string | null,
+  therapeuticGoal: boolean,
+): DietPlanFediafMeta | null {
+  if (therapeuticGoal || !isFediafSpecies(species) || !stageConfirmed || !confirmedStageCode) {
+    return null;
+  }
+  const stage = fediafStage(confirmedStageCode);
+  if (!stage || stage.species !== species) return null;
+
+  return {
+    version: FEDIAF_VERSION,
+    stageCode: confirmedStageCode,
+    disclaimerRu: FEDIAF_CLINICAL_WARNING_RU,
+    sourceTitle: FEDIAF_SOURCE_TITLE,
+    sourceUrl: FEDIAF_SOURCE_URL,
+    savedAt: new Date().toISOString(),
+  };
+}
+
+function showNutritionPlanSaved(
+  successMessage: string,
+  fediafMeta: DietPlanFediafMeta | null,
+  species: Species,
+  therapeuticGoal: boolean,
+) {
+  if (fediafMeta) {
+    toast.success(successMessage, {
+      description: `Сохранён контекст FEDIAF ${fediafMeta.version}, этап ${fediafMeta.stageCode}.`,
+    });
+  } else if (therapeuticGoal) {
+    toast.warning("План сохранён без FEDIAF-метаданных", {
+      description: "Для лечебной цели FEDIAF не применяется как источник целевых значений.",
+    });
+  } else if (isFediafSpecies(species)) {
+    toast.warning("План сохранён без FEDIAF-метаданных", {
+      description: "Подтвердите этап FEDIAF перед сохранением, если план должен воспроизводить оценку по руководству.",
+    });
+  } else {
+    toast.success(successMessage);
+  }
+}
 
 export function NutritionModule() {
   const activeTab = useNutritionWorkspace((s) => s.activeTab);
@@ -105,6 +163,8 @@ function PatientContextBar() {
   const pets = usePets();
   const patientId = useNutritionWorkspace((s) => s.patientId);
   const setPatientId = useNutritionWorkspace((s) => s.setPatientId);
+  const therapeuticGoal = useNutritionWorkspace((s) => s.therapeuticGoal);
+  const setTherapeuticGoal = useNutritionWorkspace((s) => s.setTherapeuticGoal);
   const pet = pets.data?.find((p) => p.id === patientId) ?? null;
 
   const merPreview = React.useMemo(() => {
@@ -113,7 +173,7 @@ function PatientContextBar() {
   }, [pet]);
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
       <div className="flex items-start gap-3">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
           <UserRound className="h-4.5 w-4.5" />
@@ -128,6 +188,23 @@ function PatientContextBar() {
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
+        <label
+          htmlFor="therapeutic-goal"
+          className={`flex max-w-sm cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 transition-colors ${therapeuticGoal ? "border-amber-500/40 bg-amber-500/10" : "bg-muted/30"}`}
+        >
+          <Switch
+            id="therapeutic-goal"
+            checked={therapeuticGoal}
+            onCheckedChange={setTherapeuticGoal}
+            aria-describedby="therapeutic-goal-description"
+          />
+          <span className="min-w-0">
+            <span className="block text-xs font-semibold">Лечебная / болезнь-специфичная цель</span>
+            <span id="therapeutic-goal-description" className="block text-[10px] leading-4 text-muted-foreground">
+              Блокирует применение нутриентных минимумов FEDIAF как целевых.
+            </span>
+          </span>
+        </label>
         {pet && merPreview && (
           <div className="flex flex-wrap items-center gap-1.5">
             <Badge variant="secondary" className="tabular-nums">{pet.currentWeight} кг</Badge>
@@ -165,50 +242,95 @@ function useSelectedPatient(): PetWithRelations | null {
 
 // ─── RER / MER Calculator ─────────────────────────────────────────
 function RERMERCalculator() {
-  const [species, setSpecies] = useState<Species>("dog");
-  const [weight, setWeight] = useState("12");
-  const [lifeStage, setLifeStage] = useState<LifeStage>("adult");
-  const [activity, setActivity] = useState<ActivityLevel>("moderate");
-  const [neutered, setNeutered] = useState(true);
+  const profile = useNutritionWorkspace((s) => s.fediafProfile);
+  const setProfile = useNutritionWorkspace((s) => s.setFediafProfile);
+  const replaceProfile = useNutritionWorkspace((s) => s.replaceFediafProfile);
+  const suggestion = useNutritionWorkspace((s) => s.fediafSuggestion);
+  const draft = useNutritionWorkspace((s) => s.fediafDraft);
+  const stageConfirmed = useNutritionWorkspace((s) => s.stageConfirmed);
+  const confirmedStageCode = useNutritionWorkspace((s) => s.confirmedStageCode);
+  const confirmedFormulaCode = useNutritionWorkspace((s) => s.confirmedFormulaCode);
+  const applySuggestion = useNutritionWorkspace((s) => s.applyFediafSuggestion);
+  const setDraft = useNutritionWorkspace((s) => s.setFediafDraft);
+  const confirmSelection = useNutritionWorkspace((s) => s.confirmFediafSelection);
+  const dismissSelection = useNutritionWorkspace((s) => s.dismissFediafSelection);
+  const therapeuticGoal = useNutritionWorkspace((s) => s.therapeuticGoal);
   const [bcs, setBcs] = useState("5");
   const [targetWeight, setTargetWeight] = useState("");
 
   const patient = useSelectedPatient();
+  const species = profile.species;
+  const lifeStage = profile.lifeStage;
+  const activity = profile.activity;
+  const neutered = profile.neutered;
+  const weight = profile.currentBodyWeightKg;
 
   // Prefill inputs from the shared patient (once per patient change,
   // so manual tweaks are not overwritten by query refetches)
   const prefilledRef = React.useRef<string | null>(null);
   React.useEffect(() => {
-    if (!patient || prefilledRef.current === patient.id) return;
+    if (!patient) {
+      prefilledRef.current = null;
+      return;
+    }
+    if (prefilledRef.current === patient.id) return;
     prefilledRef.current = patient.id;
-    setSpecies(patient.species);
-    setWeight(String(patient.currentWeight));
-    setLifeStage(patient.lifeStage);
-    setActivity(patient.activityLevel);
-    setNeutered(patient.neutered);
+    const age = deriveFediafAge(patient.birthDate);
+    replaceProfile({
+      species: patient.species,
+      breedCode: patient.breed,
+      currentBodyWeightKg: patient.currentWeight > 0 ? patient.currentWeight : null,
+      expectedAdultWeightKg: patient.targetWeight != null && patient.targetWeight > 0 ? patient.targetWeight : null,
+      ageWeeks: age?.ageWeeks ?? null,
+      ageMonths: age?.ageMonths ?? null,
+      lifeStage: patient.lifeStage,
+      activity: patient.activityLevel,
+      neutered: patient.neutered,
+      pregnant: patient.lifeStage === "gestation",
+      lactating: patient.lifeStage === "lactation",
+      lactationWeek: null,
+      litterSize: null,
+      maintenanceEnergyKcalDay: null,
+    });
     setBcs(String(patient.bcs));
     setTargetWeight(patient.targetWeight != null ? String(patient.targetWeight) : "");
-  }, [patient]);
+  }, [patient, replaceProfile]);
+
+  const computedSuggestion = React.useMemo(() => suggestFediafSelection(profile), [profile]);
+  React.useEffect(() => {
+    applySuggestion(computedSuggestion);
+  }, [applySuggestion, computedSuggestion]);
 
   const result = React.useMemo(() => {
-    const w = parseFloat(weight);
-    if (!w || w <= 0) return null;
-    return calculateRERMER(w, species, lifeStage, activity, neutered, parseInt(bcs) || 5, targetWeight ? parseFloat(targetWeight) : null);
+    if (weight == null || weight <= 0) return null;
+    return calculateRERMER(weight, species, lifeStage, activity, neutered, parseInt(bcs) || 5, targetWeight ? parseFloat(targetWeight) : null);
   }, [weight, species, lifeStage, activity, neutered, bcs, targetWeight]);
 
-  // FEDIAF 2025 direct MER estimate (allometric, life-stage specific) shown
-  // alongside the RER × factor estimate; only computed for dogs & cats.
   const fediafMer = React.useMemo(() => {
-    const w = parseFloat(weight);
-    if (!w || w <= 0 || (species !== "dog" && species !== "cat")) return null;
-    return estimateFediafMER(species, lifeStage, activity, neutered, w);
-  }, [weight, species, lifeStage, activity, neutered]);
+    if (!stageConfirmed || !confirmedFormulaCode || !isFediafSpecies(species)) return null;
+    return calculateFediafMER(species, confirmedFormulaCode, profile);
+  }, [confirmedFormulaCode, profile, species, stageConfirmed]);
+
+  const formulaOptions = React.useMemo(() => fediafEnergyFormulaOptions(species), [species]);
+  const draftFormula = draft.formulaCode ? fediafEnergyFormula(species, draft.formulaCode) : undefined;
+  const requiresLactation = Boolean(draftFormula?.parameters.includes("lactation_factor"));
+  const requiresLitter = Boolean(draftFormula?.parameters.includes("litter_size") || draftFormula?.constraints?.litter_size);
+  const requiresExpectedWeight = Boolean(draftFormula?.parameters.includes("expected_adult_weight_kg"));
+  const requiresMaintenance = Boolean(draftFormula?.parameters.includes("maintenance_energy_kcal_day"));
+  const stageOptions = React.useMemo(() => fediafStageOptions(species), [species]);
+  const unresolvedRequiredSize = species === "dog" && lifeStage === "puppy_kitten" && !draft.sizeClassCode;
 
   const pets = usePets();
   const createDiet = useCreateDietPlan();
 
   async function saveToPet(petId: string) {
     if (!result) return;
+    const fediafMeta = buildFediafDietPlanMeta(
+      species,
+      stageConfirmed,
+      confirmedStageCode,
+      therapeuticGoal,
+    );
     try {
       await createDiet.mutateAsync({
         petId,
@@ -217,9 +339,10 @@ function RERMERCalculator() {
         rer: result.rer,
         mer: result.mer,
         macros: JSON.stringify({}),
+        fediafMeta,
         notes: `Auto-saved from calculator. Weight ${weight}kg, BCS ${bcs}/9, ${lifeStage}, ${activity}.`,
       });
-      toast.success("Saved to patient's diet plans");
+      showNutritionPlanSaved("Saved to patient's diet plans", fediafMeta, species, therapeuticGoal);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to save");
     }
@@ -240,22 +363,35 @@ function RERMERCalculator() {
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <Field label="Species">
-              <Select value={species} onValueChange={(v) => setSpecies(v as Species)}>
+              <Select value={species} onValueChange={(v) => setProfile({ species: v as Species })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>{SPECIES_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
               </Select>
             </Field>
             <Field label="Body Weight (kg)">
-              <Input type="number" step="0.1" value={weight} onChange={(e) => setWeight(e.target.value)} />
+              <Input
+                type="number"
+                min="0.01"
+                step="0.1"
+                value={weight ?? ""}
+                onChange={(e) => setProfile({ currentBodyWeightKg: e.target.value === "" ? null : Number(e.target.value) })}
+                aria-invalid={weight != null && weight <= 0}
+              />
             </Field>
             <Field label="Life Stage">
-              <Select value={lifeStage} onValueChange={(v) => setLifeStage(v as LifeStage)}>
+              <Select
+                value={lifeStage}
+                onValueChange={(v) => {
+                  const next = v as LifeStage;
+                  setProfile({ lifeStage: next, pregnant: next === "gestation", lactating: next === "lactation" });
+                }}
+              >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>{LIFE_STAGE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
               </Select>
             </Field>
             <Field label="Activity Level">
-              <Select value={activity} onValueChange={(v) => setActivity(v as ActivityLevel)}>
+              <Select value={activity} onValueChange={(v) => setProfile({ activity: v as ActivityLevel })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>{ACTIVITY_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
               </Select>
@@ -264,7 +400,7 @@ function RERMERCalculator() {
               <Input type="number" min="1" max="9" value={bcs} onChange={(e) => setBcs(e.target.value)} />
             </Field>
             <Field label="Neutered">
-              <Select value={neutered ? "yes" : "no"} onValueChange={(v) => setNeutered(v === "yes")}>
+              <Select value={neutered ? "yes" : "no"} onValueChange={(v) => setProfile({ neutered: v === "yes" })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="yes">Yes</SelectItem>
@@ -275,7 +411,181 @@ function RERMERCalculator() {
             <Field label="Target Weight (kg)" full>
               <Input type="number" step="0.1" value={targetWeight} onChange={(e) => setTargetWeight(e.target.value)} placeholder="optional — for weight loss plans" />
             </Field>
+
+            {isFediafSpecies(species) && (
+              <div className="col-span-2 grid grid-cols-2 gap-3 rounded-lg bg-muted/35 p-3">
+                <label className="flex min-w-0 items-center justify-between gap-2 text-xs font-medium">
+                  Беременность
+                  <Switch
+                    checked={profile.pregnant}
+                    onCheckedChange={(checked) => setProfile({
+                      pregnant: checked,
+                      lactating: checked ? false : profile.lactating,
+                      lifeStage: checked ? "gestation" : profile.lifeStage === "gestation" ? "adult" : profile.lifeStage,
+                    })}
+                    aria-label="Беременность"
+                  />
+                </label>
+                <label className="flex min-w-0 items-center justify-between gap-2 text-xs font-medium">
+                  Лактация
+                  <Switch
+                    checked={profile.lactating}
+                    onCheckedChange={(checked) => setProfile({
+                      lactating: checked,
+                      pregnant: checked ? false : profile.pregnant,
+                      lifeStage: checked ? "lactation" : profile.lifeStage === "lactation" ? "adult" : profile.lifeStage,
+                    })}
+                    aria-label="Лактация"
+                  />
+                </label>
+              </div>
+            )}
+
+            {isFediafSpecies(species) && (species === "dog" || requiresExpectedWeight) && (
+              <Field label="Expected Adult Weight (kg)" full>
+                <Input
+                  type="number"
+                  min="0.01"
+                  step="0.1"
+                  value={profile.expectedAdultWeightKg ?? ""}
+                  onChange={(e) => setProfile({ expectedAdultWeightKg: e.target.value === "" ? null : Number(e.target.value) })}
+                  placeholder="нужно для щенка и точного класса размера"
+                />
+              </Field>
+            )}
+
+            {isFediafSpecies(species) && lifeStage === "puppy_kitten" && (
+              <>
+                <Field label="Age (weeks)">
+                  <Input
+                    type="number"
+                    min="0"
+                    value={profile.ageWeeks ?? ""}
+                    onChange={(e) => setProfile({ ageWeeks: e.target.value === "" ? null : Number(e.target.value) })}
+                  />
+                </Field>
+                <Field label="Age (months)">
+                  <Input
+                    type="number"
+                    min="0"
+                    value={profile.ageMonths ?? ""}
+                    onChange={(e) => setProfile({ ageMonths: e.target.value === "" ? null : Number(e.target.value) })}
+                  />
+                </Field>
+              </>
+            )}
+
+            {isFediafSpecies(species) && (profile.lactating || requiresLactation || requiresLitter) && (
+              <>
+                <Field label="Lactation week">
+                  <Input
+                    type="number"
+                    min="1"
+                    max={species === "dog" ? "4" : "7"}
+                    value={profile.lactationWeek ?? ""}
+                    onChange={(e) => setProfile({ lactationWeek: e.target.value === "" ? null : Number(e.target.value) })}
+                  />
+                </Field>
+                <Field label="Litter size">
+                  <Input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={profile.litterSize ?? ""}
+                    onChange={(e) => setProfile({ litterSize: e.target.value === "" ? null : Number(e.target.value) })}
+                  />
+                </Field>
+              </>
+            )}
+
+            {isFediafSpecies(species) && requiresMaintenance && (
+              <Field label="Adult maintenance MER (kcal/day)" full>
+                <Input
+                  type="number"
+                  min="1"
+                  value={profile.maintenanceEnergyKcalDay ?? ""}
+                  onChange={(e) => setProfile({ maintenanceEnergyKcalDay: e.target.value === "" ? null : Number(e.target.value) })}
+                  placeholder="required by the selected kitten formula"
+                />
+              </Field>
+            )}
           </div>
+
+          {!isFediafSpecies(species) ? (
+            <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-300" role="status">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span><strong>FEDIAF недоступен.</strong> Рекомендации применяются только к собакам и кошкам. RER × factor ниже остаётся справочной оценкой.</span>
+            </div>
+          ) : (
+            <div className="space-y-3 rounded-xl border p-3">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold">Предложение FEDIAF — требует подтверждения</div>
+                  <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">
+                    {suggestion?.confidence === "low" ? "Низкая уверенность: проверьте сопоставление вручную." : "Профиль сопоставлен с каталогом; проверьте перед применением."}
+                  </p>
+                </div>
+                <Badge variant={suggestion?.confidence === "low" ? "outline" : "secondary"}>
+                  {suggestion?.confidence === "low" ? "Низкая уверенность" : "Высокая уверенность"}
+                </Badge>
+              </div>
+
+              {suggestion?.reasonsRu.map((reason) => (
+                <p key={reason} className="text-[11px] leading-4 text-muted-foreground">{reason}</p>
+              ))}
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="Нутриентная стадия">
+                  <Select value={draft.stageCode ?? ""} onValueChange={(stageCode) => setDraft({ stageCode })}>
+                    <SelectTrigger><SelectValue placeholder="Выберите стадию" /></SelectTrigger>
+                    <SelectContent>{stageOptions.map((option) => <SelectItem key={option.code} value={option.code}>{option.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Формула энергии">
+                  <Select value={draft.formulaCode ?? ""} onValueChange={(formulaCode) => setDraft({ formulaCode })}>
+                    <SelectTrigger><SelectValue placeholder="Выберите формулу" /></SelectTrigger>
+                    <SelectContent>{formulaOptions.map((option) => <SelectItem key={option.code} value={option.code}>{option.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </Field>
+                {species === "dog" && (
+                  <div className="sm:col-span-2">
+                    <Field label="Класс размера собаки">
+                      <Select value={draft.sizeClassCode ?? ""} onValueChange={(sizeClassCode) => setDraft({ sizeClassCode })}>
+                        <SelectTrigger><SelectValue placeholder="Не определён — укажите взрослую массу" /></SelectTrigger>
+                        <SelectContent>{FEDIAF_SIZE_CLASSES.map((option) => <SelectItem key={option.code} value={option.code}>{option.nameRu}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </Field>
+                  </div>
+                )}
+              </div>
+
+              {species === "dog" && !draft.sizeClassCode && (
+                <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 p-2.5 text-[11px] text-amber-800 dark:text-amber-300" role="status">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  Класс размера не определён. Укажите ожидаемую взрослую массу или выберите класс вручную.
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={confirmSelection}
+                  disabled={!draft.stageCode || !draft.formulaCode || unresolvedRequiredSize}
+                >
+                  <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" /> Подтвердить и применить
+                </Button>
+                <Button type="button" size="sm" variant="ghost" onClick={dismissSelection}>Отклонить предложение</Button>
+              </div>
+
+              {stageConfirmed && (
+                <div className="flex items-start gap-2 rounded-lg bg-emerald-500/10 p-2.5 text-[11px] text-emerald-800 dark:text-emerald-300" role="status">
+                  <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  Подтверждено клиницистом. Эта стадия применяется к MER и нутриентным нормам.
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -289,9 +599,74 @@ function RERMERCalculator() {
         </CardHeader>
         <CardContent>
           {!result ? (
-            <div className="text-center py-12 text-sm text-muted-foreground">Enter a valid weight to calculate.</div>
+            <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 p-4 text-sm text-amber-800 dark:text-amber-300" role="status">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              Укажите положительную массу тела. До этого FEDIAF MER и RER × factor не считаются.
+            </div>
           ) : (
             <div className="space-y-4">
+              {therapeuticGoal && (
+                <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200" role="status">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>
+                    <strong>Энергетические расчёты показаны только справочно.</strong>{" "}
+                    RER × factor и FEDIAF MER для здоровых животных не являются терапевтическим назначением или целевой нормой лечебного рациона.
+                  </span>
+                </div>
+              )}
+              {isFediafSpecies(species) ? (
+                !stageConfirmed ? (
+                  <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-300" role="status">
+                    <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                    Подтвердите стадию и формулу слева. Предложение ещё не применяется к FEDIAF MER или нормам.
+                  </div>
+                ) : fediafMer ? (
+                  <div className="space-y-2 rounded-xl bg-primary/10 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+                        {therapeuticGoal ? "Справочный расчёт для здоровых животных · FEDIAF 2025 MER" : "Основная оценка · FEDIAF 2025 MER"}
+                      </span>
+                      <Badge variant="outline" className="max-w-full whitespace-normal text-right text-[9px]">{fediafMer.phase.nameRu}</Badge>
+                    </div>
+                    {fediafMer.kcal != null ? (
+                      <div className="flex flex-wrap items-end gap-x-3 gap-y-1">
+                        <div>
+                          <div className="text-3xl font-bold tabular-nums text-primary">{fediafMer.kcal}</div>
+                          <div className="text-xs text-muted-foreground">ккал ME / день</div>
+                        </div>
+                        {fediafMer.low != null && fediafMer.high != null && (
+                          <div className="pb-1 text-xs tabular-nums text-muted-foreground">
+                            диапазон {fediafMer.low}–{fediafMer.high} ккал
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-1 text-xs text-amber-800 dark:text-amber-300" role="status">
+                        <div className="flex items-start gap-2 font-medium">
+                          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                          FEDIAF MER не рассчитан: заполните обязательные параметры.
+                        </div>
+                        {fediafMer.validationMessagesRu.map((message) => <p key={message}>{message}</p>)}
+                      </div>
+                    )}
+                    <div className="rounded-md bg-background/60 p-2 text-[10px] leading-4 text-muted-foreground">
+                      <span className="font-medium text-foreground">Подтверждённая формула:</span> {fediafMer.phase.displayFormulaRu}
+                      {fediafMer.phase.displayRangeRu ? ` (${fediafMer.phase.displayRangeRu})` : ""}
+                      {fediafMer.phase.page ? ` · с. ${fediafMer.phase.page}` : ""}
+                      {fediafMer.phase.noteRu ? <div className="mt-1">{fediafMer.phase.noteRu}</div> : null}
+                    </div>
+                  </div>
+                ) : null
+              ) : (
+                <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-300" role="status">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  FEDIAF 2025 применяется только к собакам и кошкам; guideline-backed MER отключён.
+                </div>
+              )}
+
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {therapeuticGoal ? "Справочный расчёт · RER × factor" : "Вторичная сверка · RER × factor"}
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl bg-muted/50 p-4">
                   <div className="text-[11px] uppercase font-semibold text-muted-foreground">Resting Energy Requirement</div>
@@ -302,14 +677,18 @@ function RERMERCalculator() {
                 <div className="rounded-xl bg-primary/10 p-4">
                   <div className="text-[11px] uppercase font-semibold text-primary">Maintenance Energy</div>
                   <div className="text-3xl font-bold tabular-nums mt-1 text-primary">{result.mer}</div>
-                  <div className="text-xs text-muted-foreground">kcal / day target</div>
+                  <div className="text-xs text-muted-foreground">
+                    {therapeuticGoal ? "ккал / день · не терапевтическая цель" : "kcal / day target"}
+                  </div>
                   <div className="text-[10px] text-muted-foreground/70 mt-1">RER × factor</div>
                 </div>
               </div>
 
               {/* Applicable factors */}
               <div>
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">Applicable MER Factors</div>
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                  {therapeuticGoal ? "Справочные MER-факторы" : "Applicable MER Factors"}
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {result.merFactors.map((f, i) => (
                     <Badge key={i} variant="secondary" className="gap-1">
@@ -318,45 +697,6 @@ function RERMERCalculator() {
                   ))}
                 </div>
               </div>
-
-              {/* FEDIAF 2025 direct energy estimate */}
-              {fediafMer && (
-                <div className="space-y-2 rounded-xl border border-primary/20 bg-primary/5 p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-semibold uppercase tracking-wide text-primary">FEDIAF 2025 · MER</span>
-                    <Badge variant="outline" className="shrink-0 text-[9px]">{fediafMer.phase.labelRu}</Badge>
-                  </div>
-                  {fediafMer.kcal != null ? (
-                    <div className="flex items-end gap-3">
-                      <div>
-                        <div className="text-2xl font-bold tabular-nums text-primary">{fediafMer.kcal}</div>
-                        <div className="text-[10px] text-muted-foreground">ккал ME / день</div>
-                      </div>
-                      {fediafMer.low != null && fediafMer.high != null && (
-                        <div className="pb-1 text-[11px] tabular-nums text-muted-foreground">
-                          диапазон {fediafMer.low}–{fediafMer.high} ккал
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
-                      <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                      Прямой расчёт для этой стадии требует доп. параметров — ниже приведена формула FEDIAF.
-                    </div>
-                  )}
-                  <div className="rounded-md bg-background/60 p-2 text-[10px] leading-4 text-muted-foreground">
-                    <span className="font-medium text-foreground">Формула:</span> {fediafMer.phase.formula}
-                    {fediafMer.phase.range ? ` (${fediafMer.phase.range})` : ""}
-                    {fediafMer.phase.page ? ` · с. ${fediafMer.phase.page}` : ""}
-                    {fediafMer.note && <div className="mt-1">{fediafMer.note}</div>}
-                    {fediafMer.alternates.length > 0 && (
-                      <div className="mt-1">
-                        Альтернативы: {fediafMer.alternates.map((a) => `${a.labelRu} — ${a.formula}`).join("; ")}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
 
               {/* Weight status */}
               <div className={`rounded-lg p-3 text-sm flex items-start gap-2 ${result.weightStatus === "ideal" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : result.weightStatus === "underweight" ? "bg-amber-500/10 text-amber-700 dark:text-amber-400" : "bg-red-500/10 text-red-700 dark:text-red-400"}`}>
@@ -544,6 +884,10 @@ function DietTemplateBuilder() {
   const components = useNutritionWorkspace((s) => s.components);
   const updateDietComponent = useNutritionWorkspace((s) => s.updateDietComponent);
   const removeDietComponent = useNutritionWorkspace((s) => s.removeDietComponent);
+  const species = useNutritionWorkspace((s) => s.fediafProfile.species);
+  const stageConfirmed = useNutritionWorkspace((s) => s.stageConfirmed);
+  const confirmedStageCode = useNutritionWorkspace((s) => s.confirmedStageCode);
+  const therapeuticGoal = useNutritionWorkspace((s) => s.therapeuticGoal);
 
   const patient = useSelectedPatient();
 
@@ -576,6 +920,12 @@ function DietTemplateBuilder() {
           targetPet.targetWeight
         )
       : null;
+    const fediafMeta = buildFediafDietPlanMeta(
+      species,
+      stageConfirmed,
+      confirmedStageCode,
+      therapeuticGoal,
+    );
     try {
       await createDiet.mutateAsync({
         petId,
@@ -587,9 +937,10 @@ function DietTemplateBuilder() {
           summary.proteinG != null ? { proteinG: summary.proteinG, fatG: summary.fatG } : {}
         ),
         template: JSON.stringify(components),
+        fediafMeta,
         notes: `Ration total: ${Math.round(summary.totalKcal)} kcal · ${summary.totalGrams} g/day. Components: ${components.map((c) => `${c.ingredient} ${c.grams} g`).join(", ")}.`,
       });
-      toast.success("Diet template saved to patient");
+      showNutritionPlanSaved("Diet template saved to patient", fediafMeta, species, therapeuticGoal);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to save");
     }
@@ -882,23 +1233,12 @@ const ENERGY_SPLIT_COLORS = {
 } as const;
 
 function DietNutrientAnalysis({ built, rationKcal }: { built: BuiltDietComponent[]; rationKcal: number }) {
-  const patient = useSelectedPatient();
-  const species: Species = patient?.species === "cat" ? "cat" : "dog";
-  const lifeStage: LifeStage = patient?.lifeStage ?? "adult";
-
-  const normStandard = useNutritionWorkspace((s) => s.normStandard);
-  const setNormStandard = useNutritionWorkspace((s) => s.setNormStandard);
-  const normStageRaw = useNutritionWorkspace((s) => s.normStage);
-  const setNormStage = useNutritionWorkspace((s) => s.setNormStage);
-
-  const stageOptions = React.useMemo(() => fediafStageOptions(species), [species]);
-  const effectiveStage = React.useMemo(() => {
-    if (normStandard !== "fediaf2025") return "";
-    const fallback = defaultFediafStage(species, lifeStage);
-    // Honour an explicit choice only while it belongs to the current species.
-    return normStageRaw && stageOptions.some((o) => o.code === normStageRaw) ? normStageRaw : fallback;
-  }, [normStandard, normStageRaw, species, lifeStage, stageOptions]);
-  const stageMeta = normStandard === "fediaf2025" ? fediafStage(effectiveStage) : undefined;
+  const species = useNutritionWorkspace((s) => s.fediafProfile.species);
+  const therapeuticGoal = useNutritionWorkspace((s) => s.therapeuticGoal);
+  const stageConfirmed = useNutritionWorkspace((s) => s.stageConfirmed);
+  const confirmedStageCode = useNutritionWorkspace((s) => s.confirmedStageCode);
+  const effectiveStage = stageConfirmed && confirmedStageCode ? confirmedStageCode : "";
+  const stageMeta = fediafStage(effectiveStage);
 
   const linkedIds = React.useMemo(
     () => [...new Set(built.filter((c) => c.productId != null && c.grams > 0).map((c) => c.productId as number))],
@@ -912,13 +1252,52 @@ function DietNutrientAnalysis({ built, rationKcal }: { built: BuiltDietComponent
   }, [built, productsQuery.data]);
 
   const norms = React.useMemo(
-    () => resolveNorms(normStandard, species, effectiveStage),
-    [normStandard, species, effectiveStage]
+    () => resolveNorms(effectiveStage),
+    [effectiveStage]
   );
   const normRows = React.useMemo(
     () => buildNormComparison(analysis, rationKcal, norms),
     [analysis, rationKcal, norms]
   );
+
+  if (therapeuticGoal) {
+    return (
+      <Card className="border-amber-500/35">
+        <CardHeader className="pb-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <AlertTriangle className="h-4 w-4 text-amber-600" /> Вне области применения FEDIAF 2025
+              </CardTitle>
+              <CardDescription className="mt-1 text-xs">
+                Нутриентные минимумы FEDIAF скрыты и не применяются как цели лечебного рациона.
+              </CardDescription>
+            </div>
+            <Badge variant="outline" className="border-amber-500/40 text-amber-800 dark:text-amber-200">
+              Терапевтическая цель включена
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3 text-xs leading-5">
+          <p>
+            FEDIAF 2025 описывает рекомендации для здоровых собак и кошек. {FEDIAF_DATABASE_META.scope.reason_ru}
+          </p>
+          <div className="rounded-lg bg-amber-500/10 p-3 text-amber-900 dark:text-amber-200" role="status">
+            Болезнь-специфичные нутриентные профили не подставляются и не рассчитываются. Используйте отдельный клинический протокол и профессиональное заключение для терапевтического рациона.
+          </div>
+          <p className="text-muted-foreground">
+            {FEDIAF_CLINICAL_WARNING_RU}{" "}
+            <a href={FEDIAF_SOURCE_URL} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-foreground">
+              {FEDIAF_SOURCE_TITLE} ({FEDIAF_VERSION})
+            </a>
+          </p>
+          <p className="text-muted-foreground">
+            Выключите флаг «Лечебная / болезнь-специфичная цель», чтобы вернуть обычное сравнение для здорового животного.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (linkedIds.length === 0) {
     return (
@@ -945,7 +1324,6 @@ function DietNutrientAnalysis({ built, rationKcal }: { built: BuiltDietComponent
   const coveragePct = Math.round(analysis.coverage * 100);
 
   const normByCode = new Map<string, NormComparisonRow>(normRows.map((row) => [row.code, row]));
-  const standardLabel = NORM_STANDARD_LABELS[normStandard];
 
   const pctRows = (codes: string[]): NutrientChartRow[] =>
     codes.flatMap((code) => {
@@ -982,7 +1360,7 @@ function DietNutrientAnalysis({ built, rationKcal }: { built: BuiltDietComponent
   ];
   const mineralRows = pctRows(["Ca", "P", "Mg", "Na", "K", "Cl", "Fe", "Cu", "Zn", "Mn", "Se", "J"]);
   // A/D carry a norm under FEDIAF (given in IU); pctRows silently drops codes
-  // without a norm, so they only chart when the active standard provides one.
+  // without a norm.
   const vitaminRows = pctRows(["A", "D", "E", "B1", "B2", "B3", "B4", "B5", "B6", "B9", "B12"]);
   const aminoRows = NUTRIENT_DAY_SPECS
     .filter((spec) => spec.group === "amino")
@@ -997,8 +1375,8 @@ function DietNutrientAnalysis({ built, rationKcal }: { built: BuiltDietComponent
       ? absRow("ЭПК+ДГК (ω3)", (analysis.totals["EPA"] ?? 0) + (analysis.totals["DHA"] ?? 0) || undefined, "г", "EPA_DHA")
       : []),
   ];
-  // Vitamins with catalog data but no norm under the active standard (unit «МЕ»
-  // under NRC, or no reference allowance) — shown as plain reference tiles.
+  // Vitamins with catalog data but no FEDIAF reference allowance are shown as
+  // plain reference tiles.
   const referenceVitamins = ["A", "D", "C", "B7"]
     .map((code) => NUTRIENT_DAY_SPECS.find((spec) => spec.code === code))
     .flatMap((spec) => (spec && analysis.totals[spec.code] != null && !normByCode.has(spec.code)
@@ -1017,23 +1395,12 @@ function DietNutrientAnalysis({ built, rationKcal }: { built: BuiltDietComponent
             </CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Select value={normStandard} onValueChange={(v) => setNormStandard(v as NormStandard)}>
-              <SelectTrigger className="h-8 w-[9.5rem] text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="fediaf2025">FEDIAF 2025</SelectItem>
-                <SelectItem value="nrc2006">NRC 2006</SelectItem>
-              </SelectContent>
-            </Select>
-            {normStandard === "fediaf2025" && (
-              <Select value={effectiveStage} onValueChange={(v) => setNormStage(v)}>
-                <SelectTrigger className="h-8 w-[13.5rem] text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {stageOptions.map((o) => <SelectItem key={o.code} value={o.code}>{o.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            )}
+            <Badge variant="outline" className="text-[10px]">FEDIAF 2025</Badge>
+            <Badge variant={stageMeta ? "secondary" : "outline"} className="max-w-[15rem] whitespace-normal text-right text-[10px]">
+              {stageMeta ? `Подтверждено: ${stageMeta.nameRu}` : "Стадия FEDIAF не подтверждена"}
+            </Badge>
             <Badge variant="secondary" className="gap-1.5">
-              {species === "cat" ? "Кошка" : "Собака"} · рацион {Math.round(rationKcal)} ккал
+              {species === "cat" ? "Кошка" : species === "dog" ? "Собака" : "Вне FEDIAF"} · рацион {Math.round(rationKcal)} ккал
             </Badge>
           </div>
         </div>
@@ -1041,6 +1408,12 @@ function DietNutrientAnalysis({ built, rationKcal }: { built: BuiltDietComponent
           <div className="mt-1 flex items-start gap-2 rounded-lg bg-amber-500/10 p-2 text-[11px] text-amber-700 dark:text-amber-400">
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             Меньше 60% массы рациона связано с каталогом — итоги занижены. Замените ручные компоненты продуктами из каталога.
+          </div>
+        )}
+        {!stageMeta && (
+          <div className="mt-1 flex items-start gap-2 rounded-lg bg-amber-500/10 p-2 text-[11px] text-amber-800 dark:text-amber-300" role="status">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            Нормы не применены. Подтвердите стадию на вкладке RER / MER; предложение само по себе не меняет анализ.
           </div>
         )}
       </CardHeader>
@@ -1109,8 +1482,8 @@ function DietNutrientAnalysis({ built, rationKcal }: { built: BuiltDietComponent
         {/* Charts by nutrient group */}
         <div className="grid gap-x-8 gap-y-6 lg:grid-cols-2">
           <NutrientChartSection title="Основные" subtitle="г/день по покрытой массе" rows={mainRows} unit="г" />
-          <NutrientChartSection title="Минералы" subtitle={`% от нормы ${standardLabel}`} rows={mineralRows} reference />
-          <NutrientChartSection title="Витамины" subtitle={`% от нормы ${standardLabel}`} rows={vitaminRows} reference>
+          <NutrientChartSection title="Минералы" subtitle="% от нормы FEDIAF 2025" rows={mineralRows} reference />
+          <NutrientChartSection title="Витамины" subtitle="% от нормы FEDIAF 2025" rows={vitaminRows} reference>
             {referenceVitamins.length > 0 && (
               <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
                 {referenceVitamins.map((item) => (
@@ -1144,25 +1517,15 @@ function DietNutrientAnalysis({ built, rationKcal }: { built: BuiltDietComponent
             </span>
           </div>
           <p className="text-[10px] leading-4 text-muted-foreground">
-            {normStandard === "fediaf2025" ? (
-              <>
-                Ориентир — минимально рекомендуемые уровни {FEDIAF_EDITION}
-                {stageMeta ? ` (${stageMeta.labelRu}${stageMeta.merReference ? `, ${stageMeta.merReference}` : ""})` : ""}{" "}
-                на 1000 ккал МЭ, масштабированные к рассчитанной энергетической ценности рациона. Селен и таурин взяты для сухих рационов;
-                витамин E — в МЕ.
-              </>
-            ) : (
-              <>
-                Ориентир — рекомендуемые нормы NRC 2006 для взрослых животных на 1000 ккал МЭ, масштабированные
-                к рассчитанной энергетической ценности рациона.
-              </>
-            )}{" "}
-            Шкала «% от нормы» обрезана на 300% (фактический процент — в подписи и тултипе). Значения справочные
-            и учитывают только массу, покрытую каталогом; для клинических решений сверяйтесь с актуальными таблицами{" "}
+            Ориентир — минимально рекомендуемые уровни {FEDIAF_EDITION}
+            {stageMeta ? ` (${stageMeta.nameRu}${stageMeta.merReference ? `, ${stageMeta.merReference}` : ""})` : ""}{" "}
+            на 1000 ккал МЭ, масштабированные к рассчитанной энергетической ценности рациона. Селен и таурин взяты для сухих рационов;
+            витамин E — в МЕ. {FEDIAF_CLINICAL_WARNING_RU}{" "}
             <a href={FEDIAF_SOURCE_URL} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-foreground">
-              FEDIAF
-            </a>
-            /NRC.
+              {FEDIAF_SOURCE_TITLE} ({FEDIAF_VERSION})
+            </a>{" "}
+            Шкала «% от нормы» обрезана на 300% (фактический процент — в подписи и тултипе). Значения справочные
+            и учитывают только массу, покрытую каталогом; для клинических решений сверяйтесь с актуальными таблицами.
           </p>
         </div>
       </CardContent>

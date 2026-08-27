@@ -9,7 +9,7 @@
 
 import { create } from "zustand";
 import type { DietTemplateComponent, DietType } from "@/lib/types";
-import type { NormStandard } from "@/lib/nutrition-analysis";
+import type { FediafAnimalProfile, FediafSelectionSuggestion } from "@/lib/fediaf";
 
 export type NutritionTab = "catalog" | "rer-mer" | "dm" | "template";
 
@@ -23,6 +23,12 @@ export interface DryMatterPrefill {
   meKcalPerKg: number | null; // catalog ME for comparison with the estimate
 }
 
+export interface FediafDraftSelection {
+  stageCode: string | null;
+  formulaCode: string | null;
+  sizeClassCode: string | null;
+}
+
 interface NutritionWorkspaceState {
   activeTab: NutritionTab;
   setActiveTab: (tab: NutritionTab) => void;
@@ -30,6 +36,28 @@ interface NutritionWorkspaceState {
   // Shared patient context: prefills the calculator, enables one-click saves
   patientId: string | null;
   setPatientId: (id: string | null) => void;
+
+  // Explicit clinician gate for the current Nutrition working session.
+  // This is intentionally not inferred from specialty or diagnoses.
+  therapeuticGoal: boolean;
+  setTherapeuticGoal: (therapeuticGoal: boolean) => void;
+
+  // Clinical FEDIAF flow. Suggestions and draft overrides are deliberately
+  // separate from confirmed values so profile changes can never silently
+  // change the norms or MER used downstream.
+  fediafProfile: FediafAnimalProfile;
+  fediafSuggestion: FediafSelectionSuggestion | null;
+  fediafDraft: FediafDraftSelection;
+  confirmedStageCode: string | null;
+  confirmedFormulaCode: string | null;
+  confirmedSizeClassCode: string | null;
+  stageConfirmed: boolean;
+  setFediafProfile: (patch: Partial<FediafAnimalProfile>) => void;
+  replaceFediafProfile: (profile: FediafAnimalProfile) => void;
+  applyFediafSuggestion: (suggestion: FediafSelectionSuggestion) => void;
+  setFediafDraft: (patch: Partial<FediafDraftSelection>) => void;
+  confirmFediafSelection: () => void;
+  dismissFediafSelection: () => void;
 
   // Product handed from the catalog to the Dry Matter converter
   dmPrefill: DryMatterPrefill | null;
@@ -48,12 +76,6 @@ interface NutritionWorkspaceState {
   /** Returns false if this catalog product is already in the ration. */
   addProductToDiet: (component: DietTemplateComponent) => boolean;
 
-  // Nutrient-analysis reference standard (persists across tab switches).
-  // `null` stage = follow the selected patient's life stage automatically.
-  normStandard: NormStandard;
-  setNormStandard: (standard: NormStandard) => void;
-  normStage: string | null;
-  setNormStage: (stage: string | null) => void;
 }
 
 export const useNutritionWorkspace = create<NutritionWorkspaceState>((set, get) => ({
@@ -61,7 +83,88 @@ export const useNutritionWorkspace = create<NutritionWorkspaceState>((set, get) 
   setActiveTab: (tab) => set({ activeTab: tab }),
 
   patientId: null,
-  setPatientId: (id) => set({ patientId: id }),
+  setPatientId: (id) => set({
+    patientId: id,
+    fediafSuggestion: null,
+    fediafDraft: { stageCode: null, formulaCode: null, sizeClassCode: null },
+    confirmedStageCode: null,
+    confirmedFormulaCode: null,
+    confirmedSizeClassCode: null,
+    stageConfirmed: false,
+  }),
+  therapeuticGoal: false,
+  setTherapeuticGoal: (therapeuticGoal) => set({ therapeuticGoal }),
+
+  fediafProfile: {
+    species: "dog",
+    breedCode: "",
+    currentBodyWeightKg: null,
+    expectedAdultWeightKg: null,
+    ageWeeks: null,
+    ageMonths: null,
+    lifeStage: "adult",
+    activity: "moderate",
+    neutered: true,
+    pregnant: false,
+    lactating: false,
+    lactationWeek: null,
+    litterSize: null,
+    maintenanceEnergyKcalDay: null,
+  },
+  fediafSuggestion: null,
+  fediafDraft: { stageCode: null, formulaCode: null, sizeClassCode: null },
+  confirmedStageCode: null,
+  confirmedFormulaCode: null,
+  confirmedSizeClassCode: null,
+  stageConfirmed: false,
+  setFediafProfile: (patch) => set((state) => ({
+    fediafProfile: { ...state.fediafProfile, ...patch },
+    stageConfirmed: false,
+    confirmedStageCode: null,
+    confirmedFormulaCode: null,
+    confirmedSizeClassCode: null,
+  })),
+  replaceFediafProfile: (profile) => set({
+    fediafProfile: profile,
+    fediafSuggestion: null,
+    fediafDraft: { stageCode: null, formulaCode: null, sizeClassCode: null },
+    stageConfirmed: false,
+    confirmedStageCode: null,
+    confirmedFormulaCode: null,
+    confirmedSizeClassCode: null,
+  }),
+  applyFediafSuggestion: (suggestion) => set({
+    fediafSuggestion: suggestion,
+    fediafDraft: {
+      stageCode: suggestion.stageCode,
+      formulaCode: suggestion.formulaCode,
+      sizeClassCode: suggestion.sizeClassCode,
+    },
+    stageConfirmed: false,
+    confirmedStageCode: null,
+    confirmedFormulaCode: null,
+    confirmedSizeClassCode: null,
+  }),
+  setFediafDraft: (patch) => set((state) => ({
+    fediafDraft: { ...state.fediafDraft, ...patch },
+    stageConfirmed: false,
+    confirmedStageCode: null,
+    confirmedFormulaCode: null,
+    confirmedSizeClassCode: null,
+  })),
+  confirmFediafSelection: () => set((state) => ({
+    stageConfirmed: Boolean(state.fediafDraft.stageCode && state.fediafDraft.formulaCode),
+    confirmedStageCode: state.fediafDraft.stageCode,
+    confirmedFormulaCode: state.fediafDraft.formulaCode,
+    confirmedSizeClassCode: state.fediafDraft.sizeClassCode,
+  })),
+  dismissFediafSelection: () => set({
+    fediafDraft: { stageCode: null, formulaCode: null, sizeClassCode: null },
+    stageConfirmed: false,
+    confirmedStageCode: null,
+    confirmedFormulaCode: null,
+    confirmedSizeClassCode: null,
+  }),
 
   dmPrefill: null,
   sendProductToDryMatter: (prefill) => set({ dmPrefill: prefill, activeTab: "dm" }),
@@ -88,9 +191,4 @@ export const useNutritionWorkspace = create<NutritionWorkspaceState>((set, get) 
     set({ components: [...components, { ...component, grams: 0 }] });
     return true;
   },
-
-  normStandard: "fediaf2025",
-  setNormStandard: (standard) => set({ normStandard: standard }),
-  normStage: null,
-  setNormStage: (stage) => set({ normStage: stage }),
 }));

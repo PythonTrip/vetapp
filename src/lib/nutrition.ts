@@ -1,5 +1,5 @@
 // Veterinary nutrition calculation utilities
-// Based on standard veterinary nutrition formulas (WSAVA, AAHA, NRC)
+// Based on standard veterinary nutrition formulas.
 
 import type {
   LifeStage, ActivityLevel, Species, RERMERResult, DryMatterResult, DietTemplateComponent,
@@ -8,7 +8,7 @@ import type {
 /**
  * Resting Energy Requirement (RER)
  * RER = 70 * (body weight in kg)^0.75
- * Standard allometric formula accepted by NRC/AAHA.
+ * Standard veterinary allometric formula.
  */
 export function calculateRER(weightKg: number): number {
   if (weightKg <= 0) return 0;
@@ -28,7 +28,7 @@ export function getMERFactors(
   const factors: { label: string; value: number }[] = [];
 
   if (species === "dog") {
-    // Canine MER factors (AAHA 2014 / NRC 2006)
+    // Canine MER factors for the retained RER × factor cross-check.
     if (lifeStage === "puppy_kitten") {
       factors.push({ label: "Puppy (< 4 months)", value: 3.0 });
       factors.push({ label: "Puppy (4-12 months)", value: 2.0 });

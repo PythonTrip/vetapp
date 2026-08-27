@@ -165,7 +165,29 @@ export interface DietPlan {
   mer: number;
   macros: string;
   template: string | null;
+  fediafMeta: string | null;
   notes: string | null;
+}
+
+export interface DietPlanFediafMeta {
+  version: string;
+  stageCode: string;
+  disclaimerRu: string;
+  sourceTitle?: string;
+  sourceUrl?: string;
+  savedAt: string;
+}
+
+export interface CreateDietPlanInput {
+  petId: string;
+  name: string;
+  type?: DietType;
+  rer?: number;
+  mer?: number;
+  macros?: string;
+  template?: string | null;
+  fediafMeta?: DietPlanFediafMeta | string | null;
+  notes?: string | null;
 }
 
 export type DietComponentCategory =

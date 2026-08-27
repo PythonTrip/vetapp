@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Plus, Trash2, Flame, Beef, Wheat, Droplet, Scale } from "lucide-react";
+import { Plus, Trash2, Flame, Beef, Wheat, Droplet, Scale, BookOpen } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateDietPlan, useDeleteDietPlan } from "@/lib/hooks";
+import { parseDietPlanFediafMeta } from "@/lib/diet-plan";
 import { calculateRERMER } from "@/lib/nutrition";
 import type { PetWithRelations, DietType } from "@/lib/types";
 import { toast } from "sonner";
@@ -58,6 +59,7 @@ export function DietPlanPanel({ pet }: { pet: PetWithRelations }) {
             ];
             let template: { category: string; ingredient: string; grams?: number; percentage?: number }[] = [];
             try { template = plan.template ? JSON.parse(plan.template) : []; } catch { /* */ }
+            const fediafMeta = parseDietPlanFediafMeta(plan.fediafMeta);
             return (
               <div key={plan.id} className="rounded-xl border p-4 group">
                 <div className="flex items-start justify-between gap-2">
@@ -103,6 +105,33 @@ export function DietPlanPanel({ pet }: { pet: PetWithRelations }) {
                     <div className="text-[9px] text-muted-foreground">P/F/C</div>
                   </div>
                 </div>
+
+                {fediafMeta && (
+                  <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <BookOpen className="h-3.5 w-3.5 text-primary" />
+                      <span className="text-xs font-semibold">Контекст FEDIAF</span>
+                      <Badge variant="outline" className="text-[9px]">v{fediafMeta.version}</Badge>
+                      <Badge variant="secondary" className="text-[9px]">{fediafMeta.stageCode}</Badge>
+                    </div>
+                    <details className="mt-2 text-xs text-muted-foreground">
+                      <summary className="cursor-pointer font-medium text-foreground">
+                        Клинический дисклеймер
+                      </summary>
+                      <p className="mt-2 leading-relaxed">{fediafMeta.disclaimerRu}</p>
+                      {fediafMeta.sourceUrl && (
+                        <a
+                          href={fediafMeta.sourceUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-2 inline-block underline underline-offset-2 hover:text-foreground"
+                        >
+                          {fediafMeta.sourceTitle ?? "Источник FEDIAF"}
+                        </a>
+                      )}
+                    </details>
+                  </div>
+                )}
 
                 {macros.protein != null && (
                   <div className="h-32 mt-3">

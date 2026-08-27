@@ -105,6 +105,8 @@ model DietPlan {
   macros    String
   // template breakdown for home-cooked/barf (JSON string of {category, ingredient, percentage, grams})
   template  String?
+  // Snapshot of the confirmed FEDIAF context used in Nutrition (JSON string)
+  fediafMeta String?
   notes     String?
   createdAt DateTime @default(now())
 
