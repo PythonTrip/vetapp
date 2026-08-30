@@ -78,18 +78,16 @@ VetDietDerm должен стать главным рабочим окном в�
 
 ## Текущая реализация
 
-В прототипе уже есть:
+На split stack (Next.js в `frontend/`, FastAPI в `apps/api/`, PostgreSQL) уже есть:
 
-- карточки животных и базовые данные владельца;
-- консультации и хронология;
-- расписание и статусы записей;
-- дерматологическая фотогалерея;
-- планы питания и RER/MER-калькулятор;
-- шаблоны лечения, журнал коммуникаций и портал владельца;
-- клинические подсказки, отчёты, импорт/экспорт и резервное копирование;
-- экспериментальная AI-генерация памяток для владельцев.
+- клиент и пациент как отдельные сущности;
+- приёмы с анамнезом, SOAP и VAS;
+- расписание записей;
+- дерматологическая фотогалерея (файлы на диске, метаданные в PostgreSQL);
+- журнал коммуникаций;
+- планы питания и оценка по FEDIAF 2025.
 
-Главное ограничение текущей модели: она построена вокруг записи `Pet`, в которой одновременно хранятся данные животного и владельца. Консультация остаётся преимущественно текстовой, изображения специализированы только под поражения кожи, а система не содержит полноценных рабочих пространств, пользователей и ролей.
+Пока не входят: пользователи и роли, портал владельца, knowledge/AI, drug checker, калькуляторы дозы и инфузии.
 
 ## Что меняется в результате pivot
 
@@ -159,57 +157,23 @@ VetDietDerm должен стать главным рабочим окном в�
 
 ## Локальный запуск
 
-Требуется Node.js 20+ (или Bun). База данных — **PostgreSQL** (локально или Neon).
+Стек: Next.js UI в `frontend/`, FastAPI в `apps/api/`, PostgreSQL на `127.0.0.1:15432`. Нужны Node.js 20+ и Python 3.13+ (`uv`).
 
 ```bash
 cp .env.example .env
-# заполните DATABASE_URL и DIRECT_URL
+# заполните DATABASE_URL и INSTANCE_PASSWORD
 
-npm install
-npm run db:migrate:deploy
-npm run db:import-products   # опционально
+# API
+uv sync --project apps/api
+uv run --project apps/api alembic -c apps/api/alembic.ini upgrade head
+uv run --project apps/api python -m vetdietderm_api.main
+
+# UI (второй терминал)
+npm install --prefix frontend
 npm run dev
 ```
 
-В `.env` задайте оба URL. Для одного локального Postgres можно использовать одну и ту же строку:
-
-```dotenv
-DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/vetapp"
-DIRECT_URL="postgresql://USER:PASSWORD@localhost:5432/vetapp"
-```
-
-После запуска приложение доступно по адресу `http://localhost:3000`.
-
-Локальный файл `db/custom.db` (SQLite) больше не используется приложением. При необходимости данные нужно перенести в PostgreSQL отдельно.
-
-## Развёртывание на Vercel
-
-Репозиторий подготовлен под Vercel (Next.js + Prisma Migrate + PostgreSQL).
-
-1. Создайте проект на [vercel.com](https://vercel.com) и подключите Git-репозиторий (команда: `alex-pytrips-projects`).
-2. Добавьте Neon через Marketplace: Project → Storage → Neon (или `vercel integration add neon` после `vercel link`).
-3. В Environment Variables проверьте наличие:
-   - `DATABASE_URL` — pooled connection (runtime);
-   - `DIRECT_URL` — non-pooled / direct (миграции).  
-     Если Neon отдал только `DATABASE_URL` и `DATABASE_URL_UNPOOLED`, скопируйте unpooled в `DIRECT_URL`.
-4. Deploy. Скрипт `build` выполняет `prisma generate`, `prisma migrate deploy` и `next build`.
-5. При необходимости импортируйте справочник продуктов после первого деплоя (`db:import-products` с production `DATABASE_URL`).
-
-Ограничения текущего прототипа на serverless:
-
-- фото хранятся как base64 в БД — крупные файлы упираются в лимит body serverless-функции (~4.5 MB);
-- AI-роуты (`z-ai-web-dev-sdk`) зависят от окружения SDK и могут быть недоступны без отдельной конфигурации провайдера;
-- аутентификация multi-user ещё не подключена.
-
-CLI (опционально):
-
-```bash
-npm i -g vercel
-vercel login
-vercel link --scope alex-pytrips-projects
-vercel env pull .env.local --yes
-vercel --prod
-```
+`NEXT_PUBLIC_API_URL` читается из корневого `.env` или из `frontend/.env`. UI: `http://127.0.0.1:3000`. API: `http://127.0.0.1:8000`.
 
 ## План развития
 
