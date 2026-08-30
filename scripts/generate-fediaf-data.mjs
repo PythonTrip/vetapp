@@ -13,6 +13,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DATABASE_PATH = path.join(root, "docs", "fediaf_2025_veterinary_nutrition_database_ru.json");
 const SCHEMA_PATH = path.join(root, "docs", "fediaf_2025_veterinary_nutrition_schema.json");
 const OUT = path.join(root, "src", "lib", "fediaf-data.ts");
+const validateOnly = process.argv.includes("--validate-only");
 
 const readJson = (filePath) => JSON.parse(fs.readFileSync(filePath, "utf8").replace(/^\uFEFF/, ""));
 const database = readJson(DATABASE_PATH);
@@ -86,6 +87,9 @@ const meta = requiredObject(database.database_meta, "$.database_meta");
 const dataModel = requiredObject(database.data_model, "$.data_model");
 const catalogs = requiredObject(database.catalogs, "$.catalogs");
 const nutrientCatalog = new Map(requiredArray(catalogs.nutrients, "$.catalogs.nutrients").map((item) => [item.code, item]));
+const derivedExpressionCatalog = new Map(
+  requiredArray(catalogs.derived_expressions, "$.catalogs.derived_expressions").map((item) => [item.code, item]),
+);
 const lifeStageCatalog = new Map(requiredArray(catalogs.life_stages, "$.catalogs.life_stages").map((item) => [item.code, item]));
 
 for (const field of ["version", "clinical_warning_ru", "formula_expression_language"]) {
@@ -118,9 +122,10 @@ for (const species of ["dog", "cat"]) {
       merReference: profile.mer_reference ?? catalogStage.mer_reference ?? null,
       basis: profile.basis,
       source,
-      nutrients: Object.entries(profile.nutrients).map(([code, value]) => {
-        const catalogNutrient = nutrientCatalog.get(code);
-        if (!catalogNutrient) throw new Error(`Missing nutrient catalog entry for ${code}`);
+      nutrients: requiredArray(profile.nutrients, `$.species_data.${species}.nutrient_profiles.${profile.code}.nutrients`).map((value) => {
+        const code = value.code;
+        const catalogNutrient = nutrientCatalog.get(code) ?? derivedExpressionCatalog.get(code);
+        if (!catalogNutrient) throw new Error(`Missing nutrient or derived-expression catalog entry for ${code}`);
         return {
           code,
           category: catalogNutrient.category_code,
@@ -132,6 +137,7 @@ for (const species of ["dog", "cat"]) {
           sourceValueText: value.source_value_text ?? null,
           footnote: value.footnote ?? null,
           noteRu: value.note_ru ?? null,
+          applicabilityRuleCode: value.applicability_rule_code ?? null,
         };
       }),
     });
@@ -185,6 +191,13 @@ const mappedCatalogs = {
   species: catalogs.species.map((item) => ({ code: item.code, nameRu: item.name_ru, nameEn: item.name_en })),
   nutrientCategories: catalogs.nutrient_categories.map((item) => ({ code: item.code, nameRu: item.name_ru })),
   nutrients: catalogs.nutrients.map((item) => ({
+    code: item.code,
+    nameRu: item.name_ru,
+    nameEn: item.name_en,
+    categoryCode: item.category_code,
+    unitPer1000KcalMe: item.unit_per_1000_kcal_me,
+  })),
+  derivedExpressions: catalogs.derived_expressions.map((item) => ({
     code: item.code,
     nameRu: item.name_ru,
     nameEn: item.name_en,
@@ -249,6 +262,7 @@ export interface FediafCatalogs {
   species: Array<{ code: FediafSpecies; nameRu: string; nameEn: string }>;
   nutrientCategories: Array<{ code: string; nameRu: string }>;
   nutrients: FediafNutrientCatalogEntry[];
+  derivedExpressions: FediafNutrientCatalogEntry[];
   lifeStages: FediafLifeStageCatalogEntry[];
 }
 
@@ -264,6 +278,7 @@ export interface FediafNutrientMin {
   sourceValueText: string | null;
   footnote: string | null;
   noteRu: string | null;
+  applicabilityRuleCode: "feed_form_wet" | "feed_form_dry" | null;
 }
 
 export interface FediafStage {
@@ -338,7 +353,9 @@ export const FEDIAF_NUTRIENT_STAGES: FediafStage[] = ${json(stages)};
 export const FEDIAF_ENERGY_FORMULAS: FediafEnergyFormula[] = ${json(formulas)};
 `;
 
-fs.writeFileSync(OUT, body, "utf8");
-console.log(`Wrote ${path.relative(root, OUT)} from ${path.relative(root, DATABASE_PATH)}`);
+if (!validateOnly) {
+  fs.writeFileSync(OUT, body, "utf8");
+  console.log(`Wrote ${path.relative(root, OUT)} from ${path.relative(root, DATABASE_PATH)}`);
+}
 console.log(`  schema: ${path.relative(root, SCHEMA_PATH)} (valid)`);
 console.log(`  stages: ${stages.length}, energy formulas: ${formulas.length}, size classes: ${sizeClasses.length}`);

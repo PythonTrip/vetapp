@@ -1,0 +1,1 @@
+"""VetDietDerm FastAPI application package."""

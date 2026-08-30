@@ -1,0 +1,26 @@
+[project]
+name = "vetdietderm-api"
+version = "0.1.0"
+authors = [
+    { name = "pytrip", email = "thealexframe@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "alembic>=1.19.1",
+    "fastapi>=0.141.1",
+    "httpx>=0.28.1",
+    "loguru>=0.7.3",
+    "psycopg[binary]>=3.3.4",
+    "pydantic>=2.13.4",
+    "pydantic-settings>=2.15.0",
+    "python-multipart>=0.0.32",
+    "sqlalchemy>=2.0.52",
+    "uvicorn[standard]>=0.52.4",
+]
+
+[project.scripts]
+vetdietderm-api = "vetdietderm_api.main:run"
+
+[build-system]
+requires = ["uv_build>=0.9.26,<0.10.0"]
+build-backend = "uv_build"

@@ -1,0 +1,368 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/fediaf_2025_veterinary_nutrition_schema.json",
+  "title": "FEDIAF 2025 Veterinary Nutrition Database",
+  "type": "object",
+  "required": [
+    "database_meta",
+    "catalogs",
+    "species_data",
+    "diseases_and_conditions"
+  ],
+  "properties": {
+    "database_meta": {
+      "type": "object",
+      "required": [
+        "id",
+        "version",
+        "source",
+        "scope"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "language": {
+          "type": "string"
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "title",
+            "publication_date",
+            "url"
+          ],
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "publication_date": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        },
+        "scope": {
+          "type": "object"
+        }
+      }
+    },
+    "catalogs": {
+      "type": "object",
+      "required": [
+        "species",
+        "nutrients",
+        "derived_expressions",
+        "life_stages"
+      ],
+      "properties": {
+        "nutrients": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nutrientCatalogEntry"
+          }
+        },
+        "derived_expressions": {
+          "type": "array"
+        }
+      }
+    },
+    "species_data": {
+      "type": "object",
+      "required": [
+        "dog",
+        "cat"
+      ],
+      "properties": {
+        "dog": {
+          "$ref": "#/$defs/speciesData"
+        },
+        "cat": {
+          "$ref": "#/$defs/speciesData"
+        }
+      }
+    },
+    "diseases_and_conditions": {
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "nutrientCatalogEntry": {
+      "type": "object",
+      "required": [
+        "code",
+        "name_ru",
+        "name_en",
+        "category_code",
+        "unit_per_1000_kcal_me"
+      ],
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "name_ru": {
+          "type": "string"
+        },
+        "name_en": {
+          "type": "string"
+        },
+        "category_code": {
+          "enum": [
+            "main",
+            "mineral",
+            "vitamin",
+            "amino_acid",
+            "fatty_acid"
+          ]
+        },
+        "unit_per_1000_kcal_me": {
+          "type": "string"
+        }
+      }
+    },
+    "nutrientTarget": {
+      "type": "object",
+      "required": [
+        "code",
+        "minimum",
+        "established",
+        "unit"
+      ],
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "applicability_rule_code": {
+          "enum": [
+            "feed_form_wet",
+            "feed_form_dry"
+          ]
+        },
+        "minimum": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "minimum_upper": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "established": {
+          "type": "boolean"
+        },
+        "unit": {
+          "enum": [
+            "g",
+            "mg",
+            "µg",
+            "IU",
+            "ratio"
+          ]
+        },
+        "source_value_text": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "footnote": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "note_ru": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "nutrientProfile": {
+      "type": "object",
+      "required": [
+        "code",
+        "species_code",
+        "basis",
+        "nutrients"
+      ],
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "species_code": {
+          "enum": [
+            "dog",
+            "cat"
+          ]
+        },
+        "name_ru": {
+          "type": "string"
+        },
+        "calculation_basis": {
+          "enum": [
+            "published_per_1000_kcal",
+            "daily_per_metabolic_bw"
+          ]
+        },
+        "clinician_selectable": {
+          "type": "boolean"
+        },
+        "basis": {
+          "type": "object"
+        },
+        "nutrients": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nutrientTarget"
+          }
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "language": {
+              "const": "en"
+            },
+            "table": {
+              "type": "string"
+            },
+            "page": {
+              "type": "integer"
+            },
+            "url": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "calculation_basis"
+            ],
+            "properties": {
+              "calculation_basis": {
+                "const": "daily_per_metabolic_bw"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "source"
+            ],
+            "properties": {
+              "source": {
+                "required": [
+                  "language",
+                  "table",
+                  "page",
+                  "url"
+                ],
+                "properties": {
+                  "language": {
+                    "const": "en"
+                  },
+                  "table": {
+                    "const": "VII-11"
+                  },
+                  "page": {
+                    "const": 58
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "energyFormula": {
+      "type": "object",
+      "required": [
+        "code",
+        "name_ru",
+        "result_unit"
+      ],
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "name_ru": {
+          "type": "string"
+        },
+        "source_table": {
+          "type": "string"
+        },
+        "expression": {
+          "type": "string"
+        },
+        "expression_min": {
+          "type": "string"
+        },
+        "expression_max": {
+          "type": "string"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "result_unit": {
+          "const": "kcal_ME_per_day"
+        }
+      }
+    },
+    "speciesData": {
+      "type": "object",
+      "required": [
+        "name_ru",
+        "breeds",
+        "size_classes",
+        "nutrient_profiles",
+        "energy_formulas",
+        "lactation"
+      ],
+      "properties": {
+        "name_ru": {
+          "type": "string"
+        },
+        "breeds": {
+          "type": "object"
+        },
+        "size_classes": {
+          "type": [
+            "array",
+            "object"
+          ]
+        },
+        "nutrient_profiles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nutrientProfile"
+          }
+        },
+        "energy_formulas": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/energyFormula"
+          }
+        },
+        "lactation": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,163 @@
+from uuid import UUID
+
+from fastapi import HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.orm import Session, joinedload
+
+from vetdietderm_api.assessments import repository
+from vetdietderm_api.assessments.engine import assess_nutrition
+from vetdietderm_api.assessments.models import DietPlan, utc_now
+from vetdietderm_api.assessments.schemas import (
+    AssessmentSnapshot,
+    DietPlanRead,
+    DietPlanRationComponent,
+    DietPlanSummary,
+    DietPlanWrite,
+    PatientPlanReference,
+)
+from vetdietderm_api.patients.models import Patient
+
+LIST_CAP = 50
+
+
+def _not_found() -> HTTPException:
+    return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="План питания не найден")
+
+
+def _validate_patient(session: Session, patient_uuid: UUID | None) -> Patient | None:
+    if patient_uuid is None:
+        return None
+    patient = session.get(Patient, patient_uuid)
+    if patient is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Указанный пациент не найден",
+        )
+    return patient
+
+
+def _validate_save_context(payload: DietPlanWrite) -> None:
+    request = payload.assessment_request
+    normative_requested = request.animal.species.value in {"dog", "cat"}
+    if normative_requested and (
+        not request.confirmed_profile_code or not request.confirmed_energy_formula_code
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Выберите нутриентный стандарт и энергетический сценарий перед сохранением snapshot",
+        )
+
+
+def _compute_snapshot(
+    session: Session,
+    payload: DietPlanWrite,
+) -> tuple[list[dict[str, object]], dict[str, object]]:
+    _validate_save_context(payload)
+    request = payload.assessment_request
+    guideline = repository.load_published_guideline(session)
+    foods = repository.load_foods(session, [item.food_uuid for item in request.components])
+    assessment = assess_nutrition(request, guideline, foods)
+    ration = [
+        DietPlanRationComponent(
+            food_uuid=item.food_uuid,
+            grams=item.grams,
+            food_name=foods[item.food_uuid].name,
+            food_type=foods[item.food_uuid].type,
+            feed_form=foods[item.food_uuid].feed_form,
+        ).model_dump(mode="json")
+        for item in request.components
+    ]
+    snapshot = AssessmentSnapshot(
+        request=request,
+        assessment=assessment,
+    ).model_dump(mode="json")
+    return ration, snapshot
+
+
+def _plan_stmt():
+    return select(DietPlan).options(joinedload(DietPlan.patient))
+
+
+def get_plan(session: Session, plan_uuid: UUID) -> DietPlan:
+    plan = session.scalars(_plan_stmt().where(DietPlan.uuid == plan_uuid)).one_or_none()
+    if plan is None:
+        raise _not_found()
+    return plan
+
+
+def _patient_reference(patient: Patient | None) -> PatientPlanReference | None:
+    if patient is None:
+        return None
+    return PatientPlanReference(uuid=patient.uuid, name=patient.name)
+
+
+def to_read(plan: DietPlan) -> DietPlanRead:
+    snapshot = AssessmentSnapshot.model_validate(plan.assessment_snapshot_json)
+    return DietPlanRead(
+        uuid=plan.uuid,
+        name=plan.name,
+        patient_uuid=plan.patient_uuid,
+        patient=_patient_reference(plan.patient),
+        ration=[DietPlanRationComponent.model_validate(item) for item in plan.ration_json],
+        assessment_snapshot=snapshot,
+        engine_id=snapshot.assessment.engine_id,
+        edition_code=snapshot.assessment.edition.code,
+        edition_source_checksum=snapshot.assessment.edition.source_checksum,
+        notes=plan.notes,
+        created_at=plan.created_at,
+        updated_at=plan.updated_at,
+    )
+
+
+def to_summary(plan: DietPlan) -> DietPlanSummary:
+    snapshot = AssessmentSnapshot.model_validate(plan.assessment_snapshot_json)
+    return DietPlanSummary(
+        uuid=plan.uuid,
+        name=plan.name,
+        patient_uuid=plan.patient_uuid,
+        patient=_patient_reference(plan.patient),
+        engine_id=snapshot.assessment.engine_id,
+        edition_code=snapshot.assessment.edition.code,
+        edition_source_checksum=snapshot.assessment.edition.source_checksum,
+        created_at=plan.created_at,
+        updated_at=plan.updated_at,
+    )
+
+
+def list_plans(session: Session, patient_uuid: UUID | None) -> list[DietPlan]:
+    stmt = _plan_stmt()
+    if patient_uuid is not None:
+        stmt = stmt.where(DietPlan.patient_uuid == patient_uuid)
+    stmt = stmt.order_by(DietPlan.updated_at.desc()).limit(LIST_CAP)
+    return list(session.scalars(stmt).unique().all())
+
+
+def create_plan(session: Session, payload: DietPlanWrite) -> DietPlan:
+    patient = _validate_patient(session, payload.patient_uuid)
+    ration, snapshot = _compute_snapshot(session, payload)
+    plan = DietPlan(
+        name=payload.name,
+        patient_uuid=payload.patient_uuid,
+        patient=patient,
+        ration_json=ration,
+        assessment_snapshot_json=snapshot,
+        notes=payload.notes,
+    )
+    session.add(plan)
+    session.commit()
+    return get_plan(session, plan.uuid)
+
+
+def update_plan(session: Session, plan_uuid: UUID, payload: DietPlanWrite) -> DietPlan:
+    plan = get_plan(session, plan_uuid)
+    patient = _validate_patient(session, payload.patient_uuid)
+    ration, snapshot = _compute_snapshot(session, payload)
+    plan.name = payload.name
+    plan.patient_uuid = payload.patient_uuid
+    plan.patient = patient
+    plan.ration_json = ration
+    plan.assessment_snapshot_json = snapshot
+    plan.notes = payload.notes
+    plan.updated_at = utc_now()
+    session.commit()
+    return get_plan(session, plan.uuid)

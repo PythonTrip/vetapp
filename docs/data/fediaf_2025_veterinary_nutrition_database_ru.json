@@ -1,0 +1,5208 @@
+{
+  "database_meta": {
+    "id": "fediaf_2025_veterinary_nutrition_ru",
+    "title_ru": "База данных FEDIAF 2025 для ветеринарной диетологии",
+    "version": "2025.09",
+    "generated_at": "2026-07-31",
+    "language": "ru",
+    "source": {
+      "title": "FEDIAF Nutritional Guidelines for Complete and Complementary Pet Food for Cats and Dogs",
+      "publication_date": "2025-09",
+      "url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf"
+    },
+    "scope": {
+      "species": [
+        "dog",
+        "cat"
+      ],
+      "healthy_animals_only": true,
+      "complete_and_complementary_pet_food": true,
+      "disease_specific_diets_included": false,
+      "reason_ru": "Корма для особых пищевых целей и другие специализированные рационы исключены из области документа."
+    },
+    "clinical_warning_ru": "Значения являются рекомендациями для полнорационных коммерческих кормов здоровых животных, а не индивидуальным назначением пациенту.",
+    "normal_digestibility_assumptions": {
+      "dry_matter_digestibility_min_percent": 70,
+      "protein_digestibility_min_percent": 80,
+      "essential_amino_acid_adjustment_if_protein_digestibility_below_80_percent": "+10% minimum"
+    },
+    "formula_expression_language": "mathjs-compatible"
+  },
+  "data_model": {
+    "animal_profile_fields": [
+      "species_code",
+      "breed_code",
+      "current_body_weight_kg",
+      "expected_adult_weight_kg",
+      "size_class_code",
+      "age_weeks",
+      "age_months",
+      "life_stage_code",
+      "activity_code",
+      "neutered",
+      "pregnant",
+      "lactating",
+      "lactation_week",
+      "litter_size",
+      "condition_codes"
+    ],
+    "nutrient_basis": "per_1000_kcal_metabolisable_energy",
+    "null_meaning_ru": "Значение не установлено или не приведено в исходной таблице."
+  },
+  "catalogs": {
+    "species": [
+      {
+        "code": "dog",
+        "name_ru": "Собака",
+        "name_en": "Dog"
+      },
+      {
+        "code": "cat",
+        "name_ru": "Кошка",
+        "name_en": "Cat"
+      }
+    ],
+    "nutrient_categories": [
+      {
+        "code": "main",
+        "name_ru": "Основные питательные вещества"
+      },
+      {
+        "code": "mineral",
+        "name_ru": "Минералы"
+      },
+      {
+        "code": "vitamin",
+        "name_ru": "Витамины"
+      },
+      {
+        "code": "amino_acid",
+        "name_ru": "Аминокислоты"
+      },
+      {
+        "code": "fatty_acid",
+        "name_ru": "Жирные кислоты"
+      }
+    ],
+    "nutrients": [
+      {
+        "code": "CP",
+        "name_ru": "Белок",
+        "name_en": "Protein",
+        "category_code": "main",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "CFa",
+        "name_ru": "Жир",
+        "name_en": "Fat",
+        "category_code": "main",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "Arg",
+        "name_ru": "Аргинин",
+        "name_en": "Arginine",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "His",
+        "name_ru": "Гистидин",
+        "name_en": "Histidine",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "Ile",
+        "name_ru": "Изолейцин",
+        "name_en": "Isoleucine",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "Leu",
+        "name_ru": "Лейцин",
+        "name_en": "Leucine",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "Lys",
+        "name_ru": "Лизин",
+        "name_en": "Lysine",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "Met",
+        "name_ru": "Метионин",
+        "name_en": "Methionine",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "Cys",
+        "name_ru": "Цистеин",
+        "name_en": "Cysteine",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "Phe",
+        "name_ru": "Фенилаланин",
+        "name_en": "Phenylalanine",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "Tyr",
+        "name_ru": "Тирозин",
+        "name_en": "Tyrosine",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "Thr",
+        "name_ru": "Треонин",
+        "name_en": "Threonine",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "Trp",
+        "name_ru": "Триптофан",
+        "name_en": "Tryptophan",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "Val",
+        "name_ru": "Валин",
+        "name_en": "Valine",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "Tau",
+        "name_ru": "Таурин",
+        "name_en": "Taurine",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "LA",
+        "name_ru": "Линолевая кислота (ω-6)",
+        "name_en": "Linoleic acid (ω-6)",
+        "category_code": "fatty_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "AA",
+        "name_ru": "Арахидоновая кислота (ω-6)",
+        "name_en": "Arachidonic acid (ω-6)",
+        "category_code": "fatty_acid",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "ALA",
+        "name_ru": "Альфа-линоленовая кислота (ω-3)",
+        "name_en": "Alpha-linolenic acid (ω-3)",
+        "category_code": "fatty_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "EPA",
+        "name_ru": "Эйкозапентаеновая кислота",
+        "name_en": "Eicosapentaenoic acid",
+        "category_code": "fatty_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "DHA",
+        "name_ru": "Докозагексаеновая кислота",
+        "name_en": "Docosahexaenoic acid",
+        "category_code": "fatty_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "Ca",
+        "name_ru": "Кальций",
+        "name_en": "Calcium",
+        "category_code": "mineral",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "P",
+        "name_ru": "Фосфор",
+        "name_en": "Phosphorus",
+        "category_code": "mineral",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "K",
+        "name_ru": "Калий",
+        "name_en": "Potassium",
+        "category_code": "mineral",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "Na",
+        "name_ru": "Натрий",
+        "name_en": "Sodium",
+        "category_code": "mineral",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "Cl",
+        "name_ru": "Хлорид",
+        "name_en": "Chloride",
+        "category_code": "mineral",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "Mg",
+        "name_ru": "Магний",
+        "name_en": "Magnesium",
+        "category_code": "mineral",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "Cu",
+        "name_ru": "Медь",
+        "name_en": "Copper",
+        "category_code": "mineral",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "J",
+        "name_ru": "Йод",
+        "name_en": "Iodine",
+        "category_code": "mineral",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "Fe",
+        "name_ru": "Железо",
+        "name_en": "Iron",
+        "category_code": "mineral",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "Mn",
+        "name_ru": "Марганец",
+        "name_en": "Manganese",
+        "category_code": "mineral",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "Se",
+        "name_ru": "Селен",
+        "name_en": "Selenium",
+        "category_code": "mineral",
+        "unit_per_1000_kcal_me": "µg"
+      },
+      {
+        "code": "Zn",
+        "name_ru": "Цинк",
+        "name_en": "Zinc",
+        "category_code": "mineral",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "A",
+        "name_ru": "Витамин A",
+        "name_en": "Vitamin A",
+        "category_code": "vitamin",
+        "unit_per_1000_kcal_me": "IU"
+      },
+      {
+        "code": "D",
+        "name_ru": "Витамин D",
+        "name_en": "Vitamin D",
+        "category_code": "vitamin",
+        "unit_per_1000_kcal_me": "IU"
+      },
+      {
+        "code": "E",
+        "name_ru": "Витамин E",
+        "name_en": "Vitamin E",
+        "category_code": "vitamin",
+        "unit_per_1000_kcal_me": "IU"
+      },
+      {
+        "code": "B1",
+        "name_ru": "Витамин B1 (тиамин)",
+        "name_en": "Vitamin B1 (Thiamine)",
+        "category_code": "vitamin",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "B2",
+        "name_ru": "Витамин B2 (рибофлавин)",
+        "name_en": "Vitamin B2 (Riboflavin)",
+        "category_code": "vitamin",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "B3",
+        "name_ru": "Витамин B3 (ниацин)",
+        "name_en": "Vitamin B3 (Niacin)",
+        "category_code": "vitamin",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "B4",
+        "name_ru": "Холин",
+        "name_en": "Choline",
+        "category_code": "vitamin",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "B5",
+        "name_ru": "Витамин B5 (пантотеновая кислота)",
+        "name_en": "Vitamin B5 (Pantothenic acid)",
+        "category_code": "vitamin",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "B6",
+        "name_ru": "Витамин B6 (пиридоксин)",
+        "name_en": "Vitamin B6 (Pyridoxine)",
+        "category_code": "vitamin",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "B7",
+        "name_ru": "Витамин B7 (биотин)",
+        "name_en": "Vitamin B7 (Biotin)",
+        "category_code": "vitamin",
+        "unit_per_1000_kcal_me": "µg"
+      },
+      {
+        "code": "B9",
+        "name_ru": "Витамин B9 (фолиевая кислота)",
+        "name_en": "Vitamin B9 (Folic acid)",
+        "category_code": "vitamin",
+        "unit_per_1000_kcal_me": "µg"
+      },
+      {
+        "code": "B12",
+        "name_ru": "Витамин B12 (цианокобаламин)",
+        "name_en": "Vitamin B12 (Cyanocobalamin)",
+        "category_code": "vitamin",
+        "unit_per_1000_kcal_me": "µg"
+      },
+      {
+        "code": "K1",
+        "name_ru": "Витамин K",
+        "name_en": "Vitamin K",
+        "category_code": "vitamin",
+        "unit_per_1000_kcal_me": "µg"
+      }
+    ],
+    "life_stages": [
+      {
+        "code": "dog_adult_mer95",
+        "species_code": "dog",
+        "name_ru": "Взрослая собака — MER 95",
+        "physiological_state": "adult",
+        "mer_reference": "95 kcal/kg BW^0.75"
+      },
+      {
+        "code": "dog_adult_mer110",
+        "species_code": "dog",
+        "name_ru": "Взрослая собака — MER 110",
+        "physiological_state": "adult",
+        "mer_reference": "110 kcal/kg BW^0.75"
+      },
+      {
+        "code": "dog_early_growth_reproduction",
+        "species_code": "dog",
+        "name_ru": "Ранний рост <14 нед. / репродукция",
+        "physiological_state": "growth_reproduction",
+        "mer_reference": null
+      },
+      {
+        "code": "dog_late_growth",
+        "species_code": "dog",
+        "name_ru": "Поздний рост ≥14 нед.",
+        "physiological_state": "growth",
+        "mer_reference": null
+      },
+      {
+        "code": "cat_adult_mer75",
+        "species_code": "cat",
+        "name_ru": "Взрослая кошка — MER 75",
+        "physiological_state": "adult",
+        "mer_reference": "75 kcal/kg BW^0.67"
+      },
+      {
+        "code": "cat_adult_mer100",
+        "species_code": "cat",
+        "name_ru": "Взрослая кошка — MER 100",
+        "physiological_state": "adult",
+        "mer_reference": "100 kcal/kg BW^0.67"
+      },
+      {
+        "code": "cat_growth",
+        "species_code": "cat",
+        "name_ru": "Рост",
+        "physiological_state": "growth",
+        "mer_reference": null
+      },
+      {
+        "code": "cat_reproduction",
+        "species_code": "cat",
+        "name_ru": "Репродукция",
+        "physiological_state": "reproduction",
+        "mer_reference": null
+      }
+    ],
+    "derived_expressions": [
+      {
+        "code": "methionine_cystine",
+        "name_ru": "Метионин + цистин",
+        "name_en": "Methionine + cystine",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "phenylalanine_tyrosine",
+        "name_ru": "Фенилаланин + тирозин",
+        "name_en": "Phenylalanine + tyrosine",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "epa_dha",
+        "name_ru": "ЭПК + ДГК (ω-3)",
+        "name_en": "EPA + DHA (ω-3)",
+        "category_code": "fatty_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "ca_p_ratio",
+        "name_ru": "Соотношение Ca:P",
+        "name_en": "Ca/P ratio",
+        "category_code": "ratio",
+        "unit_per_1000_kcal_me": "ratio"
+      },
+      {
+        "code": "omega6_omega3",
+        "name_ru": "Соотношение омега-6/омега-3",
+        "name_en": "Omega-6/Omega-3 ratio",
+        "category_code": "ratio",
+        "unit_per_1000_kcal_me": "ratio"
+      }
+    ]
+  },
+  "species_data": {
+    "dog": {
+      "name_ru": "Собака",
+      "breeds": {
+        "catalog_is_exhaustive": false,
+        "note_ru": "Включены только породы и группы, для которых в документе есть отдельные энергетические или кальциевые замечания.",
+        "items": [
+          {
+            "code": "great_dane",
+            "name_ru": "Немецкий дог",
+            "name_en": "Great Dane",
+            "energy_kcal_me_per_kg_bw_075": {
+              "central": 200,
+              "range": [
+                200,
+                250
+              ]
+            },
+            "energy_relation_to_average": "above_average",
+            "growth_calcium_note_ru": "Порода может быть более чувствительна к избытку кальция; в поздний рост предпочтителен максимум 1,6% DM.",
+            "source_pages": [
+              25,
+              53,
+              55
+            ]
+          },
+          {
+            "code": "newfoundland",
+            "name_ru": "Ньюфаундленд",
+            "name_en": "Newfoundland",
+            "energy_kcal_me_per_kg_bw_075": {
+              "central": 105,
+              "range": [
+                80,
+                132
+              ]
+            },
+            "energy_relation_to_average": "below_average",
+            "source_pages": [
+              53,
+              55
+            ]
+          },
+          {
+            "code": "husky",
+            "name_ru": "Хаски",
+            "name_en": "Husky",
+            "energy_relation_to_average": "below_average_qualitative",
+            "source_pages": [
+              53
+            ]
+          },
+          {
+            "code": "alaskan_husky",
+            "name_ru": "Аляскинский хаски",
+            "name_en": "Alaskan Husky",
+            "thermoneutral_zone_celsius": [
+              10,
+              15
+            ],
+            "source_pages": [
+              53
+            ]
+          },
+          {
+            "code": "terrier_group",
+            "name_ru": "Терьеры — группа",
+            "name_en": "Terriers",
+            "energy_relation_to_average": "outside_predictive_range_direction_not_specified",
+            "source_pages": [
+              53
+            ]
+          }
+        ]
+      },
+      "size_classes": [
+        {
+          "code": "dog_expected_adult_weight_le_7",
+          "name_ru": "Ожидаемая взрослая масса ≤7 кг",
+          "expected_adult_weight_kg": {
+            "max": 7,
+            "max_inclusive": true
+          },
+          "growth_curve_percent_expression": "36.92 * ln(age_weeks) - 43.57",
+          "growth_curve_age_weeks": {
+            "min": 8,
+            "max": 52
+          }
+        },
+        {
+          "code": "dog_expected_adult_weight_gt_7_le_15",
+          "name_ru": "Ожидаемая взрослая масса >7–15 кг",
+          "expected_adult_weight_kg": {
+            "min": 7,
+            "min_exclusive": true,
+            "max": 15,
+            "max_inclusive": true
+          },
+          "growth_curve_percent_expression": "36.86 * ln(age_weeks) - 48.22",
+          "growth_curve_age_weeks": {
+            "min": 8,
+            "max": 52
+          }
+        },
+        {
+          "code": "dog_expected_adult_weight_gt_15_le_27_5",
+          "name_ru": "Ожидаемая взрослая масса >15–27,5 кг",
+          "expected_adult_weight_kg": {
+            "min": 15,
+            "min_exclusive": true,
+            "max": 27.5,
+            "max_inclusive": true
+          },
+          "growth_curve_percent_expression": "39.88 * ln(age_weeks) - 60.70",
+          "growth_curve_age_weeks": {
+            "min": 8,
+            "max": 52
+          }
+        },
+        {
+          "code": "dog_expected_adult_weight_gt_27_5_le_47_5",
+          "name_ru": "Ожидаемая взрослая масса >27,5–47,5 кг",
+          "expected_adult_weight_kg": {
+            "min": 27.5,
+            "min_exclusive": true,
+            "max": 47.5,
+            "max_inclusive": true
+          },
+          "growth_curve_percent_expression": "36.96 * ln(age_weeks) - 56.18",
+          "growth_curve_age_weeks": {
+            "min": 8,
+            "max": 52
+          }
+        },
+        {
+          "code": "dog_expected_adult_weight_gt_47_5",
+          "name_ru": "Ожидаемая взрослая масса >47,5 кг",
+          "expected_adult_weight_kg": {
+            "min": 47.5,
+            "min_exclusive": true
+          },
+          "growth_curve_percent_expression": "36.61 * ln(age_weeks) - 62.39",
+          "growth_curve_age_weeks": {
+            "min": 8,
+            "max": 52
+          }
+        }
+      ],
+      "size_rules": {
+        "late_growth_calcium": [
+          {
+            "expected_adult_weight_kg": {
+              "max": 15,
+              "max_inclusive": true
+            },
+            "minimum_calcium_g_per_1000_kcal_me": 2,
+            "applies_during": "entire_late_growth",
+            "footnote": "a"
+          },
+          {
+            "expected_adult_weight_kg": {
+              "min": 15,
+              "min_exclusive": true
+            },
+            "minimum_calcium_g_per_1000_kcal_me": 2.5,
+            "applies_until_age_months_approximately": 6,
+            "then_may_reduce_to_g_per_1000_kcal_me": 2,
+            "footnote": "b"
+          }
+        ]
+      },
+      "nutrient_profiles": [
+        {
+          "code": "dog_adult_maintenance",
+          "species_code": "dog",
+          "name_ru": "Взрослая собака — суточные минимумы FEDIAF VII-11",
+          "physiological_state": "adult",
+          "calculation_basis": "daily_per_metabolic_bw",
+          "clinician_selectable": true,
+          "basis": {"energy": 1000, "energy_unit": "kcal", "energy_type": "metabolisable_energy"},
+          "nutrients": [
+            {"code": "CP", "minimum": 4.95, "established": true, "unit": "g", "source_value_text": "4.95", "footnote": "*"},
+            {"code": "Arg", "minimum": 0.14, "established": true, "unit": "g", "source_value_text": "0.14", "footnote": "*"},
+            {"code": "His", "minimum": 0.06, "established": true, "unit": "g", "source_value_text": "0.06", "footnote": null},
+            {"code": "Ile", "minimum": 0.13, "established": true, "unit": "g", "source_value_text": "0.13", "footnote": null},
+            {"code": "Leu", "minimum": 0.23, "established": true, "unit": "g", "source_value_text": "0.23", "footnote": null},
+            {"code": "Lys", "minimum": 0.12, "established": true, "unit": "g", "source_value_text": "0.12", "footnote": "*"},
+            {"code": "Met", "minimum": 0.11, "established": true, "unit": "g", "source_value_text": "0.11", "footnote": "*"},
+            {"code": "methionine_cystine", "minimum": 0.21, "established": true, "unit": "g", "source_value_text": "0.21", "footnote": "*"},
+            {"code": "Phe", "minimum": 0.15, "established": true, "unit": "g", "source_value_text": "0.15", "footnote": null},
+            {"code": "phenylalanine_tyrosine", "minimum": 0.24, "established": true, "unit": "g", "source_value_text": "0.24", "footnote": "*"},
+            {"code": "Thr", "minimum": 0.14, "established": true, "unit": "g", "source_value_text": "0.14", "footnote": null},
+            {"code": "Trp", "minimum": 0.05, "established": true, "unit": "g", "source_value_text": "0.05", "footnote": null},
+            {"code": "Val", "minimum": 0.16, "established": true, "unit": "g", "source_value_text": "0.16", "footnote": null},
+            {"code": "Tau", "applicability_rule_code": "feed_form_wet", "minimum": null, "established": false, "unit": "g", "source_value_text": "-", "footnote": "*"},
+            {"code": "Tau", "applicability_rule_code": "feed_form_dry", "minimum": null, "established": false, "unit": "g", "source_value_text": "-", "footnote": "*"},
+            {"code": "CFa", "minimum": 1.51, "established": true, "unit": "g", "source_value_text": "1.51", "footnote": "*"},
+            {"code": "LA", "minimum": 0.36, "established": true, "unit": "g", "source_value_text": "0.36", "footnote": "*"},
+            {"code": "AA", "minimum": null, "established": false, "unit": "mg", "source_value_text": "-", "footnote": null},
+            {"code": "ALA", "minimum": null, "established": false, "unit": "g", "source_value_text": "-", "footnote": "*"},
+            {"code": "epa_dha", "minimum": null, "established": false, "unit": "g", "source_value_text": "-", "footnote": "*"},
+            {"code": "Ca", "minimum": 0.14, "established": true, "unit": "g", "source_value_text": "0.14", "footnote": "a,b"},
+            {"code": "P", "minimum": 0.11, "established": true, "unit": "g", "source_value_text": "0.11", "footnote": "h"},
+            {"code": "K", "minimum": 0.14, "established": true, "unit": "g", "source_value_text": "0.14", "footnote": null},
+            {"code": "Na", "minimum": 0.03, "established": true, "unit": "g", "source_value_text": "0.03", "footnote": "*; c"},
+            {"code": "Cl", "minimum": 0.04, "established": true, "unit": "g", "source_value_text": "0.04", "footnote": "c"},
+            {"code": "Mg", "minimum": 0.02, "established": true, "unit": "g", "source_value_text": "0.02", "footnote": null},
+            {"code": "Cu", "minimum": 0.20, "established": true, "unit": "mg", "source_value_text": "0.20", "footnote": "*"},
+            {"code": "J", "minimum": 0.03, "established": true, "unit": "mg", "source_value_text": "0.03", "footnote": "*"},
+            {"code": "Fe", "minimum": 1.00, "established": true, "unit": "mg", "source_value_text": "1.00", "footnote": "*"},
+            {"code": "Mn", "minimum": 0.16, "established": true, "unit": "mg", "source_value_text": "0.16", "footnote": null},
+            {"code": "Se", "applicability_rule_code": "feed_form_wet", "minimum": 6.40, "established": true, "unit": "µg", "source_value_text": "6.40", "footnote": "*; d"},
+            {"code": "Se", "applicability_rule_code": "feed_form_dry", "minimum": 5.20, "established": true, "unit": "µg", "source_value_text": "5.20", "footnote": "*; d"},
+            {"code": "Zn", "minimum": 2.00, "established": true, "unit": "mg", "source_value_text": "2.00", "footnote": "*"},
+            {"code": "A", "minimum": 167.00, "established": true, "unit": "IU", "source_value_text": "167.00", "footnote": "*"},
+            {"code": "D", "minimum": 15.20, "established": true, "unit": "IU", "source_value_text": "15.20", "footnote": "*"},
+            {"code": "E", "minimum": 1.00, "established": true, "unit": "IU", "source_value_text": "1.00", "footnote": "*"},
+            {"code": "B1", "minimum": 0.06, "established": true, "unit": "mg", "source_value_text": "0.06", "footnote": "*"},
+            {"code": "B2", "minimum": 0.17, "established": true, "unit": "mg", "source_value_text": "0.17", "footnote": "*"},
+            {"code": "B5", "minimum": 0.39, "established": true, "unit": "mg", "source_value_text": "0.39", "footnote": "*"},
+            {"code": "B6", "minimum": 0.04, "established": true, "unit": "mg", "source_value_text": "0.04", "footnote": "*"},
+            {"code": "B12", "minimum": 0.92, "established": true, "unit": "µg", "source_value_text": "0.92", "footnote": "*"},
+            {"code": "B3", "minimum": 0.45, "established": true, "unit": "mg", "source_value_text": "0.45", "footnote": "*"},
+            {"code": "B9", "minimum": 7.10, "established": true, "unit": "µg", "source_value_text": "7.10", "footnote": "*"},
+            {"code": "B7", "minimum": null, "established": false, "unit": "µg", "source_value_text": "-", "footnote": "*"},
+            {"code": "B4", "minimum": 45.00, "established": true, "unit": "mg", "source_value_text": "45.00", "footnote": null},
+            {"code": "K1", "minimum": null, "established": false, "unit": "µg", "source_value_text": "-", "footnote": "*"}
+          ],
+          "source": {"language": "en", "table": "VII-11", "page": 58, "url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf"}
+        },
+        {
+          "code": "dog_adult_mer95",
+          "clinician_selectable": false,
+          "species_code": "dog",
+          "name_ru": "Взрослая собака — MER 95",
+          "physiological_state": "adult",
+          "mer_reference": "95 kcal/kg BW^0.75",
+          "basis": {
+            "energy": 1000,
+            "energy_unit": "kcal",
+            "energy_type": "metabolisable_energy"
+          },
+          "nutrients": [
+            {
+              "code": "CP",
+              "minimum": 52.1,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Arg",
+              "minimum": 1.51,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "His",
+              "minimum": 0.67,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Ile",
+              "minimum": 1.33,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Leu",
+              "minimum": 2.37,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Lys",
+              "minimum": 1.22,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Met",
+              "minimum": 1.16,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "methionine_cystine",
+              "minimum": 2.21,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Phe",
+              "minimum": 1.56,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "phenylalanine_tyrosine",
+              "minimum": 2.58,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Thr",
+              "minimum": 1.51,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Trp",
+              "minimum": 0.49,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Val",
+              "minimum": 1.71,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "CFa",
+              "minimum": 13.75,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "LA",
+              "minimum": 3.82,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "AA",
+              "minimum": null,
+              "minimum_upper": null,
+              "established": false,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "ALA",
+              "minimum": null,
+              "minimum_upper": null,
+              "established": false,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "epa_dha",
+              "minimum": null,
+              "minimum_upper": null,
+              "established": false,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Ca",
+              "minimum": 1.45,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "P",
+              "minimum": 1.16,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "ca_p_ratio",
+              "minimum": 1,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "ratio",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "K",
+              "minimum": 1.45,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Na",
+              "minimum": 0.29,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Cl",
+              "minimum": 0.43,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Mg",
+              "minimum": 0.2,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Cu",
+              "minimum": 2.08,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "J",
+              "minimum": 0.3,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Fe",
+              "minimum": 10.4,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Mn",
+              "minimum": 1.67,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Se",
+              "applicability_rule_code": "feed_form_wet",
+              "minimum": 67.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Se",
+              "applicability_rule_code": "feed_form_dry",
+              "minimum": 55,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Zn",
+              "minimum": 20.8,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "A",
+              "minimum": 1754,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "D",
+              "minimum": 159,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "E",
+              "minimum": 10.4,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B1",
+              "minimum": 0.62,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B2",
+              "minimum": 1.74,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B5",
+              "minimum": 4.11,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B6",
+              "minimum": 0.42,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B12",
+              "minimum": 9.68,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B3",
+              "minimum": 4.74,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B9",
+              "minimum": 74.7,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B7",
+              "minimum": null,
+              "minimum_upper": null,
+              "established": false,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B4",
+              "minimum": 474,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "K1",
+              "minimum": null,
+              "minimum_upper": null,
+              "established": false,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            }
+          ],
+          "source": {
+            "table": "III-3b",
+            "page": 16,
+            "url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf"
+          }
+        },
+        {
+          "code": "dog_adult_mer110",
+          "clinician_selectable": false,
+          "species_code": "dog",
+          "name_ru": "Взрослая собака — MER 110",
+          "physiological_state": "adult",
+          "mer_reference": "110 kcal/kg BW^0.75",
+          "basis": {
+            "energy": 1000,
+            "energy_unit": "kcal",
+            "energy_type": "metabolisable_energy"
+          },
+          "nutrients": [
+            {
+              "code": "CP",
+              "minimum": 45,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Arg",
+              "minimum": 1.3,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "His",
+              "minimum": 0.58,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Ile",
+              "minimum": 1.15,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Leu",
+              "minimum": 2.05,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Lys",
+              "minimum": 1.05,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Met",
+              "minimum": 1,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "methionine_cystine",
+              "minimum": 1.91,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Phe",
+              "minimum": 1.35,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "phenylalanine_tyrosine",
+              "minimum": 2.23,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Thr",
+              "minimum": 1.3,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Trp",
+              "minimum": 0.43,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Val",
+              "minimum": 1.48,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "CFa",
+              "minimum": 13.75,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "LA",
+              "minimum": 3.27,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "AA",
+              "minimum": null,
+              "minimum_upper": null,
+              "established": false,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "ALA",
+              "minimum": null,
+              "minimum_upper": null,
+              "established": false,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "epa_dha",
+              "minimum": null,
+              "minimum_upper": null,
+              "established": false,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Ca",
+              "minimum": 1.25,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "P",
+              "minimum": 1,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "ca_p_ratio",
+              "minimum": 1,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "ratio",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "K",
+              "minimum": 1.25,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Na",
+              "minimum": 0.25,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Cl",
+              "minimum": 0.38,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Mg",
+              "minimum": 0.18,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Cu",
+              "minimum": 1.8,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "J",
+              "minimum": 0.26,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Fe",
+              "minimum": 9,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Mn",
+              "minimum": 1.44,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Se",
+              "applicability_rule_code": "feed_form_wet",
+              "minimum": 57.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Se",
+              "applicability_rule_code": "feed_form_dry",
+              "minimum": 45,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Zn",
+              "minimum": 18,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "A",
+              "minimum": 1515,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "D",
+              "minimum": 138,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "E",
+              "minimum": 9,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B1",
+              "minimum": 0.54,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B2",
+              "minimum": 1.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B5",
+              "minimum": 3.55,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B6",
+              "minimum": 0.36,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B12",
+              "minimum": 8.36,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B3",
+              "minimum": 4.09,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B9",
+              "minimum": 64.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B7",
+              "minimum": null,
+              "minimum_upper": null,
+              "established": false,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B4",
+              "minimum": 409,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "K1",
+              "minimum": null,
+              "minimum_upper": null,
+              "established": false,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            }
+          ],
+          "source": {
+            "table": "III-3b",
+            "page": 16,
+            "url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf"
+          }
+        },
+        {
+          "code": "dog_early_growth_reproduction",
+          "species_code": "dog",
+          "name_ru": "Ранний рост <14 нед. / репродукция",
+          "physiological_state": "growth_reproduction",
+          "mer_reference": null,
+          "basis": {
+            "energy": 1000,
+            "energy_unit": "kcal",
+            "energy_type": "metabolisable_energy"
+          },
+          "nutrients": [
+            {
+              "code": "CP",
+              "minimum": 62.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "Arg",
+              "minimum": 2.04,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "His",
+              "minimum": 0.98,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "Ile",
+              "minimum": 1.63,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "Leu",
+              "minimum": 3.23,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "Lys",
+              "minimum": 2.2,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "Met",
+              "minimum": 0.88,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "methionine_cystine",
+              "minimum": 1.75,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "Phe",
+              "minimum": 1.63,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "phenylalanine_tyrosine",
+              "minimum": 3.25,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "Thr",
+              "minimum": 2.03,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "Trp",
+              "minimum": 0.58,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "Val",
+              "minimum": 1.7,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "CFa",
+              "minimum": 21.25,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "LA",
+              "minimum": 3.25,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "AA",
+              "minimum": 75,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "ALA",
+              "minimum": 0.2,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "epa_dha",
+              "minimum": 0.13,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "Ca",
+              "minimum": 2.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "P",
+              "minimum": 2.25,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "ca_p_ratio",
+              "minimum": 1,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "ratio",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "K",
+              "minimum": 1.1,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "Na",
+              "minimum": 0.55,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "Cl",
+              "minimum": 0.83,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "Mg",
+              "minimum": 0.1,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "Cu",
+              "minimum": 2.75,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "J",
+              "minimum": 0.38,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "Fe",
+              "minimum": 22,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "Mn",
+              "minimum": 1.4,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "Se",
+              "applicability_rule_code": "feed_form_wet",
+              "minimum": 100,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "Se",
+              "applicability_rule_code": "feed_form_dry",
+              "minimum": 100,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "Zn",
+              "minimum": 25,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "A",
+              "minimum": 1250,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "D",
+              "minimum": 138,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "E",
+              "minimum": 12.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "B1",
+              "minimum": 0.45,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "B2",
+              "minimum": 1.05,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "B5",
+              "minimum": 3,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "B6",
+              "minimum": 0.3,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "B12",
+              "minimum": 7,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "B3",
+              "minimum": 3.4,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "B9",
+              "minimum": 54,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "B7",
+              "minimum": null,
+              "minimum_upper": null,
+              "established": false,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "B4",
+              "minimum": 425,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            },
+            {
+              "code": "K1",
+              "minimum": null,
+              "minimum_upper": null,
+              "established": false,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
+            }
+          ],
+          "source": {
+            "table": "III-3b",
+            "page": 16,
+            "url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf"
+          }
+        },
+        {
+          "code": "dog_late_growth",
+          "species_code": "dog",
+          "name_ru": "Поздний рост ≥14 нед.",
+          "physiological_state": "growth",
+          "mer_reference": null,
+          "basis": {
+            "energy": 1000,
+            "energy_unit": "kcal",
+            "energy_type": "metabolisable_energy"
+          },
+          "nutrients": [
+            {
+              "code": "CP",
+              "minimum": 50,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Arg",
+              "minimum": 1.84,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "His",
+              "minimum": 0.63,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Ile",
+              "minimum": 1.25,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Leu",
+              "minimum": 2,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Lys",
+              "minimum": 1.75,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Met",
+              "minimum": 0.65,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "methionine_cystine",
+              "minimum": 1.33,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Phe",
+              "minimum": 1.25,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "phenylalanine_tyrosine",
+              "minimum": 2.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Thr",
+              "minimum": 1.6,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Trp",
+              "minimum": 0.53,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Val",
+              "minimum": 1.4,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "CFa",
+              "minimum": 21.25,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "LA",
+              "minimum": 3.25,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "AA",
+              "minimum": 75,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "ALA",
+              "minimum": 0.2,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "epa_dha",
+              "minimum": 0.13,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Ca",
+              "minimum": 2,
+              "minimum_upper": 2.5,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "2.00ᵃ / 2.50ᵇ",
+              "footnote": "a,b",
+              "note_ru": "2.00 для пород с ожидаемой взрослой массой ≤15 кг; 2.50 для пород >15 кг до ~6 мес., затем допускается снижение до 2.00."
+            },
+            {
+              "code": "P",
+              "minimum": 1.75,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "ca_p_ratio",
+              "minimum": 1,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "ratio",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "K",
+              "minimum": 1.1,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Na",
+              "minimum": 0.55,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Cl",
+              "minimum": 0.83,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Mg",
+              "minimum": 0.1,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Cu",
+              "minimum": 2.75,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "J",
+              "minimum": 0.38,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Fe",
+              "minimum": 22,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Mn",
+              "minimum": 1.4,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Se",
+              "applicability_rule_code": "feed_form_wet",
+              "minimum": 100,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Se",
+              "applicability_rule_code": "feed_form_dry",
+              "minimum": 100,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Zn",
+              "minimum": 25,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "A",
+              "minimum": 1250,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "D",
+              "minimum": 125,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "E",
+              "minimum": 12.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B1",
+              "minimum": 0.45,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B2",
+              "minimum": 1.05,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B5",
+              "minimum": 3,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B6",
+              "minimum": 0.3,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B12",
+              "minimum": 7,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B3",
+              "minimum": 3.4,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B9",
+              "minimum": 54,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B7",
+              "minimum": null,
+              "minimum_upper": null,
+              "established": false,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B4",
+              "minimum": 425,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "K1",
+              "minimum": null,
+              "minimum_upper": null,
+              "established": false,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            }
+          ],
+          "source": {
+            "table": "III-3b",
+            "page": 16,
+            "url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf"
+          }
+        }
+      ],
+      "energy_formulas": [
+        {
+          "code": "adult_age_1_2",
+          "source_table": "VII-6",
+          "name_ru": "Взрослая 1–2 года",
+          "display_formula_ru": "130 × BW_kg^0.75",
+          "display_range_ru": "125–140 × BW_kg^0.75",
+          "parameter_description_ru": "BW_kg",
+          "result_unit": "kcal_ME_per_day",
+          "page": 54,
+          "note_ru": "Стартовая оценка MER; корректировать по BCS и динамике массы.",
+          "source_url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf",
+          "expression": "130 * pow(body_weight_kg, 0.75)",
+          "range_expression": "[125, 140] * pow(body_weight_kg, 0.75)",
+          "parameters": [
+            "body_weight_kg"
+          ]
+        },
+        {
+          "code": "adult_age_3_7",
+          "source_table": "VII-6",
+          "name_ru": "Взрослая 3–7 лет",
+          "display_formula_ru": "110 × BW_kg^0.75",
+          "display_range_ru": "95–130 × BW_kg^0.75",
+          "parameter_description_ru": "BW_kg",
+          "result_unit": "kcal_ME_per_day",
+          "page": 54,
+          "note_ru": "Стартовая оценка MER.",
+          "source_url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf",
+          "expression": "110 * pow(body_weight_kg, 0.75)",
+          "range_expression": "[95, 130] * pow(body_weight_kg, 0.75)",
+          "parameters": [
+            "body_weight_kg"
+          ]
+        },
+        {
+          "code": "senior_over_7",
+          "source_table": "VII-6",
+          "name_ru": "Старше 7 лет",
+          "display_formula_ru": "95 × BW_kg^0.75",
+          "display_range_ru": "80–120 × BW_kg^0.75",
+          "parameter_description_ru": "BW_kg",
+          "result_unit": "kcal_ME_per_day",
+          "page": 54,
+          "note_ru": "Стартовая оценка MER.",
+          "source_url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf",
+          "expression": "95 * pow(body_weight_kg, 0.75)",
+          "range_expression": "[80, 120] * pow(body_weight_kg, 0.75)",
+          "parameters": [
+            "body_weight_kg"
+          ]
+        },
+        {
+          "code": "activity_low",
+          "source_table": "VII-7",
+          "name_ru": "Низкая активность <1 ч/сут",
+          "display_formula_ru": "95 × BW_kg^0.75",
+          "display_range_ru": null,
+          "parameter_description_ru": "BW_kg",
+          "result_unit": "kcal_ME_per_day",
+          "page": 55,
+          "note_ru": "Пример: прогулка на поводке.",
+          "source_url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf",
+          "expression": "95 * pow(body_weight_kg, 0.75)",
+          "parameters": [
+            "body_weight_kg"
+          ]
+        },
+        {
+          "code": "activity_moderate_low_impact",
+          "source_table": "VII-7",
+          "name_ru": "Умеренная активность 1–3 ч/сут, низкая нагрузка",
+          "display_formula_ru": "110 × BW_kg^0.75",
+          "display_range_ru": null,
+          "parameter_description_ru": "BW_kg",
+          "result_unit": "kcal_ME_per_day",
+          "page": 55,
+          "note_ru": null,
+          "source_url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf",
+          "expression": "110 * pow(body_weight_kg, 0.75)",
+          "parameters": [
+            "body_weight_kg"
+          ]
+        },
+        {
+          "code": "activity_moderate_high_impact",
+          "source_table": "VII-7",
+          "name_ru": "Умеренная активность 1–3 ч/сут, высокая нагрузка",
+          "display_formula_ru": "125 × BW_kg^0.75",
+          "display_range_ru": null,
+          "parameter_description_ru": "BW_kg",
+          "result_unit": "kcal_ME_per_day",
+          "page": 55,
+          "note_ru": null,
+          "source_url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf",
+          "expression": "125 * pow(body_weight_kg, 0.75)",
+          "parameters": [
+            "body_weight_kg"
+          ]
+        },
+        {
+          "code": "activity_high",
+          "source_table": "VII-7",
+          "name_ru": "Высокая активность 3–6 ч/сут",
+          "display_formula_ru": "150–175 × BW_kg^0.75",
+          "display_range_ru": null,
+          "parameter_description_ru": "BW_kg",
+          "result_unit": "kcal_ME_per_day",
+          "page": 55,
+          "note_ru": "Рабочие собаки.",
+          "source_url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf",
+          "expression_min": "150 * pow(body_weight_kg, 0.75)",
+          "expression_max": "175 * pow(body_weight_kg, 0.75)",
+          "parameters": [
+            "body_weight_kg"
+          ]
+        },
+        {
+          "code": "obesity_prone",
+          "source_table": "VII-7",
+          "name_ru": "Склонные к ожирению взрослые",
+          "display_formula_ru": "≤90 × BW_kg^0.75",
+          "display_range_ru": null,
+          "parameter_description_ru": "BW_kg",
+          "result_unit": "kcal_ME_per_day",
+          "page": 55,
+          "note_ru": null,
+          "source_url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf",
+          "expression_max": "90 * pow(body_weight_kg, 0.75)",
+          "parameters": [
+            "body_weight_kg"
+          ]
+        },
+        {
+          "code": "newborn",
+          "source_table": "VII-8b",
+          "name_ru": "Новорождённые щенки",
+          "display_formula_ru": "25 × (BW_g / 100)",
+          "display_range_ru": null,
+          "parameter_description_ru": "BW_g",
+          "result_unit": "kcal_ME_per_day",
+          "page": 56,
+          "note_ru": "ккал ME/сут.",
+          "source_url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf",
+          "expression": "25 * (body_weight_g / 100)",
+          "parameters": [
+            "body_weight_g"
+          ]
+        },
+        {
+          "code": "puppy_8w_1y",
+          "source_table": "VII-8b",
+          "name_ru": "Щенки 8 недель–1 год",
+          "display_formula_ru": "[254.1 − 135 × (BW_kg / mature_BW_kg)] × BW_kg^0.75",
+          "display_range_ru": null,
+          "parameter_description_ru": "BW_kg; mature_BW_kg",
+          "result_unit": "kcal_ME_per_day",
+          "page": 56,
+          "note_ru": "Регулярно сверять с кривой роста и BCS.",
+          "source_url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf",
+          "expression": "(254.1 - 135 * (body_weight_kg / expected_adult_weight_kg)) * pow(body_weight_kg, 0.75)",
+          "parameters": [
+            "body_weight_kg",
+            "expected_adult_weight_kg"
+          ]
+        },
+        {
+          "code": "gestation_first_4w",
+          "source_table": "VII-8b",
+          "name_ru": "Беременность, первые 4 недели",
+          "display_formula_ru": "132 × BW_kg^0.75",
+          "display_range_ru": null,
+          "parameter_description_ru": "BW_kg",
+          "result_unit": "kcal_ME_per_day",
+          "page": 56,
+          "note_ru": null,
+          "source_url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf",
+          "expression": "132 * pow(body_weight_kg, 0.75)",
+          "parameters": [
+            "body_weight_kg"
+          ]
+        },
+        {
+          "code": "gestation_last_5w",
+          "source_table": "VII-8b",
+          "name_ru": "Беременность, последние 5 недель",
+          "display_formula_ru": "132 × BW_kg^0.75 + 26 × BW_kg",
+          "display_range_ru": null,
+          "parameter_description_ru": "BW_kg",
+          "result_unit": "kcal_ME_per_day",
+          "page": 56,
+          "note_ru": null,
+          "source_url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf",
+          "expression": "132 * pow(body_weight_kg, 0.75) + 26 * body_weight_kg",
+          "parameters": [
+            "body_weight_kg"
+          ]
+        },
+        {
+          "code": "lactation_1_4",
+          "source_table": "VII-8b",
+          "name_ru": "Лактация, 1–4 щенка",
+          "display_formula_ru": "145 × BW_kg^0.75 + 24 × n × BW_kg × L",
+          "display_range_ru": null,
+          "parameter_description_ru": "BW_kg; n; L",
+          "result_unit": "kcal_ME_per_day",
+          "page": 56,
+          "note_ru": "L: нед.1=0.75; нед.2=0.95; нед.3=1.10; нед.4=1.20.",
+          "source_url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf",
+          "expression": "145 * pow(body_weight_kg, 0.75) + 24 * litter_size * body_weight_kg * lactation_factor",
+          "parameters": [
+            "body_weight_kg",
+            "litter_size",
+            "lactation_factor"
+          ],
+          "constraints": {
+            "litter_size": {
+              "min": 1,
+              "max": 4
+            }
+          }
+        },
+        {
+          "code": "lactation_5_8",
+          "source_table": "VII-8b",
+          "name_ru": "Лактация, 5–8 щенков",
+          "display_formula_ru": "145 × BW_kg^0.75 + [96 + 12 × (n−4)] × BW_kg × L",
+          "display_range_ru": null,
+          "parameter_description_ru": "BW_kg; n; L",
+          "result_unit": "kcal_ME_per_day",
+          "page": 56,
+          "note_ru": "L: нед.1=0.75; нед.2=0.95; нед.3=1.10; нед.4=1.20.",
+          "source_url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf",
+          "expression": "145 * pow(body_weight_kg, 0.75) + (96 + 12 * (litter_size - 4)) * body_weight_kg * lactation_factor",
+          "parameters": [
+            "body_weight_kg",
+            "litter_size",
+            "lactation_factor"
+          ],
+          "constraints": {
+            "litter_size": {
+              "min": 5,
+              "max": 8
+            }
+          }
+        }
+      ],
+      "lactation": {
+        "nutrient_profile_stage_code": "dog_early_growth_reproduction",
+        "week_factors": {
+          "1": 0.75,
+          "2": 0.95,
+          "3": 1.1,
+          "4": 1.2
+        },
+        "energy_formula_codes": [
+          "lactation_1_4",
+          "lactation_5_8"
+        ],
+        "source_page": 56
+      }
+    },
+    "cat": {
+      "name_ru": "Кошка",
+      "breeds": {
+        "catalog_is_exhaustive": false,
+        "items": [],
+        "status": "no_breed_specific_nutrient_or_energy_tables_in_source",
+        "note_ru": "Документ не приводит отдельных числовых норм по породам кошек."
+      },
+      "size_classes": {
+        "items": [],
+        "status": "no_cat_size_classes_in_source"
+      },
+      "nutrient_profiles": [
+        {
+          "code": "cat_adult_maintenance",
+          "species_code": "cat",
+          "name_ru": "Взрослая кошка — суточные минимумы FEDIAF VII-11",
+          "physiological_state": "adult",
+          "calculation_basis": "daily_per_metabolic_bw",
+          "clinician_selectable": true,
+          "basis": {"energy": 1000, "energy_unit": "kcal", "energy_type": "metabolisable_energy"},
+          "nutrients": [
+            {"code": "CP", "minimum": 6.25, "established": true, "unit": "g", "source_value_text": "6.25", "footnote": "*"},
+            {"code": "Arg", "minimum": 0.25, "established": true, "unit": "g", "source_value_text": "0.25", "footnote": "*"},
+            {"code": "His", "minimum": 0.08, "established": true, "unit": "g", "source_value_text": "0.08", "footnote": null},
+            {"code": "Ile", "minimum": 0.12, "established": true, "unit": "g", "source_value_text": "0.12", "footnote": null},
+            {"code": "Leu", "minimum": 0.29, "established": true, "unit": "g", "source_value_text": "0.29", "footnote": null},
+            {"code": "Lys", "minimum": 0.09, "established": true, "unit": "g", "source_value_text": "0.09", "footnote": "*"},
+            {"code": "Met", "minimum": 0.04, "established": true, "unit": "g", "source_value_text": "0.04", "footnote": "*"},
+            {"code": "methionine_cystine", "minimum": 0.09, "established": true, "unit": "g", "source_value_text": "0.09", "footnote": "*"},
+            {"code": "Phe", "minimum": 0.12, "established": true, "unit": "g", "source_value_text": "0.12", "footnote": null},
+            {"code": "phenylalanine_tyrosine", "minimum": 0.44, "established": true, "unit": "g", "source_value_text": "0.44", "footnote": "*"},
+            {"code": "Thr", "minimum": 0.15, "established": true, "unit": "g", "source_value_text": "0.15", "footnote": null},
+            {"code": "Trp", "minimum": 0.04, "established": true, "unit": "g", "source_value_text": "0.04", "footnote": null},
+            {"code": "Val", "minimum": 0.15, "established": true, "unit": "g", "source_value_text": "0.15", "footnote": null},
+            {"code": "Tau", "applicability_rule_code": "feed_form_wet", "minimum": 0.05, "established": true, "unit": "g", "source_value_text": "0.05", "footnote": "*"},
+            {"code": "Tau", "applicability_rule_code": "feed_form_dry", "minimum": 0.03, "established": true, "unit": "g", "source_value_text": "0.03", "footnote": "*"},
+            {"code": "CFa", "minimum": 2.25, "established": true, "unit": "g", "source_value_text": "2.25", "footnote": "*"},
+            {"code": "LA", "minimum": 0.13, "established": true, "unit": "g", "source_value_text": "0.13", "footnote": "*"},
+            {"code": "AA", "minimum": 1.50, "established": true, "unit": "mg", "source_value_text": "1.50", "footnote": null},
+            {"code": "ALA", "minimum": null, "established": false, "unit": "g", "source_value_text": "-", "footnote": "*"},
+            {"code": "epa_dha", "minimum": null, "established": false, "unit": "g", "source_value_text": "-", "footnote": "*"},
+            {"code": "Ca", "minimum": 0.10, "established": true, "unit": "g", "source_value_text": "0.10", "footnote": null},
+            {"code": "P", "minimum": 0.06, "established": true, "unit": "g", "source_value_text": "0.06", "footnote": "f,g"},
+            {"code": "K", "minimum": 0.15, "established": true, "unit": "g", "source_value_text": "0.15", "footnote": null},
+            {"code": "Na", "minimum": 0.02, "established": true, "unit": "g", "source_value_text": "0.02", "footnote": "*; e"},
+            {"code": "Cl", "minimum": 0.03, "established": true, "unit": "g", "source_value_text": "0.03", "footnote": null},
+            {"code": "Mg", "minimum": 0.01, "established": true, "unit": "g", "source_value_text": "0.01", "footnote": null},
+            {"code": "Cu", "minimum": 0.13, "established": true, "unit": "mg", "source_value_text": "0.13", "footnote": "*"},
+            {"code": "J", "minimum": 0.03, "established": true, "unit": "mg", "source_value_text": "0.03", "footnote": "*"},
+            {"code": "Fe", "minimum": 2.00, "established": true, "unit": "mg", "source_value_text": "2.00", "footnote": "*"},
+            {"code": "Mn", "minimum": 0.13, "established": true, "unit": "mg", "source_value_text": "0.13", "footnote": null},
+            {"code": "Se", "applicability_rule_code": "feed_form_wet", "minimum": 6.60, "established": true, "unit": "µg", "source_value_text": "6.60", "footnote": "*; d"},
+            {"code": "Se", "applicability_rule_code": "feed_form_dry", "minimum": 5.30, "established": true, "unit": "µg", "source_value_text": "5.30", "footnote": "*; d"},
+            {"code": "Zn", "minimum": 1.88, "established": true, "unit": "mg", "source_value_text": "1.88", "footnote": "*"},
+            {"code": "A", "minimum": 83.25, "established": true, "unit": "IU", "source_value_text": "83.25", "footnote": "*"},
+            {"code": "D", "minimum": 6.25, "established": true, "unit": "IU", "source_value_text": "6.25", "footnote": "*"},
+            {"code": "E", "minimum": 0.95, "established": true, "unit": "IU", "source_value_text": "0.95", "footnote": "*"},
+            {"code": "B1", "minimum": 0.11, "established": true, "unit": "mg", "source_value_text": "0.11", "footnote": "*"},
+            {"code": "B2", "minimum": 0.08, "established": true, "unit": "mg", "source_value_text": "0.08", "footnote": "*"},
+            {"code": "B5", "minimum": 0.14, "established": true, "unit": "mg", "source_value_text": "0.14", "footnote": "*"},
+            {"code": "B6", "minimum": 0.06, "established": true, "unit": "mg", "source_value_text": "0.06", "footnote": "*"},
+            {"code": "B12", "minimum": 0.44, "established": true, "unit": "µg", "source_value_text": "0.44", "footnote": "*"},
+            {"code": "B3", "minimum": 0.79, "established": true, "unit": "mg", "source_value_text": "0.79", "footnote": "*"},
+            {"code": "B9", "minimum": 19.00, "established": true, "unit": "µg", "source_value_text": "19.00", "footnote": "*"},
+            {"code": "B7", "minimum": 1.50, "established": true, "unit": "µg", "source_value_text": "1.50", "footnote": "*"},
+            {"code": "B4", "minimum": 60.00, "established": true, "unit": "mg", "source_value_text": "60.00", "footnote": null},
+            {"code": "K1", "minimum": null, "established": false, "unit": "µg", "source_value_text": "-", "footnote": "*"}
+          ],
+          "source": {"language": "en", "table": "VII-11", "page": 58, "url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf"}
+        },
+        {
+          "code": "cat_adult_mer75",
+          "clinician_selectable": false,
+          "species_code": "cat",
+          "name_ru": "Взрослая кошка — MER 75",
+          "physiological_state": "adult",
+          "mer_reference": "75 kcal/kg BW^0.67",
+          "basis": {
+            "energy": 1000,
+            "energy_unit": "kcal",
+            "energy_type": "metabolisable_energy"
+          },
+          "nutrients": [
+            {
+              "code": "CP",
+              "minimum": 83.3,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Arg",
+              "minimum": 3.3,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "His",
+              "minimum": 0.87,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Ile",
+              "minimum": 1.44,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Leu",
+              "minimum": 3.4,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Lys",
+              "minimum": 1.13,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Met",
+              "minimum": 0.57,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "methionine_cystine",
+              "minimum": 1.13,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Phe",
+              "minimum": 1.33,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "phenylalanine_tyrosine",
+              "minimum": 5.11,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Thr",
+              "minimum": 1.73,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Trp",
+              "minimum": 0.44,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Val",
+              "minimum": 1.7,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Tau",
+              "applicability_rule_code": "feed_form_wet",
+              "minimum": 0.67,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Tau",
+              "applicability_rule_code": "feed_form_dry",
+              "minimum": 0.33,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "CFa",
+              "minimum": 22.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "LA",
+              "minimum": 1.67,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "AA",
+              "minimum": 20,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "ALA",
+              "minimum": null,
+              "minimum_upper": null,
+              "established": false,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "epa_dha",
+              "minimum": null,
+              "minimum_upper": null,
+              "established": false,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Ca",
+              "minimum": 1.33,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "P",
+              "minimum": 0.85,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "ca_p_ratio",
+              "minimum": 1,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "ratio",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "K",
+              "minimum": 2,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Na",
+              "minimum": 0.25,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Cl",
+              "minimum": 0.39,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Mg",
+              "minimum": 0.13,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Cu",
+              "minimum": 1.67,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "J",
+              "minimum": 0.43,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Fe",
+              "minimum": 26.7,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Mn",
+              "minimum": 1.67,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Se",
+              "applicability_rule_code": "feed_form_wet",
+              "minimum": 87.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Se",
+              "applicability_rule_code": "feed_form_dry",
+              "minimum": 70,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Zn",
+              "minimum": 25,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "A",
+              "minimum": 1110,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "D",
+              "minimum": 83.3,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "E",
+              "minimum": 12.7,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B1",
+              "minimum": 1.47,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B2",
+              "minimum": 1.05,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B5",
+              "minimum": 1.92,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B6",
+              "minimum": 0.83,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B12",
+              "minimum": 5.87,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B3",
+              "minimum": 10.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B9",
+              "minimum": 253,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B7",
+              "minimum": 20,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B4",
+              "minimum": 800,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "K1",
+              "minimum": null,
+              "minimum_upper": null,
+              "established": false,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            }
+          ],
+          "source": {
+            "table": "III-4b",
+            "page": 19,
+            "url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf"
+          }
+        },
+        {
+          "code": "cat_adult_mer100",
+          "clinician_selectable": false,
+          "species_code": "cat",
+          "name_ru": "Взрослая кошка — MER 100",
+          "physiological_state": "adult",
+          "mer_reference": "100 kcal/kg BW^0.67",
+          "basis": {
+            "energy": 1000,
+            "energy_unit": "kcal",
+            "energy_type": "metabolisable_energy"
+          },
+          "nutrients": [
+            {
+              "code": "CP",
+              "minimum": 62.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Arg",
+              "minimum": 2.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "His",
+              "minimum": 0.65,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Ile",
+              "minimum": 1.08,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Leu",
+              "minimum": 2.55,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Lys",
+              "minimum": 0.85,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Met",
+              "minimum": 0.43,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "methionine_cystine",
+              "minimum": 0.85,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Phe",
+              "minimum": 1,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "phenylalanine_tyrosine",
+              "minimum": 3.83,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Thr",
+              "minimum": 1.3,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Trp",
+              "minimum": 0.33,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Val",
+              "minimum": 1.28,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Tau",
+              "applicability_rule_code": "feed_form_wet",
+              "minimum": 0.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Tau",
+              "applicability_rule_code": "feed_form_dry",
+              "minimum": 0.25,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "CFa",
+              "minimum": 22.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "LA",
+              "minimum": 1.25,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "AA",
+              "minimum": 15,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "ALA",
+              "minimum": null,
+              "minimum_upper": null,
+              "established": false,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "epa_dha",
+              "minimum": null,
+              "minimum_upper": null,
+              "established": false,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Ca",
+              "minimum": 1,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "P",
+              "minimum": 0.64,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "ca_p_ratio",
+              "minimum": 1,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "ratio",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "K",
+              "minimum": 1.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Na",
+              "minimum": 0.19,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Cl",
+              "minimum": 0.29,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Mg",
+              "minimum": 0.1,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Cu",
+              "minimum": 1.25,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "J",
+              "minimum": 0.33,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Fe",
+              "minimum": 20,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Mn",
+              "minimum": 1.25,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Se",
+              "applicability_rule_code": "feed_form_wet",
+              "minimum": 65,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Se",
+              "applicability_rule_code": "feed_form_dry",
+              "minimum": 52.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "Zn",
+              "minimum": 18.8,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "A",
+              "minimum": 833,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "D",
+              "minimum": 62.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "E",
+              "minimum": 9.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B1",
+              "minimum": 1.1,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B2",
+              "minimum": 0.8,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B5",
+              "minimum": 1.44,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B6",
+              "minimum": 0.63,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B12",
+              "minimum": 4.4,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B3",
+              "minimum": 8,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B9",
+              "minimum": 188,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B7",
+              "minimum": 15,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B4",
+              "minimum": 600,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "K1",
+              "minimum": null,
+              "minimum_upper": null,
+              "established": false,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": null
+            }
+          ],
+          "source": {
+            "table": "III-4b",
+            "page": 19,
+            "url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf"
+          }
+        },
+        {
+          "code": "cat_growth",
+          "species_code": "cat",
+          "name_ru": "Рост",
+          "physiological_state": "growth",
+          "mer_reference": null,
+          "basis": {
+            "energy": 1000,
+            "energy_unit": "kcal",
+            "energy_type": "metabolisable_energy"
+          },
+          "nutrients": [
+            {
+              "code": "CP",
+              "minimum": 70,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице приведены раздельные значения рост/репродукция."
+            },
+            {
+              "code": "Arg",
+              "minimum": 2.68,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице приведены раздельные значения рост/репродукция."
+            },
+            {
+              "code": "His",
+              "minimum": 0.83,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Ile",
+              "minimum": 1.35,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Leu",
+              "minimum": 3.2,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Lys",
+              "minimum": 2.13,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Met",
+              "minimum": 1.1,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "methionine_cystine",
+              "minimum": 2.2,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Phe",
+              "minimum": 1.25,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "phenylalanine_tyrosine",
+              "minimum": 4.78,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Thr",
+              "minimum": 1.63,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Trp",
+              "minimum": 0.4,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Val",
+              "minimum": 1.6,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Tau",
+              "applicability_rule_code": "feed_form_wet",
+              "minimum": 0.63,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Tau",
+              "applicability_rule_code": "feed_form_dry",
+              "minimum": 0.25,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "CFa",
+              "minimum": 22.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "LA",
+              "minimum": 1.38,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "AA",
+              "minimum": 50,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "ALA",
+              "minimum": 0.05,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "epa_dha",
+              "minimum": 0.03,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Ca",
+              "minimum": 2.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "P",
+              "minimum": 2.1,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "ca_p_ratio",
+              "minimum": 1,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "ratio",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "K",
+              "minimum": 1.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Na",
+              "minimum": 0.4,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Cl",
+              "minimum": 0.6,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Mg",
+              "minimum": 0.13,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Cu",
+              "minimum": 2.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "J",
+              "minimum": 0.45,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Fe",
+              "minimum": 20,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Mn",
+              "minimum": 2.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Se",
+              "applicability_rule_code": "feed_form_wet",
+              "minimum": 75,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Se",
+              "applicability_rule_code": "feed_form_dry",
+              "minimum": 75,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Zn",
+              "minimum": 18.8,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "A",
+              "minimum": 2250,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "D",
+              "minimum": 70,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "E",
+              "minimum": 9.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "B1",
+              "minimum": 1.4,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "B2",
+              "minimum": 0.8,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "B5",
+              "minimum": 1.43,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "B6",
+              "minimum": 0.63,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "B12",
+              "minimum": 4.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "B3",
+              "minimum": 8,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "B9",
+              "minimum": 188,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "B7",
+              "minimum": 17.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "B4",
+              "minimum": 600,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "K1",
+              "minimum": null,
+              "minimum_upper": null,
+              "established": false,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            }
+          ],
+          "source": {
+            "table": "III-4b",
+            "page": 19,
+            "url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf"
+          }
+        },
+        {
+          "code": "cat_reproduction",
+          "species_code": "cat",
+          "name_ru": "Репродукция",
+          "physiological_state": "reproduction",
+          "mer_reference": null,
+          "basis": {
+            "energy": 1000,
+            "energy_unit": "kcal",
+            "energy_type": "metabolisable_energy"
+          },
+          "nutrients": [
+            {
+              "code": "CP",
+              "minimum": 75,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице приведены раздельные значения рост/репродукция."
+            },
+            {
+              "code": "Arg",
+              "minimum": 2.78,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице приведены раздельные значения рост/репродукция."
+            },
+            {
+              "code": "His",
+              "minimum": 0.83,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Ile",
+              "minimum": 1.35,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Leu",
+              "minimum": 3.2,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Lys",
+              "minimum": 2.13,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Met",
+              "minimum": 1.1,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "methionine_cystine",
+              "minimum": 2.2,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Phe",
+              "minimum": 1.25,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "phenylalanine_tyrosine",
+              "minimum": 4.78,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Thr",
+              "minimum": 1.63,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Trp",
+              "minimum": 0.4,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Val",
+              "minimum": 1.6,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Tau",
+              "applicability_rule_code": "feed_form_wet",
+              "minimum": 0.63,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Tau",
+              "applicability_rule_code": "feed_form_dry",
+              "minimum": 0.25,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "CFa",
+              "minimum": 22.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "LA",
+              "minimum": 1.38,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "AA",
+              "minimum": 50,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "ALA",
+              "minimum": 0.05,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "epa_dha",
+              "minimum": 0.03,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Ca",
+              "minimum": 2.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "P",
+              "minimum": 2.1,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "ca_p_ratio",
+              "minimum": 1,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "ratio",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "K",
+              "minimum": 1.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Na",
+              "minimum": 0.4,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Cl",
+              "minimum": 0.6,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Mg",
+              "minimum": 0.13,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Cu",
+              "minimum": 2.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "J",
+              "minimum": 0.45,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Fe",
+              "minimum": 20,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Mn",
+              "minimum": 2.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Se",
+              "applicability_rule_code": "feed_form_wet",
+              "minimum": 75,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Se",
+              "applicability_rule_code": "feed_form_dry",
+              "minimum": 75,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "Zn",
+              "minimum": 18.8,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "A",
+              "minimum": 2250,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "D",
+              "minimum": 70,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "E",
+              "minimum": 9.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "B1",
+              "minimum": 1.4,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "B2",
+              "minimum": 0.8,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "B5",
+              "minimum": 1.43,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "B6",
+              "minimum": 0.63,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "B12",
+              "minimum": 4.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "B3",
+              "minimum": 8,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "B9",
+              "minimum": 188,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "B7",
+              "minimum": 17.5,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "B4",
+              "minimum": 600,
+              "minimum_upper": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            },
+            {
+              "code": "K1",
+              "minimum": null,
+              "minimum_upper": null,
+              "established": false,
+              "unit": "µg",
+              "source_value_text": null,
+              "footnote": null,
+              "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
+            }
+          ],
+          "source": {
+            "table": "III-4b",
+            "page": 19,
+            "url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf"
+          }
+        }
+      ],
+      "energy_formulas": [
+        {
+          "code": "adult_indoor_neutered",
+          "source_table": "VII-9",
+          "name_ru": "Кастрированная и/или домашняя",
+          "display_formula_ru": "52–75 × BW_kg^0.67",
+          "display_range_ru": null,
+          "parameter_description_ru": "BW_kg",
+          "result_unit": "kcal_ME_per_day",
+          "page": 57,
+          "note_ru": "Для кошки 4 кг: ориентировочно 35–45 ккал/кг BW.",
+          "source_url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf",
+          "expression_min": "52 * pow(body_weight_kg, 0.67)",
+          "expression_max": "75 * pow(body_weight_kg, 0.67)",
+          "parameters": [
+            "body_weight_kg"
+          ]
+        },
+        {
+          "code": "adult_active",
+          "source_table": "VII-9",
+          "name_ru": "Активная взрослая",
+          "display_formula_ru": "100 × BW_kg^0.67",
+          "display_range_ru": null,
+          "parameter_description_ru": "BW_kg",
+          "result_unit": "kcal_ME_per_day",
+          "page": 57,
+          "note_ru": "Для кошки 4 кг: ориентировочно 60–65 ккал/кг BW.",
+          "source_url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf",
+          "expression": "100 * pow(body_weight_kg, 0.67)",
+          "parameters": [
+            "body_weight_kg"
+          ]
+        },
+        {
+          "code": "kitten_0_4m",
+          "source_table": "VII-10",
+          "name_ru": "Котёнок до 4 месяцев",
+          "display_formula_ru": "2.0–2.5 × MER",
+          "display_range_ru": null,
+          "parameter_description_ru": "MER",
+          "result_unit": "kcal_ME_per_day",
+          "page": 57,
+          "note_ru": null,
+          "source_url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf",
+          "expression_min": "2.0 * maintenance_energy_kcal_day",
+          "expression_max": "2.5 * maintenance_energy_kcal_day",
+          "parameters": [
+            "maintenance_energy_kcal_day"
+          ]
+        },
+        {
+          "code": "kitten_4_9m",
+          "source_table": "VII-10",
+          "name_ru": "Котёнок 4–9 месяцев",
+          "display_formula_ru": "1.75–2.0 × MER",
+          "display_range_ru": null,
+          "parameter_description_ru": "MER",
+          "result_unit": "kcal_ME_per_day",
+          "page": 57,
+          "note_ru": null,
+          "source_url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf",
+          "expression_min": "1.75 * maintenance_energy_kcal_day",
+          "expression_max": "2.0 * maintenance_energy_kcal_day",
+          "parameters": [
+            "maintenance_energy_kcal_day"
+          ]
+        },
+        {
+          "code": "kitten_9_12m",
+          "source_table": "VII-10",
+          "name_ru": "Котёнок 9–12 месяцев",
+          "display_formula_ru": "1.5 × MER",
+          "display_range_ru": null,
+          "parameter_description_ru": "MER",
+          "result_unit": "kcal_ME_per_day",
+          "page": 57,
+          "note_ru": null,
+          "source_url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf",
+          "expression": "1.5 * maintenance_energy_kcal_day",
+          "parameters": [
+            "maintenance_energy_kcal_day"
+          ]
+        },
+        {
+          "code": "gestation",
+          "source_table": "VII-10",
+          "name_ru": "Беременность",
+          "display_formula_ru": "140 × BW_kg^0.67",
+          "display_range_ru": null,
+          "parameter_description_ru": "BW_kg",
+          "result_unit": "kcal_ME_per_day",
+          "page": 57,
+          "note_ru": null,
+          "source_url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf",
+          "expression": "140 * pow(body_weight_kg, 0.67)",
+          "parameters": [
+            "body_weight_kg"
+          ]
+        },
+        {
+          "code": "lactation_lt3",
+          "source_table": "VII-10",
+          "name_ru": "Лактация, <3 котят",
+          "display_formula_ru": "100 × BW_kg^0.67 + 18 × BW_kg × L",
+          "display_range_ru": null,
+          "parameter_description_ru": "BW_kg; L",
+          "result_unit": "kcal_ME_per_day",
+          "page": 57,
+          "note_ru": "L: нед.1–2=0.9; нед.3–4=1.2; нед.5=1.1; нед.6=1.0; нед.7=0.8.",
+          "source_url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf",
+          "expression": "100 * pow(body_weight_kg, 0.67) + 18 * body_weight_kg * lactation_factor",
+          "parameters": [
+            "body_weight_kg",
+            "lactation_factor"
+          ],
+          "constraints": {
+            "litter_size": {
+              "max_exclusive": 3
+            }
+          }
+        },
+        {
+          "code": "lactation_3_4",
+          "source_table": "VII-10",
+          "name_ru": "Лактация, 3–4 котёнка",
+          "display_formula_ru": "100 × BW_kg^0.67 + 60 × BW_kg × L",
+          "display_range_ru": null,
+          "parameter_description_ru": "BW_kg; L",
+          "result_unit": "kcal_ME_per_day",
+          "page": 57,
+          "note_ru": "L: нед.1–2=0.9; нед.3–4=1.2; нед.5=1.1; нед.6=1.0; нед.7=0.8.",
+          "source_url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf",
+          "expression": "100 * pow(body_weight_kg, 0.67) + 60 * body_weight_kg * lactation_factor",
+          "parameters": [
+            "body_weight_kg",
+            "lactation_factor"
+          ],
+          "constraints": {
+            "litter_size": {
+              "min": 3,
+              "max": 4
+            }
+          }
+        },
+        {
+          "code": "lactation_gt4",
+          "source_table": "VII-10",
+          "name_ru": "Лактация, >4 котят",
+          "display_formula_ru": "100 × BW_kg^0.67 + 70 × BW_kg × L",
+          "display_range_ru": null,
+          "parameter_description_ru": "BW_kg; L",
+          "result_unit": "kcal_ME_per_day",
+          "page": 57,
+          "note_ru": "L: нед.1–2=0.9; нед.3–4=1.2; нед.5=1.1; нед.6=1.0; нед.7=0.8.",
+          "source_url": "https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf",
+          "expression": "100 * pow(body_weight_kg, 0.67) + 70 * body_weight_kg * lactation_factor",
+          "parameters": [
+            "body_weight_kg",
+            "lactation_factor"
+          ],
+          "constraints": {
+            "litter_size": {
+              "min_exclusive": 4
+            }
+          }
+        }
+      ],
+      "lactation": {
+        "nutrient_profile_stage_code": "cat_reproduction",
+        "week_factors": {
+          "1": 0.9,
+          "2": 0.9,
+          "3": 1.2,
+          "4": 1.2,
+          "5": 1.1,
+          "6": 1,
+          "7": 0.8
+        },
+        "energy_formula_codes": [
+          "lactation_lt3",
+          "lactation_3_4",
+          "lactation_gt4"
+        ],
+        "source_page": 57
+      }
+    }
+  },
+  "diseases_and_conditions": {
+    "disease_specific_nutrient_profiles": {
+      "available": false,
+      "items": [],
+      "exclusion_reason_ru": "Лечебные и ветеринарные диеты для особых пищевых целей не входят в область рекомендаций FEDIAF 2025.",
+      "source_pages": [
+        9,
+        10
+      ]
+    },
+    "conditions_mentioned_without_therapeutic_nutrient_targets": [
+      {
+        "code": "food_allergy",
+        "name_ru": "Пищевая аллергия",
+        "species": [
+          "dog",
+          "cat"
+        ],
+        "nutrient_targets_available": false,
+        "source_section": "7.6",
+        "source_pages": [
+          64,
+          65
+        ]
+      },
+      {
+        "code": "non_allergic_food_hypersensitivity",
+        "name_ru": "Неаллергическая пищевая гиперчувствительность",
+        "species": [
+          "dog",
+          "cat"
+        ],
+        "nutrient_targets_available": false,
+        "source_section": "7.6",
+        "source_pages": [
+          64,
+          65
+        ]
+      },
+      {
+        "code": "dietary_indiscretion",
+        "name_ru": "Пищевая неразборчивость / поедание несъедобного",
+        "species": [
+          "dog",
+          "cat"
+        ],
+        "nutrient_targets_available": false,
+        "source_pages": [
+          7
+        ]
+      },
+      {
+        "code": "obesity_prone_adult",
+        "name_ru": "Склонность к ожирению у взрослых собак",
+        "species": [
+          "dog"
+        ],
+        "nutrient_targets_available": false,
+        "energy_formula_code": "obesity_prone",
+        "energy_limit_kcal_me_per_kg_bw_075": 90,
+        "source_page": 55
+      }
+    ],
+    "food_safety_risks": [
+      {
+        "code": "grapes_raisins",
+        "name_ru": "Виноград и изюм",
+        "species": [
+          "dog"
+        ],
+        "risk_type": "toxicity",
+        "source_section": "7.7.1"
+      },
+      {
+        "code": "chocolate",
+        "name_ru": "Шоколад",
+        "species": [
+          "dog",
+          "cat"
+        ],
+        "risk_type": "toxicity",
+        "source_section": "7.7.2"
+      },
+      {
+        "code": "onion_garlic",
+        "name_ru": "Лук и чеснок",
+        "species": [
+          "dog",
+          "cat"
+        ],
+        "risk_type": "toxicity",
+        "source_section": "7.7.3"
+      }
+    ]
+  }
+}
