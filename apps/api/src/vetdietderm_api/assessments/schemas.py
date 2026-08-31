@@ -35,7 +35,6 @@ class AnimalProfile(BaseModel):
     lactation_week: int | None = Field(default=None, ge=0)
     litter_size: int | None = Field(default=None, ge=0)
     bcs: int | None = Field(default=None, ge=1, le=9)
-    maintenance_energy_kcal_day: float | None = Field(default=None, gt=0)
 
     @model_validator(mode="before")
     @classmethod
@@ -58,53 +57,27 @@ class RationComponent(BaseModel):
     grams: float = Field(gt=0)
 
 
-WorkingEnergyTargetSource = Literal[
-    "calculated_point",
-    "clinician_selected_from_range",
-    "clinician_override",
-]
 WeightBasis = Literal["current", "target_override"]
 AssessmentOverall = Literal["adequate", "inadequate", "indeterminate"]
+RangeWorkingPointRule = Literal["midpoint"]
 
 
 class AssessmentRequest(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     animal: AnimalProfile
-    confirmed_profile_code: str | None = None
-    confirmed_energy_formula_code: str | None = None
-    weight_basis: WeightBasis = "current"
-    size_class_override_code: str | None = None
     feed_form: FeedForm = FeedForm.unknown
     therapeutic_goal: bool = False
     rer_factor: float = Field(default=1.6, gt=0, le=10)
-    working_energy_target_kcal_day: float | None = Field(default=None, gt=0)
-    working_energy_target_source: WorkingEnergyTargetSource | None = None
+    energy_adjustment_percent: float = Field(default=100, gt=0, le=300)
     ration_species_mismatch_confirmed: bool = False
     components: list[RationComponent] = Field(min_length=1)
-
-    @model_validator(mode="before")
-    @classmethod
-    def map_legacy_size_class_override(cls, value: object) -> object:
-        if not isinstance(value, dict):
-            return value
-        mapped = dict(value)
-        if (
-            mapped.get("size_class_override_code") is None
-            and mapped.get("confirmed_size_class_code") is not None
-        ):
-            mapped["size_class_override_code"] = mapped["confirmed_size_class_code"]
-        return mapped
 
     @model_validator(mode="after")
     def component_ids_are_unique(self) -> "AssessmentRequest":
         ids = [item.food_uuid for item in self.components]
         if len(ids) != len(set(ids)):
             raise ValueError("Each food may appear only once in a ration")
-        if (self.working_energy_target_kcal_day is None) != (
-            self.working_energy_target_source is None
-        ):
-            raise ValueError("Working energy target and source must be set together")
         return self
 
 
@@ -116,29 +89,27 @@ class EditionIdentity(BaseModel):
     clinical_warning_ru: str
 
 
-class ConfirmedContext(BaseModel):
-    profile_code: str | None
+class ResolvedContext(BaseModel):
+    nutrient_profile_code: str | None
     energy_formula_code: str | None
     size_class_code: str | None
-    size_class_derived_code: str | None = None
-    size_class_override_code: str | None = None
     weight_basis: WeightBasis = "current"
     feed_form: FeedForm
     therapeutic_goal: bool
-    working_energy_target_kcal_day: float | None = None
-    working_energy_target_source: WorkingEnergyTargetSource | None = None
     ration_species_mismatch_confirmed: bool = False
 
 
 class EnergyAssessment(BaseModel):
-    fediaf_mer_kcal_day: float | None
-    fediaf_mer_min_kcal_day: float | None
-    fediaf_mer_max_kcal_day: float | None
+    energy_formula_code: str | None
+    reference_energy_kcal: float | None
+    reference_energy_min_kcal: float | None
+    reference_energy_max_kcal: float | None
+    range_working_point_rule: RangeWorkingPointRule | None = None
+    energy_adjustment_percent: float
+    working_energy_kcal: float | None
     rer_kcal_day: float | None
     rer_factor: float
     rer_factor_kcal_day: float | None
-    working_energy_target_kcal_day: float | None = None
-    working_energy_target_source: WorkingEnergyTargetSource | None = None
     complete: bool
     missing_fields: list[str]
     explanation_ru: str | None = None
@@ -177,25 +148,11 @@ class EnergyEstimateSource(BaseModel):
 
 class EnergyEstimateRequest(BaseModel):
     animal: AnimalProfile
-    energy_formula_code: str = Field(min_length=1)
-    confirmed: bool = False
-    weight_basis: WeightBasis = "current"
-    size_class_override_code: str | None = None
-    working_energy_target_kcal_day: float | None = Field(default=None, gt=0)
-    working_energy_target_source: WorkingEnergyTargetSource | None = None
-
-    @model_validator(mode="after")
-    def working_target_is_consistent(self) -> "EnergyEstimateRequest":
-        if (self.working_energy_target_kcal_day is None) != (
-            self.working_energy_target_source is None
-        ):
-            raise ValueError("Working energy target and source must be set together")
-        return self
+    energy_adjustment_percent: float = Field(default=100, gt=0, le=300)
 
 
 class EnergyEstimateResponse(BaseModel):
-    method_code: str
-    confirmed: bool
+    energy_formula_code: str | None
     value: EnergyEstimateValue | None
     inputs: dict[str, float | int]
     source: EnergyEstimateSource
@@ -203,12 +160,12 @@ class EnergyEstimateResponse(BaseModel):
     missing_fields: list[str]
     weight_basis: WeightBasis = "current"
     size_class_code: str | None = None
-    size_class_derived_code: str | None = None
-    size_class_override_code: str | None = None
     base_mer_value: EnergyPointValue | None = None
     multiplier_value: EnergyMultiplierPoint | EnergyMultiplierRange | None = None
-    working_energy_target_kcal_day: float | None = None
-    working_energy_target_source: WorkingEnergyTargetSource | None = None
+    reference_energy_kcal: float | None = None
+    range_working_point_rule: RangeWorkingPointRule | None = None
+    energy_adjustment_percent: float = 100
+    working_energy_kcal: float | None = None
 
 
 class CoverageAssessment(BaseModel):
@@ -262,7 +219,7 @@ class AssessmentGate(BaseModel):
 class AssessmentResponse(BaseModel):
     engine_id: str
     edition: EditionIdentity
-    context: ConfirmedContext
+    context: ResolvedContext
     energy: EnergyAssessment
     coverage: CoverageAssessment
     rows: list[AssessmentRow]
@@ -313,7 +270,6 @@ class SuggestionsResponse(BaseModel):
     suggested_size_class_code: str | None
     confidence: str
     confidence_ru: str
-    requires_confirmation: bool = True
 
 
 class DietPlanRationComponent(BaseModel):
@@ -327,6 +283,8 @@ class DietPlanRationComponent(BaseModel):
 class AssessmentSnapshot(BaseModel):
     request: AssessmentRequest
     assessment: AssessmentResponse
+    nutrient_profile_code: str | None
+    energy_formula_code: str | None
 
 
 class DietPlanWrite(BaseModel):

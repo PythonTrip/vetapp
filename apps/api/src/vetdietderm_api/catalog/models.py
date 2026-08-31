@@ -7,6 +7,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
@@ -54,6 +55,7 @@ class Food(Base):
             "feed_form IN ('dry', 'wet', 'unknown')",
             name="ck_foods_feed_form",
         ),
+        Index("ix_foods_category_subcategory", "category", "subcategory"),
     )
 
     uuid: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid6)
@@ -89,6 +91,13 @@ class FoodNutrientValue(Base):
             "basis",
             "source_uuid",
             name="uq_food_nutrient_values_identity",
+        ),
+        Index(
+            "ix_food_nutrient_values_food_basis_nutrient_updated",
+            "food_uuid",
+            "basis",
+            "nutrient_uuid",
+            "updated_at",
         ),
     )
 
@@ -139,4 +148,3 @@ class NutrientGroupMember(Base):
         ForeignKey("nutrients.uuid", ondelete="CASCADE"),
         primary_key=True,
     )
-

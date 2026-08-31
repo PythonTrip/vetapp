@@ -17,7 +17,6 @@ from vetdietderm_api.assessments.schemas import (
     AssessmentRow,
     AssessmentStatus,
     AnimalProfile,
-    ConfirmedContext,
     ContextSuggestion,
     CoverageAssessment,
     EditionIdentity,
@@ -30,6 +29,7 @@ from vetdietderm_api.assessments.schemas import (
     EnergyPointValue,
     EnergyRangeValue,
     FormulaSuggestionOption,
+    ResolvedContext,
     RowCompleteness,
     SizeClassSuggestionOption,
     SourceRead,
@@ -45,9 +45,11 @@ from vetdietderm_api.guidelines.models import (
     GuidelineTarget,
 )
 
-ENGINE_ID = "nutrition-engine/1.1.0"
+ENGINE_ID = "nutrition-engine/2.0.0"
 COVERAGE_THRESHOLD_PERCENT = 60.0
 HASH_DECIMAL_SCALE = Decimal("0.000001")
+_MICROGRAM_UNITS = frozenset({"µg", "mcg"})
+_MG_G_UNITS = frozenset({"mg", "g"})
 
 
 @dataclass(frozen=True)
@@ -85,6 +87,8 @@ def _fixed_decimal(value: float) -> str:
 
 def _input_hash(payload: AssessmentRequest, snapshot: PublishedGuideline) -> str:
     animal = payload.animal
+    energy_formula_code, _formula_reason, _confidence = _suggest_formula(animal, snapshot)
+    nutrient_profile_code, _profile_reason = _suggest_nutrient_standard(animal, snapshot)
     normalized = {
         "animal": {
             "species": animal.species.value,
@@ -95,8 +99,7 @@ def _input_hash(payload: AssessmentRequest, snapshot: PublishedGuideline) -> str
             ),
             "target_body_weight_kg": (
                 _fixed_decimal(animal.target_body_weight_kg)
-                if payload.weight_basis == "target_override"
-                and animal.target_body_weight_kg is not None
+                if animal.target_body_weight_kg is not None
                 else None
             ),
             "expected_mature_weight_kg": (
@@ -114,22 +117,10 @@ def _input_hash(payload: AssessmentRequest, snapshot: PublishedGuideline) -> str
             "lactating": animal.lactating,
             "lactation_week": animal.lactation_week,
             "litter_size": animal.litter_size,
-            "maintenance_energy_kcal_day": (
-                _fixed_decimal(animal.maintenance_energy_kcal_day)
-                if animal.maintenance_energy_kcal_day is not None
-                else None
-            ),
         },
-        "confirmed_energy_formula_code": payload.confirmed_energy_formula_code,
-        "confirmed_profile_code": payload.confirmed_profile_code,
-        "working_energy_target_kcal_day": (
-            _fixed_decimal(payload.working_energy_target_kcal_day)
-            if payload.working_energy_target_kcal_day is not None
-            else None
-        ),
-        "working_energy_target_source": payload.working_energy_target_source,
-        "weight_basis": payload.weight_basis,
-        "size_class_override_code": payload.size_class_override_code,
+        "energy_formula_code": energy_formula_code,
+        "nutrient_profile_code": nutrient_profile_code,
+        "energy_adjustment_percent": _fixed_decimal(payload.energy_adjustment_percent),
         "ration": sorted(
             (
                 {
@@ -321,6 +312,7 @@ def _energy_field_values(
     animal: AnimalProfile,
     snapshot: PublishedGuideline,
     weight_basis: str,
+    maintenance_energy_kcal_day: float | None = None,
 ) -> dict[str, float | int | None]:
     body_weight = (
         animal.target_body_weight_kg
@@ -332,7 +324,7 @@ def _energy_field_values(
         "body_weight_g": body_weight * 1000 if body_weight is not None else None,
         "expected_adult_weight_kg": animal.expected_mature_weight_kg,
         "expected_mature_weight_kg": animal.expected_mature_weight_kg,
-        "maintenance_energy_kcal_day": animal.maintenance_energy_kcal_day,
+        "maintenance_energy_kcal_day": maintenance_energy_kcal_day,
         "litter_size": animal.litter_size,
         "lactation_factor": (
             snapshot.lactation_factors.get((animal.species.value, animal.lactation_week))
@@ -352,7 +344,7 @@ def _energy_inputs(
         "current_body_weight_kg": animal.current_body_weight_kg,
         "target_body_weight_kg": animal.target_body_weight_kg,
         "expected_mature_weight_kg": animal.expected_mature_weight_kg,
-        "maintenance_energy_kcal_day": animal.maintenance_energy_kcal_day,
+        "maintenance_energy_kcal_day": field_values.get("maintenance_energy_kcal_day"),
         "litter_size": animal.litter_size,
         "lactation_week": animal.lactation_week,
     }
@@ -401,19 +393,15 @@ def _derive_size_class(
 
 def _resolve_size_class(
     animal: AnimalProfile,
-    override_code: str | None,
     snapshot: PublishedGuideline,
-) -> tuple[GrowthSizeClass | None, GrowthSizeClass | None]:
-    derived = _derive_size_class(animal, snapshot)
-    if override_code is None:
-        return derived, derived
-    override = snapshot.size_classes.get(override_code)
-    if override is None or override.species_code != animal.species.value:
-        raise _unprocessable(
-            "size_class_override_invalid",
-            "Размерный класс override не найден для выбранного вида",
-        )
-    return derived, override
+) -> GrowthSizeClass | None:
+    return _derive_size_class(animal, snapshot)
+
+
+def _resolved_weight_basis(animal: AnimalProfile, formula: EnergyFormula) -> str:
+    if animal.target_body_weight_kg is not None and "target_override" in formula.allowed_weight_bases:
+        return "target_override"
+    return "current"
 
 
 def _validate_weight_basis(
@@ -433,27 +421,84 @@ def _validate_weight_basis(
         )
 
 
+def _evaluate_energy_value(
+    formula: EnergyFormula,
+    field_values: Mapping[str, float | int | None],
+) -> EnergyPointValue | EnergyRangeValue:
+    if formula.result_kind == "point":
+        if formula.formula_ast is None:
+            raise AstEvaluationError("point formula AST is missing")
+        return EnergyPointValue(kcal_day=evaluate_formula(formula.formula_ast, field_values))
+    range_ast = formula.range_ast or {}
+    min_ast = range_ast.get("min")
+    max_ast = range_ast.get("max")
+    if not isinstance(min_ast, dict) or not isinstance(max_ast, dict):
+        raise AstEvaluationError("range formula requires both bounds")
+    first = evaluate_formula(min_ast, field_values)
+    second = evaluate_formula(max_ast, field_values)
+    return EnergyRangeValue(
+        min_kcal_day=min(first, second),
+        max_kcal_day=max(first, second),
+    )
+
+
+def _reference_energy(value: EnergyPointValue | EnergyRangeValue | None) -> float | None:
+    if isinstance(value, EnergyPointValue):
+        return value.kcal_day
+    if isinstance(value, EnergyRangeValue):
+        return (value.min_kcal_day + value.max_kcal_day) / 2
+    return None
+
+
+def _automatic_base_mer(animal: AnimalProfile, snapshot: PublishedGuideline) -> float | None:
+    if animal.species.value != "cat":
+        return None
+    code = (
+        "adult_indoor_neutered"
+        if animal.neutered or animal.activity == "low"
+        else "adult_active"
+    )
+    formula = snapshot.formulas.get(code)
+    if formula is None:
+        return None
+    weight_basis = _resolved_weight_basis(animal, formula)
+    field_values = _energy_field_values(animal, snapshot, weight_basis)
+    if any(field_values.get(field) is None for field in formula.required_animal_fields):
+        return None
+    try:
+        return _reference_energy(_evaluate_energy_value(formula, field_values))
+    except AstEvaluationError:
+        return None
+
+
 def evaluate_energy_scenario(
     request: EnergyEstimateRequest,
     snapshot: PublishedGuideline,
 ) -> EnergyEstimateResponse:
     animal = request.animal
-    formula = snapshot.formulas.get(request.energy_formula_code)
+    formula_code, _reason, _confidence = _suggest_formula(animal, snapshot)
+    formula = snapshot.formulas.get(formula_code or "")
     if formula is None:
-        raise _unprocessable(
-            "energy_formula_not_found",
-            "Энергетический сценарий не найден в опубликованной редакции",
+        return EnergyEstimateResponse(
+            energy_formula_code=None,
+            value=None,
+            inputs={},
+            source=EnergyEstimateSource(
+                edition=snapshot.edition.code,
+                table=None,
+                page=None,
+            ),
+            warnings=["energy_formula_unresolved"],
+            missing_fields=["energy_formula_code"],
+            energy_adjustment_percent=request.energy_adjustment_percent,
         )
-    if formula.species_code != animal.species.value:
-        raise _unprocessable(
-            "energy_formula_species_mismatch",
-            "Энергетический сценарий не относится к выбранному виду",
-        )
-    _validate_weight_basis(animal, formula, request.weight_basis)
-    derived_size_class, effective_size_class = _resolve_size_class(
-        animal,
-        request.size_class_override_code,
-        snapshot,
+    weight_basis = _resolved_weight_basis(animal, formula)
+    _validate_weight_basis(animal, formula, weight_basis)
+    size_class = _resolve_size_class(animal, snapshot)
+    automatic_base_mer = (
+        _automatic_base_mer(animal, snapshot)
+        if "maintenance_energy_kcal_day" in formula.required_animal_fields
+        else None
     )
 
     reference = (
@@ -466,7 +511,12 @@ def evaluate_energy_scenario(
         table=reference.table_code if reference else None,
         page=reference.page if reference else None,
     )
-    field_values = _energy_field_values(animal, snapshot, request.weight_basis)
+    field_values = _energy_field_values(
+        animal,
+        snapshot,
+        weight_basis,
+        automatic_base_mer,
+    )
     missing: list[str] = []
     warnings: list[str] = []
     for field in formula.required_animal_fields:
@@ -476,9 +526,7 @@ def evaluate_energy_scenario(
         elif field_values.get(field) is None:
             if field in {"body_weight_kg", "body_weight_g"}:
                 missing.append(
-                    "target_body_weight_kg"
-                    if request.weight_basis == "target_override"
-                    else "current_body_weight_kg"
+                    "target_body_weight_kg" if weight_basis == "target_override" else "current_body_weight_kg"
                 )
             elif field in {"expected_adult_weight_kg", "expected_mature_weight_kg"}:
                 missing.append("expected_mature_weight_kg")
@@ -503,30 +551,13 @@ def evaluate_energy_scenario(
     multiplier_value: EnergyMultiplierPoint | EnergyMultiplierRange | None = None
     if not missing:
         try:
-            if formula.result_kind == "point":
-                if formula.formula_ast is None:
-                    raise AstEvaluationError("point formula AST is missing")
-                value = EnergyPointValue(
-                    kcal_day=evaluate_formula(formula.formula_ast, field_values)
-                )
-            else:
-                range_ast = formula.range_ast or {}
-                min_ast = range_ast.get("min")
-                max_ast = range_ast.get("max")
-                if not isinstance(min_ast, dict) or not isinstance(max_ast, dict):
-                    raise AstEvaluationError("range formula requires both bounds")
-                first = evaluate_formula(min_ast, field_values)
-                second = evaluate_formula(max_ast, field_values)
-                value = EnergyRangeValue(
-                    min_kcal_day=min(first, second),
-                    max_kcal_day=max(first, second),
-                )
+            value = _evaluate_energy_value(formula, field_values)
         except AstEvaluationError:
             missing.append("formula_evaluation")
             warnings.append("formula_evaluation")
 
     if "maintenance_energy_kcal_day" in formula.required_animal_fields:
-        base_mer = animal.maintenance_energy_kcal_day
+        base_mer = automatic_base_mer
         if base_mer is not None:
             base_mer_value = EnergyPointValue(kcal_day=base_mer)
         multiplier_fields = dict(field_values)
@@ -549,52 +580,31 @@ def evaluate_energy_scenario(
         except AstEvaluationError:
             multiplier_value = None
 
-    if value is not None and request.working_energy_target_kcal_day is not None:
-        target = request.working_energy_target_kcal_day
-        source_kind = request.working_energy_target_source
-        if source_kind == "calculated_point":
-            if not isinstance(value, EnergyPointValue) or abs(target - value.kcal_day) > 0.01:
-                raise _unprocessable(
-                    "working_energy_target_mismatch",
-                    "Расчётная рабочая цель не совпадает с точечным сценарием",
-                )
-        elif source_kind == "clinician_selected_from_range":
-            if not isinstance(value, EnergyRangeValue):
-                raise _unprocessable(
-                    "working_energy_target_source_invalid",
-                    "Выбор из диапазона допустим только для диапазонного сценария",
-                )
-            if target < value.min_kcal_day or target > value.max_kcal_day:
-                raise _unprocessable(
-                    "working_energy_target_out_of_range",
-                    "Рабочая цель должна находиться внутри рассчитанного диапазона",
-                )
-        elif isinstance(value, EnergyRangeValue) and (
-            target < value.min_kcal_day or target > value.max_kcal_day
-        ):
-            warnings.append("working_target_outside_estimate_range")
-
+    reference_energy = _reference_energy(value)
     return EnergyEstimateResponse(
-        method_code=formula.code,
-        confirmed=request.confirmed,
+        energy_formula_code=formula.code,
         value=value,
         inputs=_energy_inputs(
             animal,
             formula.required_animal_fields,
             field_values,
-            request.weight_basis,
+            weight_basis,
         ),
         source=source,
         warnings=list(dict.fromkeys(warnings)),
         missing_fields=missing,
-        weight_basis=request.weight_basis,
-        size_class_code=effective_size_class.code if effective_size_class else None,
-        size_class_derived_code=derived_size_class.code if derived_size_class else None,
-        size_class_override_code=request.size_class_override_code,
+        weight_basis=weight_basis,
+        size_class_code=size_class.code if size_class else None,
         base_mer_value=base_mer_value,
         multiplier_value=multiplier_value,
-        working_energy_target_kcal_day=request.working_energy_target_kcal_day,
-        working_energy_target_source=request.working_energy_target_source,
+        reference_energy_kcal=reference_energy,
+        range_working_point_rule="midpoint" if isinstance(value, EnergyRangeValue) else None,
+        energy_adjustment_percent=request.energy_adjustment_percent,
+        working_energy_kcal=(
+            reference_energy * request.energy_adjustment_percent / 100
+            if reference_energy is not None
+            else None
+        ),
     )
 
 
@@ -609,42 +619,32 @@ def _energy(
         else None
     )
     rer_factor_kcal = rer * payload.rer_factor if rer is not None else None
-    formula_code = payload.confirmed_energy_formula_code
-    if formula_code:
-        estimate = evaluate_energy_scenario(
-            EnergyEstimateRequest(
-                animal=animal,
-                energy_formula_code=formula_code,
-                confirmed=True,
-                weight_basis=payload.weight_basis,
-                size_class_override_code=payload.size_class_override_code,
-                working_energy_target_kcal_day=payload.working_energy_target_kcal_day,
-                working_energy_target_source=payload.working_energy_target_source,
-            ),
-            snapshot,
-        )
-        point = estimate.value if isinstance(estimate.value, EnergyPointValue) else None
-        range_value = estimate.value if isinstance(estimate.value, EnergyRangeValue) else None
-        missing = estimate.missing_fields
-    else:
-        point = None
-        range_value = None
-        missing = ["confirmed_energy_formula_code"]
+    estimate = evaluate_energy_scenario(
+        EnergyEstimateRequest(
+            animal=animal,
+            energy_adjustment_percent=payload.energy_adjustment_percent,
+        ),
+        snapshot,
+    )
+    range_value = estimate.value if isinstance(estimate.value, EnergyRangeValue) else None
+    missing = estimate.missing_fields
     explanation = (
-        "Недостаточно подтверждённых параметров для расчёта FEDIAF MER."
+        "Недостаточно параметров карточки животного для расчёта FEDIAF MER."
         if missing
         else None
     )
     return EnergyAssessment(
-        fediaf_mer_kcal_day=point.kcal_day if point else None,
-        fediaf_mer_min_kcal_day=range_value.min_kcal_day if range_value else None,
-        fediaf_mer_max_kcal_day=range_value.max_kcal_day if range_value else None,
+        energy_formula_code=estimate.energy_formula_code,
+        reference_energy_kcal=estimate.reference_energy_kcal,
+        reference_energy_min_kcal=range_value.min_kcal_day if range_value else None,
+        reference_energy_max_kcal=range_value.max_kcal_day if range_value else None,
+        range_working_point_rule=estimate.range_working_point_rule,
+        energy_adjustment_percent=payload.energy_adjustment_percent,
+        working_energy_kcal=estimate.working_energy_kcal,
         rer_kcal_day=rer,
         rer_factor=payload.rer_factor,
         rer_factor_kcal_day=rer_factor_kcal,
-        working_energy_target_kcal_day=payload.working_energy_target_kcal_day,
-        working_energy_target_source=payload.working_energy_target_source,
-        complete=point is not None or range_value is not None,
+        complete=estimate.reference_energy_kcal is not None,
         missing_fields=missing,
         explanation_ru=explanation,
     )
@@ -659,6 +659,14 @@ def _source(target: GuidelineTarget, snapshot: PublishedGuideline) -> SourceRead
         table=reference.table_code if reference else None,
         row=reference.row_code if reference else None,
     )
+
+
+def _mass_conversion_factor(from_unit: str, to_unit: str) -> float | None:
+    if from_unit == to_unit or {from_unit, to_unit} <= _MICROGRAM_UNITS:
+        return 1.0
+    if {from_unit, to_unit} == _MG_G_UNITS:
+        return 0.001 if from_unit == "mg" else 1000.0
+    return None
 
 
 def _status(
@@ -682,29 +690,41 @@ def _target_row(
     ration: RationData,
     me_kcal: float | None,
     size_class_code: str | None,
+    working_energy_kcal: float | None,
 ) -> AssessmentRow:
-    daily_basis = target.basis == "daily_per_metabolic_bw"
+    derived = target.derived_expression_uuid is not None
+    expression = snapshot.derived[target.derived_expression_uuid] if derived else None
+    ratio_target = bool(
+        expression and expression.ast_json.get("op") in {"ratio", "group_ratio"}
+    )
+    metabolic_daily_basis = target.basis == "daily_per_metabolic_bw"
+    energy_daily_basis = target.basis == "per_1000_kcal_me" and not ratio_target
+    daily_basis = metabolic_daily_basis or energy_daily_basis
     metabolic_bw: float | None = None
-    if daily_basis and payload.animal.current_body_weight_kg is not None:
+    if metabolic_daily_basis and payload.animal.current_body_weight_kg is not None:
         exponent = 0.75 if payload.animal.species.value == "dog" else 0.67
         metabolic_bw = payload.animal.current_body_weight_kg**exponent
+    target_factor = (
+        metabolic_bw
+        if metabolic_daily_basis
+        else working_energy_kcal / 1000
+        if energy_daily_basis and working_energy_kcal is not None
+        else 1.0
+        if not daily_basis
+        else None
+    )
     target_minimum = (
-        float(target.minimum_value) * metabolic_bw
-        if target.minimum_value is not None and metabolic_bw is not None
-        else float(target.minimum_value)
-        if target.minimum_value is not None and not daily_basis
+        float(target.minimum_value) * target_factor
+        if target.minimum_value is not None and target_factor is not None
         else None
     )
     target_maximum = (
-        float(target.maximum_value) * metabolic_bw
-        if target.maximum_value is not None and metabolic_bw is not None
-        else float(target.maximum_value)
-        if target.maximum_value is not None and not daily_basis
+        float(target.maximum_value) * target_factor
+        if target.maximum_value is not None and target_factor is not None
         else None
     )
-    derived = target.derived_expression_uuid is not None
     if derived:
-        expression = snapshot.derived[target.derived_expression_uuid]
+        assert expression is not None
         code = expression.code
         name = expression.name_ru
     else:
@@ -713,7 +733,7 @@ def _target_row(
         name = nutrient.name
     dependencies = _target_dependencies(target, snapshot)
     missing_foods = _missing_foods(ration, dependencies)
-    if not daily_basis and (me_kcal is None or me_kcal <= 0):
+    if not daily_basis and not ratio_target and (me_kcal is None or me_kcal <= 0):
         missing_foods = sorted({*missing_foods, *[food.name for food, _grams in ration.foods if _known_value(food, "ME") is None]})
     completeness = RowCompleteness(
         complete_components=len(ration.foods) - len(missing_foods),
@@ -749,39 +769,46 @@ def _target_row(
             row_status = AssessmentStatus.not_established
         elif missing_foods:
             row_status = AssessmentStatus.missing_product_data
-        elif daily_basis and metabolic_bw is None:
+        elif metabolic_daily_basis and metabolic_bw is None:
             row_status = AssessmentStatus.insufficient_context
             note = "Для суточного минимума нужна текущая масса животного."
-        elif not daily_basis and (me_kcal is None or me_kcal <= 0):
-            row_status = AssessmentStatus.missing_product_data
-        elif (
-            not derived
-            and target.unit != snapshot.nutrients[target.nutrient_uuid].base_unit
-            and {target.unit, snapshot.nutrients[target.nutrient_uuid].base_unit}
-            != {"µg", "mcg"}
-        ):
+        elif energy_daily_basis and working_energy_kcal is None:
             row_status = AssessmentStatus.insufficient_context
-            note = (
-                f"Нельзя безопасно сравнить единицы продукта "
-                f"({snapshot.nutrients[target.nutrient_uuid].base_unit}) и нормы ({target.unit})."
-            )
+            note = "Для суточной цели нужен автоматически рассчитанный рабочий уровень энергии."
+        elif not daily_basis and not ratio_target and (me_kcal is None or me_kcal <= 0):
+            row_status = AssessmentStatus.missing_product_data
         else:
-            try:
-                if daily_basis:
-                    ration_daily_amount = (
-                        _derived_daily_value(expression, ration, snapshot)
-                        if derived
-                        else ration.totals[code]
-                    )
-                    value = ration_daily_amount
-                elif derived:
-                    value = _derived_value(expression, ration, snapshot, me_kcal)
-                else:
-                    value = ration.totals[code] * 1000 / me_kcal
-                row_status = _status(value, target_minimum, target_maximum)
-            except ZeroDivisionError:
+            conversion_factor: float | None = 1.0
+            if not derived:
+                conversion_factor = _mass_conversion_factor(
+                    snapshot.nutrients[target.nutrient_uuid].base_unit,
+                    target.unit,
+                )
+            if conversion_factor is None:
                 row_status = AssessmentStatus.insufficient_context
-                note = "Выражение не определено из-за нулевого знаменателя."
+                note = (
+                    f"Нельзя безопасно сравнить единицы продукта "
+                    f"({snapshot.nutrients[target.nutrient_uuid].base_unit}) и нормы ({target.unit})."
+                )
+            else:
+                try:
+                    if daily_basis or ratio_target:
+                        raw_amount = (
+                            _derived_daily_value(expression, ration, snapshot)
+                            if derived
+                            else ration.totals[code]
+                        )
+                    elif derived:
+                        raw_amount = _derived_value(expression, ration, snapshot, me_kcal)
+                    else:
+                        raw_amount = ration.totals[code] * 1000 / me_kcal
+                    value = raw_amount * conversion_factor
+                    if daily_basis:
+                        ration_daily_amount = value
+                    row_status = _status(value, target_minimum, target_maximum)
+                except ZeroDivisionError:
+                    row_status = AssessmentStatus.insufficient_context
+                    note = "Выражение не определено из-за нулевого знаменателя."
     return AssessmentRow(
         code=code,
         name=name,
@@ -793,7 +820,7 @@ def _target_row(
             minimum=target_minimum,
             maximum=target_maximum,
             unit=target.unit,
-            basis=target.basis,
+            basis="per_day" if daily_basis else target.basis,
             source_value_text=target.source_value_text,
         ),
         status=row_status,
@@ -875,34 +902,31 @@ def _validated_context(
 ) -> tuple[GuidelineProfile | None, EnergyFormula | None]:
     species = payload.animal.species.value
     if species not in {"dog", "cat"}:
-        if payload.confirmed_profile_code or payload.confirmed_energy_formula_code:
-            raise _unprocessable(
-                "species_context_mismatch",
-                "Для вида «другой» нельзя применять стандарт или энергетический сценарий собак и кошек",
-            )
         return None, None
-    if not payload.confirmed_profile_code:
+    profile_code, _profile_reason = _suggest_nutrient_standard(payload.animal, snapshot)
+    formula_code, _formula_reason, _confidence = _suggest_formula(payload.animal, snapshot)
+    if not profile_code:
         raise _unprocessable(
-            "profile_unconfirmed",
-            "Выберите и подтвердите нутриентный стандарт FEDIAF",
+            "profile_unresolved",
+            "Сервер не смог определить нутриентный стандарт FEDIAF по карточке животного",
         )
-    if not payload.confirmed_energy_formula_code:
+    if not formula_code:
         raise _unprocessable(
-            "energy_formula_unconfirmed",
-            "Выберите и подтвердите энергетический сценарий FEDIAF",
+            "energy_formula_unresolved",
+            "Сервер не смог определить энергетическую формулу FEDIAF по карточке животного",
         )
-    profile = snapshot.profiles.get(payload.confirmed_profile_code)
+    profile = snapshot.profiles.get(profile_code)
     if profile is None:
         raise _unprocessable(
             "profile_not_found",
-            "Подтверждённый нутриентный стандарт не найден в опубликованной редакции",
+            "Автоматически выбранный нутриентный стандарт не найден в опубликованной редакции",
         )
     if profile.species_code != species:
         raise _unprocessable(
             "profile_species_mismatch",
-            "Подтверждённый нутриентный стандарт не относится к выбранному виду",
+            "Автоматически выбранный нутриентный стандарт не относится к выбранному виду",
         )
-    formula = snapshot.formulas.get(payload.confirmed_energy_formula_code)
+    formula = snapshot.formulas.get(formula_code)
     if formula is None:
         raise _unprocessable(
             "energy_formula_not_found",
@@ -913,7 +937,31 @@ def _validated_context(
             "energy_formula_species_mismatch",
             "Энергетический сценарий не относится к выбранному виду",
         )
-    _validate_weight_basis(payload.animal, formula, payload.weight_basis)
+    expected_state = (
+        "reproduction"
+        if payload.animal.pregnant
+        or payload.animal.lactating
+        or payload.animal.life_stage in {"gestation", "lactation"}
+        else "growth"
+        if payload.animal.life_stage == "puppy_kitten"
+        or (payload.animal.age_months is not None and payload.animal.age_months < 12)
+        else "adult"
+    )
+    compatible_states = {
+        "adult": {"adult"},
+        "growth": {"growth", "growth_reproduction"},
+        "reproduction": {"reproduction", "growth_reproduction"},
+    }[expected_state]
+    if profile.physiological_state not in compatible_states:
+        raise _unprocessable(
+            "profile_life_stage_mismatch",
+            "Автоматически выбранный нутриентный стандарт несовместим со стадией жизни",
+        )
+    _validate_weight_basis(
+        payload.animal,
+        formula,
+        _resolved_weight_basis(payload.animal, formula),
+    )
     return profile, formula
 
 
@@ -924,22 +972,16 @@ def assess_nutrition(
 ) -> AssessmentResponse:
     profile, formula = _validated_context(payload, snapshot)
     energy = _energy(payload, snapshot)
-    derived_size_class, effective_size_class = _resolve_size_class(
-        payload.animal,
-        payload.size_class_override_code,
-        snapshot,
-    )
-    context = ConfirmedContext(
-        profile_code=payload.confirmed_profile_code,
-        energy_formula_code=payload.confirmed_energy_formula_code,
-        size_class_code=effective_size_class.code if effective_size_class else None,
-        size_class_derived_code=derived_size_class.code if derived_size_class else None,
-        size_class_override_code=payload.size_class_override_code,
-        weight_basis=payload.weight_basis,
+    size_class = _resolve_size_class(payload.animal, snapshot)
+    context = ResolvedContext(
+        nutrient_profile_code=profile.code if profile else None,
+        energy_formula_code=formula.code if formula else None,
+        size_class_code=size_class.code if size_class else None,
+        weight_basis=(
+            _resolved_weight_basis(payload.animal, formula) if formula else "current"
+        ),
         feed_form=payload.feed_form,
         therapeutic_goal=payload.therapeutic_goal,
-        working_energy_target_kcal_day=payload.working_energy_target_kcal_day,
-        working_energy_target_source=payload.working_energy_target_source,
         ration_species_mismatch_confirmed=payload.ration_species_mismatch_confirmed,
     )
     empty_coverage = CoverageAssessment(
@@ -975,17 +1017,6 @@ def assess_nutrition(
             "missing_required_animal_fields",
             f"Не заполнены обязательные параметры энергетического сценария: {fields}",
         )
-    target_missing = payload.working_energy_target_kcal_day is None
-    if target_missing and formula.result_kind == "range":
-        raise _unprocessable(
-            "working_energy_target_missing",
-            "Выберите рабочую энергетическую цель внутри рассчитанного диапазона",
-        )
-    elif target_missing and profile.calculation_basis == "published_per_1000_kcal":
-        raise _unprocessable(
-            "working_energy_target_missing",
-            "Для выбранного нутриентного стандарта нужна рабочая энергетическая цель",
-        )
     ration = _ration_data(payload, foods_by_id)
     targets = [item for item in snapshot.targets if item.profile_uuid == profile.uuid]
     expected_codes = {
@@ -1010,7 +1041,8 @@ def assess_nutrition(
             snapshot,
             ration,
             me_kcal,
-            effective_size_class.code if effective_size_class else None,
+            size_class.code if size_class else None,
+            energy.working_energy_kcal,
         )
         for item in targets
     ]
@@ -1020,7 +1052,7 @@ def assess_nutrition(
             ration,
             me_kcal,
             expected_codes,
-            daily_basis=profile.calculation_basis == "daily_per_metabolic_bw",
+            daily_basis=True,
         )
     )
     overall, met_count, below_count, above_count, unevaluable_count = _assessment_summary(rows)
@@ -1116,10 +1148,11 @@ def _suggest_formula(
                 _age_reason("cat", age),
                 "high" if age is not None else "low",
             )
-        code = "adult_indoor_neutered" if animal.neutered else "adult_active"
+        indoor_or_neutered = animal.neutered or animal.activity == "low"
+        code = "adult_indoor_neutered" if indoor_or_neutered else "adult_active"
         return (
             code if code in formulas else None,
-            "cat_neutered" if animal.neutered else "cat_adult_active",
+            "cat_indoor_or_neutered" if indoor_or_neutered else "cat_adult_active",
             "high",
         )
     return None, "species_out_of_scope", "low"
@@ -1133,7 +1166,7 @@ def _suggest_nutrient_standard(
     profile_codes = {
         code
         for code, item in snapshot.profiles.items()
-        if item.species_code == species and item.clinician_selectable
+        if item.species_code == species
     }
     if species == "dog":
         if animal.lactating or animal.life_stage == "lactation":
@@ -1147,7 +1180,8 @@ def _suggest_nutrient_standard(
             code = "dog_early_growth_reproduction" if early else "dog_late_growth"
             reason = "dog_age_lt_14_weeks" if early else "dog_age_ge_14_weeks"
         else:
-            code, reason = "dog_adult_maintenance", "dog_adult_maintenance"
+            code = "dog_adult_mer95" if animal.activity == "low" else "dog_adult_mer110"
+            reason = "dog_adult_low_activity" if animal.activity == "low" else "dog_adult_other_activity"
     elif species == "cat":
         if animal.lactating or animal.life_stage == "lactation":
             code, reason = "cat_reproduction", "cat_lactating"
@@ -1158,7 +1192,9 @@ def _suggest_nutrient_standard(
         ):
             code, reason = "cat_growth", "cat_age_lt_12_months"
         else:
-            code, reason = "cat_adult_maintenance", "cat_adult_maintenance"
+            indoor_or_neutered = animal.neutered or animal.activity == "low"
+            code = "cat_adult_mer75" if indoor_or_neutered else "cat_adult_mer100"
+            reason = "cat_adult_indoor_or_neutered" if indoor_or_neutered else "cat_adult_active"
     else:
         return None, "species_out_of_scope"
     return (code if code in profile_codes else None), reason
@@ -1231,5 +1267,4 @@ def suggest_context(animal: Any, snapshot: PublishedGuideline) -> SuggestionsRes
         suggested_size_class_code=_suggest_size(animal, snapshot),
         confidence=confidence,
         confidence_ru=confidence_ru,
-        requires_confirmation=True,
     )

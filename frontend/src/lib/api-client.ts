@@ -189,10 +189,6 @@ export const api = {
 export type Species = "dog" | "cat" | "other";
 export type FoodType = "commercial" | "ingredient" | "supplement";
 export type FeedForm = "dry" | "wet" | "unknown";
-export type WorkingEnergyTargetSource =
-  | "calculated_point"
-  | "clinician_selected_from_range"
-  | "clinician_override";
 export type WeightBasis = "current" | "target_override";
 export type NutrientCategory = "main" | "mineral" | "vitamin" | "amino_acid" | "fatty_acid";
 export type NutrientValueStatus =
@@ -232,6 +228,7 @@ export interface FoodCategoryGroupRecord {
 export interface FoodCategoryPair {
   category: string | null;
   subcategory: string | null;
+  allSubcategories?: boolean;
 }
 
 export type FoodMatrixSortDirection = "asc" | "desc";
@@ -371,7 +368,6 @@ export interface AssessmentAnimal {
   lactation_week: number | null;
   litter_size: number | null;
   bcs: number | null;
-  maintenance_energy_kcal_day: number | null;
 }
 
 export interface AssessmentSuggestionOption {
@@ -431,21 +427,14 @@ export interface AssessmentSuggestionsRecord {
   suggested_size_class_code: string | null;
   confidence: string;
   confidence_ru: string;
-  requires_confirmation: true;
 }
 
 export interface AssessmentRequestPayload {
   animal: AssessmentAnimal;
-  confirmed_profile_code: string | null;
-  confirmed_energy_formula_code: string | null;
-  weight_basis: WeightBasis;
-  size_class_override_code: string | null;
-  confirmed_size_class_code?: string | null;
   feed_form: FeedForm;
   therapeutic_goal: boolean;
   rer_factor: number;
-  working_energy_target_kcal_day: number | null;
-  working_energy_target_source: WorkingEnergyTargetSource | null;
+  energy_adjustment_percent: number;
   ration_species_mismatch_confirmed: boolean;
   components: { food_uuid: string; grams: number }[];
 }
@@ -456,17 +445,11 @@ export type EnergyEstimateValue =
 
 export interface EnergyEstimateRequestPayload {
   animal: AssessmentAnimal;
-  energy_formula_code: string;
-  confirmed: boolean;
-  weight_basis: WeightBasis;
-  size_class_override_code: string | null;
-  working_energy_target_kcal_day: number | null;
-  working_energy_target_source: WorkingEnergyTargetSource | null;
+  energy_adjustment_percent: number;
 }
 
 export interface EnergyEstimateRecord {
-  method_code: string;
-  confirmed: boolean;
+  energy_formula_code: string | null;
   value: EnergyEstimateValue | null;
   inputs: Record<string, number>;
   source: { edition: string; table: string | null; page: number | null };
@@ -474,26 +457,28 @@ export interface EnergyEstimateRecord {
   missing_fields: string[];
   weight_basis: WeightBasis;
   size_class_code: string | null;
-  size_class_derived_code: string | null;
-  size_class_override_code: string | null;
   base_mer_value: { kind: "point"; kcal_day: number } | null;
   multiplier_value:
     | { kind: "point"; factor: number }
     | { kind: "range"; min_factor: number; max_factor: number }
     | null;
-  working_energy_target_kcal_day: number | null;
-  working_energy_target_source: WorkingEnergyTargetSource | null;
+  reference_energy_kcal: number | null;
+  range_working_point_rule: "midpoint" | null;
+  energy_adjustment_percent: number;
+  working_energy_kcal: number | null;
 }
 
 export interface AssessmentEnergyRecord {
-  fediaf_mer_kcal_day: number | null;
-  fediaf_mer_min_kcal_day: number | null;
-  fediaf_mer_max_kcal_day: number | null;
+  energy_formula_code: string | null;
+  reference_energy_kcal: number | null;
+  reference_energy_min_kcal: number | null;
+  reference_energy_max_kcal: number | null;
+  range_working_point_rule: "midpoint" | null;
+  energy_adjustment_percent: number;
+  working_energy_kcal: number | null;
   rer_kcal_day: number | null;
   rer_factor: number;
   rer_factor_kcal_day: number | null;
-  working_energy_target_kcal_day: number | null;
-  working_energy_target_source: WorkingEnergyTargetSource | null;
   complete: boolean;
   missing_fields: string[];
   explanation_ru: string | null;
@@ -533,16 +518,12 @@ export interface AssessmentRecord {
   engine_id: string;
   edition: GuidelineEditionRecord;
   context: {
-    profile_code: string | null;
+    nutrient_profile_code: string | null;
     energy_formula_code: string | null;
     size_class_code: string | null;
-    size_class_derived_code: string | null;
-    size_class_override_code: string | null;
     weight_basis: WeightBasis;
     feed_form: FeedForm;
     therapeutic_goal: boolean;
-    working_energy_target_kcal_day: number | null;
-    working_energy_target_source: WorkingEnergyTargetSource | null;
     ration_species_mismatch_confirmed: boolean;
   };
   energy: AssessmentEnergyRecord;
@@ -588,6 +569,8 @@ export interface DietPlanRecord extends DietPlanSummaryRecord {
   assessment_snapshot: {
     request: AssessmentRequestPayload;
     assessment: AssessmentRecord;
+    nutrient_profile_code: string | null;
+    energy_formula_code: string | null;
   };
   notes: string | null;
 }
@@ -615,7 +598,7 @@ function foodSearchUrl(q: string, type?: FoodType, categoryPairs: FoodCategoryPa
   if (type) params.set("type", type);
   for (const pair of categoryPairs) {
     params.append("category", pair.category ?? "__none__");
-    params.append("subcategory", pair.subcategory ?? "__none__");
+    params.append("subcategory", pair.allSubcategories ? "__all__" : pair.subcategory ?? "__none__");
   }
   return `/foods?${params.toString()}`;
 }
@@ -631,7 +614,7 @@ function foodMatrixUrl(options: FoodMatrixParams): string {
   });
   for (const pair of options.categoryPairs) {
     params.append("category", pair.category ?? "__none__");
-    params.append("subcategory", pair.subcategory ?? "__none__");
+    params.append("subcategory", pair.allSubcategories ? "__all__" : pair.subcategory ?? "__none__");
   }
   return `/foods/matrix?${params.toString()}`;
 }

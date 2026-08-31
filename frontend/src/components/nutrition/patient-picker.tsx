@@ -31,6 +31,7 @@ type PatientPickerProps = {
   selectedPending?: boolean;
   disabled?: boolean;
   id?: string;
+  className?: string;
   onChange: (patientId: string) => void;
 };
 
@@ -40,6 +41,7 @@ export function PatientPicker({
   selectedPending = false,
   disabled = false,
   id,
+  className,
   onChange,
 }: PatientPickerProps) {
   const [open, setOpen] = React.useState(false);
@@ -77,7 +79,10 @@ export function PatientPicker({
           aria-expanded={open}
           aria-label="Пациент"
           disabled={disabled}
-          className="h-9 w-full justify-between border-input bg-background px-3 font-normal shadow-xs hover:bg-accent"
+          className={cn(
+            "h-9 w-full justify-between border-input bg-background px-3 font-normal shadow-none hover:bg-accent",
+            className,
+          )}
         >
           <span className="flex min-w-0 items-center gap-2">
             <PawPrint className="size-4 shrink-0 text-muted-foreground" />

@@ -166,6 +166,8 @@ export function useFoodMatrixQuery(
       const loaded = pages.reduce((count, page) => count + page.items.length, 0);
       return loaded < lastPage.total ? loaded : undefined;
     },
+    placeholderData: (previousData) => previousData,
+    staleTime: 5 * 60 * 1000,
     enabled,
     retry: retryUnlessClientError,
   });
@@ -248,9 +250,12 @@ export function useGuidelineContextOptions(species: "dog" | "cat" | null) {
   });
 }
 
-export function useAssessmentSuggestions() {
-  return useMutation({
-    mutationFn: (animal: AssessmentAnimal) => assessmentsApi.suggestions(animal),
+export function useAssessmentSuggestions(animal: AssessmentAnimal | null) {
+  return useQuery({
+    queryKey: ["assessment-suggestions", animal],
+    queryFn: () => assessmentsApi.suggestions(animal as AssessmentAnimal),
+    enabled: animal !== null,
+    retry: retryUnlessClientError,
   });
 }
 
@@ -317,6 +322,9 @@ export function useFoodEnergyValues(foodIds: string[]) {
   });
   return {
     data,
+    foods: Object.fromEntries(
+      results.map((result, index) => [foodIds[index], result.data]),
+    ),
     isPending: results.some((result) => result.isPending),
   };
 }

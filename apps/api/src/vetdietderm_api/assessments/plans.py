@@ -36,23 +36,10 @@ def _validate_patient(session: Session, patient_uuid: UUID | None) -> Patient | 
     return patient
 
 
-def _validate_save_context(payload: DietPlanWrite) -> None:
-    request = payload.assessment_request
-    normative_requested = request.animal.species.value in {"dog", "cat"}
-    if normative_requested and (
-        not request.confirmed_profile_code or not request.confirmed_energy_formula_code
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Выберите нутриентный стандарт и энергетический сценарий перед сохранением snapshot",
-        )
-
-
 def _compute_snapshot(
     session: Session,
     payload: DietPlanWrite,
 ) -> tuple[list[dict[str, object]], dict[str, object]]:
-    _validate_save_context(payload)
     request = payload.assessment_request
     guideline = repository.load_published_guideline(session)
     foods = repository.load_foods(session, [item.food_uuid for item in request.components])
@@ -70,6 +57,8 @@ def _compute_snapshot(
     snapshot = AssessmentSnapshot(
         request=request,
         assessment=assessment,
+        nutrient_profile_code=assessment.context.nutrient_profile_code,
+        energy_formula_code=assessment.context.energy_formula_code,
     ).model_dump(mode="json")
     return ration, snapshot
 

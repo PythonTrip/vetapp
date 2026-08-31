@@ -109,7 +109,10 @@ export function FoodCatalog() {
   const debouncedQuery = useDebouncedValue(query, 300);
   const categories = useFoodCategoriesQuery();
   const nutrients = useNutrientsQuery();
-  const categoryPairs = React.useMemo(() => categorySelectionPairs(selection), [selection]);
+  const categoryPairs = React.useMemo(
+    () => categorySelectionPairs(selection, categories.data ?? []),
+    [categories.data, selection],
+  );
   const visibleNutrients = React.useMemo(
     () => (nutrients.data ?? []).filter(
       (nutrient) => nutrient.category === nutrientCategory && nutrient.is_active,
@@ -309,7 +312,19 @@ export function FoodCatalog() {
         </div>
       ) : (
         <div className="space-y-3">
-          <div className="overflow-hidden rounded-2xl border bg-card">
+          <div
+            className="relative overflow-hidden rounded-2xl border bg-card"
+            aria-busy={matrix.isPlaceholderData}
+          >
+            {matrix.isPlaceholderData ? (
+              <div
+                className="absolute right-3 top-2 z-30 flex items-center gap-1.5 rounded-md border bg-card px-2 py-1 text-xs text-muted-foreground"
+                role="status"
+              >
+                <Loader2 className="size-3.5 animate-spin" />
+                Обновляем таблицу
+              </div>
+            ) : null}
             <div className="overflow-x-auto">
               <table className="w-full min-w-max border-collapse text-left text-sm">
                 <thead className="border-b bg-muted/65 text-xs text-muted-foreground">
@@ -407,7 +422,7 @@ export function FoodCatalog() {
             <Button
               type="button"
               variant="outline"
-              disabled={!matrix.hasNextPage || matrix.isFetchingNextPage}
+              disabled={matrix.isPlaceholderData || !matrix.hasNextPage || matrix.isFetchingNextPage}
               onClick={() => void matrix.fetchNextPage()}
             >
               {matrix.isFetchingNextPage ? <Loader2 className="size-4 animate-spin" /> : null}

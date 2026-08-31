@@ -44,19 +44,21 @@ def list_nutrients(session: Session) -> list[Nutrient]:
 
 def _food_predicates(
     query: str,
-    category_pairs: Sequence[tuple[str | None, str | None]],
+    category_filters: Sequence[tuple[str | None, str | None, bool]],
 ) -> list:
     predicates = []
     needle = query.strip()
     if needle:
         predicates.append(Food.name.ilike(_ilike_pattern(needle), escape="\\"))
-    if category_pairs:
+    if category_filters:
         pair_predicates = [
-            and_(
+            (Food.category.is_(None) if category is None else Food.category == category)
+            if all_subcategories
+            else and_(
                 Food.category.is_(None) if category is None else Food.category == category,
                 Food.subcategory.is_(None) if subcategory is None else Food.subcategory == subcategory,
             )
-            for category, subcategory in set(category_pairs)
+            for category, subcategory, all_subcategories in set(category_filters)
         ]
         predicates.append(or_(*pair_predicates))
     return predicates
@@ -84,11 +86,11 @@ def search_foods(
     session: Session,
     query: str,
     food_type: FoodType | None,
-    category_pairs: Sequence[tuple[str | None, str | None]] = (),
+    category_filters: Sequence[tuple[str | None, str | None, bool]] = (),
 ) -> list[Food]:
     stmt = select(Food)
     needle = query.strip()
-    stmt = stmt.where(*_food_predicates(query, category_pairs))
+    stmt = stmt.where(*_food_predicates(query, category_filters))
     if food_type is not None:
         stmt = stmt.where(Food.type == food_type.value)
     if needle:
@@ -107,28 +109,10 @@ def search_foods(
 def list_food_matrix(
     session: Session,
     query: FoodMatrixQuery,
-    category_pairs: Sequence[tuple[str | None, str | None]],
+    category_filters: Sequence[tuple[str | None, str | None, bool]],
 ) -> FoodMatrixPage:
-    nutrients = list(
-        session.scalars(
-            select(Nutrient)
-            .where(
-                Nutrient.category == query.nutrient_category.value,
-                Nutrient.is_active.is_(True),
-            )
-            .order_by(Nutrient.sort_order, Nutrient.code)
-        ).all()
-    )
-    nutrient_codes = {nutrient.code for nutrient in nutrients}
-    if query.sort != "name" and query.sort not in nutrient_codes:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Поле сортировки не входит в выбранную группу нутриентов",
-        )
-
-    predicates = _food_predicates(query.q, category_pairs)
-    total = session.scalar(select(func.count()).select_from(Food).where(*predicates)) or 0
-    foods_stmt = select(Food).where(*predicates)
+    predicates = _food_predicates(query.q, category_filters)
+    foods_stmt = select(Food, func.count().over().label("total_count")).where(*predicates)
     needle = query.q.strip()
 
     if query.sort == "name":
@@ -142,15 +126,24 @@ def list_food_matrix(
         else:
             foods_stmt = foods_stmt.order_by(func.lower(Food.name), Food.name, Food.uuid)
     else:
-        sort_value = (
-            select(FoodNutrientValue.value)
-            .join(Nutrient, Nutrient.uuid == FoodNutrientValue.nutrient_uuid)
-            .where(
-                FoodNutrientValue.food_uuid == Food.uuid,
-                FoodNutrientValue.basis == AS_FED_BASIS,
+        sort_nutrient_uuid = session.scalar(
+            select(Nutrient.uuid).where(
                 Nutrient.code == query.sort,
                 Nutrient.category == query.nutrient_category.value,
                 Nutrient.is_active.is_(True),
+            )
+        )
+        if sort_nutrient_uuid is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Поле сортировки не входит в выбранную группу нутриентов",
+            )
+        sort_value = (
+            select(FoodNutrientValue.value)
+            .where(
+                FoodNutrientValue.food_uuid == Food.uuid,
+                FoodNutrientValue.basis == AS_FED_BASIS,
+                FoodNutrientValue.nutrient_uuid == sort_nutrient_uuid,
             )
             .order_by(FoodNutrientValue.updated_at.desc())
             .limit(1)
@@ -164,7 +157,9 @@ def list_food_matrix(
             Food.uuid,
         )
 
-    foods = list(session.scalars(foods_stmt.offset(query.offset).limit(query.limit)).all())
+    page_rows = session.execute(foods_stmt.offset(query.offset).limit(query.limit)).all()
+    foods = [row[0] for row in page_rows]
+    total = int(page_rows[0][1]) if page_rows else 0
     food_ids = [food.uuid for food in foods]
     values_by_food: dict[UUID, dict[str, float | None]] = {food_uuid: {} for food_uuid in food_ids}
     if food_ids:
@@ -181,19 +176,22 @@ def list_food_matrix(
                 Nutrient.category == query.nutrient_category.value,
                 Nutrient.is_active.is_(True),
             )
-            .order_by(FoodNutrientValue.updated_at.desc())
+            .distinct(FoodNutrientValue.food_uuid, FoodNutrientValue.nutrient_uuid)
+            .order_by(
+                FoodNutrientValue.food_uuid,
+                FoodNutrientValue.nutrient_uuid,
+                FoodNutrientValue.updated_at.desc(),
+            )
         ).all()
         for food_uuid, code, value in value_rows:
-            if code not in values_by_food[food_uuid]:
-                values_by_food[food_uuid][code] = float(value) if value is not None else None
+            values_by_food[food_uuid][code] = float(value) if value is not None else None
 
     items = [
         FoodMatrixRow(
             **FoodSummary.model_validate(food).model_dump(),
             nutrient_values=[
-                FoodMatrixValue(code=nutrient.code, value=values_by_food[food.uuid][nutrient.code])
-                for nutrient in nutrients
-                if nutrient.code in values_by_food[food.uuid]
+                FoodMatrixValue(code=code, value=value)
+                for code, value in values_by_food[food.uuid].items()
             ],
         )
         for food in foods

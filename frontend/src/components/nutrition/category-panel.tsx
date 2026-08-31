@@ -10,10 +10,23 @@ import { cn } from "@/lib/utils";
 
 export type CategorySelection = Map<string | null, Set<string | null>>;
 
-export function categorySelectionPairs(selection: CategorySelection): FoodCategoryPair[] {
-  return Array.from(selection, ([category, subcategories]) =>
-    Array.from(subcategories, (subcategory) => ({ category, subcategory })),
-  ).flat();
+export function categorySelectionPairs(
+  selection: CategorySelection,
+  groups: FoodCategoryGroupRecord[] = [],
+): FoodCategoryPair[] {
+  const groupsByCategory = new Map(groups.map((group) => [group.category, group]));
+
+  return Array.from(selection, ([category, subcategories]) => {
+    const group = groupsByCategory.get(category);
+    const fullySelected = Boolean(
+      group?.subcategories.length
+      && group.subcategories.every((subcategory) => subcategories.has(subcategory)),
+    );
+    if (fullySelected) {
+      return [{ category, subcategory: null, allSubcategories: true }];
+    }
+    return Array.from(subcategories, (subcategory) => ({ category, subcategory }));
+  }).flat();
 }
 
 function categoryLabel(category: string | null): string {

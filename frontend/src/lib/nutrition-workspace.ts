@@ -21,7 +21,6 @@ export type NutritionAnimalForm = {
   lactationWeek: string;
   litterSize: string;
   bcs: string;
-  maintenanceEnergyKcalDay: string;
 };
 
 export type RationLine = {
@@ -43,7 +42,6 @@ export const emptyNutritionAnimal = (): NutritionAnimalForm => ({
   lactationWeek: "",
   litterSize: "",
   bcs: "",
-  maintenanceEnergyKcalDay: "",
 });
 
 function optionalNumber(value: string, label: string, positive = false): number | null {
@@ -71,7 +69,6 @@ export function toAssessmentAnimal(values: NutritionAnimalForm): AssessmentAnima
     lactation_week: optionalNumber(values.lactationWeek, "Неделя лактации"),
     litter_size: optionalNumber(values.litterSize, "Размер помёта"),
     bcs: optionalNumber(values.bcs, "BCS"),
-    maintenance_energy_kcal_day: optionalNumber(values.maintenanceEnergyKcalDay, "Поддерживающая энергия", true),
   };
 }
 
@@ -91,7 +88,6 @@ export function assessmentAnimalToNutritionForm(animal: AssessmentAnimal): Nutri
     lactationWeek: text(animal.lactation_week),
     litterSize: text(animal.litter_size),
     bcs: text(animal.bcs),
-    maintenanceEnergyKcalDay: text(animal.maintenance_energy_kcal_day),
   };
 }
 
@@ -135,7 +131,6 @@ export function patientToNutritionAnimal(patient: PatientRecord): NutritionAnima
     lactationWeek: patient.lactation_week == null ? "" : String(patient.lactation_week),
     litterSize: patient.litter_size == null ? "" : String(patient.litter_size),
     bcs: patient.bcs == null ? "" : String(patient.bcs),
-    maintenanceEnergyKcalDay: "",
   };
 }
 

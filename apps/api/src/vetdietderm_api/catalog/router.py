@@ -25,6 +25,7 @@ SessionDep = Annotated[Session, Depends(get_session)]
 
 router = APIRouter(tags=["catalog"])
 NULL_FILTER_TOKEN = "__none__"
+ALL_SUBCATEGORIES_FILTER_TOKEN = "__all__"
 
 
 def _food_read(food) -> FoodRead:
@@ -35,10 +36,10 @@ def _food_read(food) -> FoodRead:
     )
 
 
-def _category_pairs(
+def _category_filters(
     categories: list[str] | None,
     subcategories: list[str] | None,
-) -> list[tuple[str | None, str | None]]:
+) -> list[tuple[str | None, str | None, bool]]:
     if not categories and not subcategories:
         return []
     if not categories or not subcategories or len(categories) != len(subcategories):
@@ -50,7 +51,14 @@ def _category_pairs(
     def decode(value: str) -> str | None:
         return None if value == NULL_FILTER_TOKEN else value
 
-    return [(decode(category), decode(subcategory)) for category, subcategory in zip(categories, subcategories)]
+    return [
+        (
+            decode(category),
+            None if subcategory == ALL_SUBCATEGORIES_FILTER_TOKEN else decode(subcategory),
+            subcategory == ALL_SUBCATEGORIES_FILTER_TOKEN,
+        )
+        for category, subcategory in zip(categories, subcategories)
+    ]
 
 
 @router.get("/foods", response_model=list[FoodSummary])
@@ -62,10 +70,10 @@ def list_foods(
     category: Annotated[list[str] | None, Query()] = None,
     subcategory: Annotated[list[str] | None, Query()] = None,
 ) -> list[FoodSummary]:
-    pairs = _category_pairs(category, subcategory)
+    filters = _category_filters(category, subcategory)
     return [
         FoodSummary.model_validate(row)
-        for row in repository.search_foods(session, q, type, pairs)
+        for row in repository.search_foods(session, q, type, filters)
     ]
 
 
@@ -82,7 +90,7 @@ def list_food_matrix(
     offset: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> FoodMatrixPage:
-    pairs = _category_pairs(category, subcategory)
+    filters = _category_filters(category, subcategory)
     query = FoodMatrixQuery(
         q=q,
         category=category or [],
@@ -93,7 +101,7 @@ def list_food_matrix(
         offset=offset,
         limit=limit,
     )
-    return repository.list_food_matrix(session, query, pairs)
+    return repository.list_food_matrix(session, query, filters)
 
 
 @router.get("/foods/categories", response_model=list[FoodCategoryGroup])
