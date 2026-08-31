@@ -81,6 +81,13 @@ import {
   type NutritionAnimalForm,
   type RationLine,
 } from "@/lib/nutrition-workspace";
+import {
+  canonicalNutrientCode,
+  NUTRIENT_COLUMNS,
+  nutrientColumnDefinition,
+  nutrientDisplayUnit,
+  orderedNutrients,
+} from "@/lib/nutrient-columns";
 import { cn } from "@/lib/utils";
 
 const STATUS: Record<AssessmentStatus, { label: string; symbol: string; className: string }> = {
@@ -941,10 +948,6 @@ type TableNutrient = {
   assessmentRows?: AssessmentRecord["rows"];
 };
 
-const CONTROL_NUTRIENT_CODES = new Set([
-  "ME", "DM", "CP", "Fat", "CF", "Ca", "P", "Na", "K", "Zn", "Cu",
-]);
-
 const NUTRIENT_MODES: { value: NutrientTableMode; label: string }[] = [
   { value: "deviations", label: "Отклонения" },
   { value: "control", label: "Контрольные" },
@@ -955,6 +958,10 @@ const NUTRIENT_MODES: { value: NutrientTableMode; label: string }[] = [
   { value: "fatty_acid", label: "Жирные кислоты" },
   { value: "derived", label: "Расчётные показатели" },
 ];
+
+const CONTROL_NUTRIENT_CODE_SET = new Set(
+  NUTRIENT_COLUMNS.control.map((column) => column.code),
+);
 
 const STATUS_PRIORITY: Record<AssessmentStatus, number> = {
   above_maximum: 0,
@@ -1022,52 +1029,76 @@ function RationWorkbench({
   const [selectedFoodId, setSelectedFoodId] = React.useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = React.useState(false);
   const rowRefs = React.useRef<Array<HTMLTableRowElement | null>>([]);
-  const nutrientByCode = React.useMemo(
-    () => new Map(nutrients.map((item) => [item.code, item])),
-    [nutrients],
-  );
   const allTableNutrients = React.useMemo<TableNutrient[]>(() => {
-    if (assessment?.rows.length) {
-      const groupedRows = new Map<string, AssessmentRecord["rows"]>();
-      assessment.rows.forEach((row) => {
-        const key = `${row.derived ? "derived" : "atomic"}:${row.code}`;
-        groupedRows.set(key, [...(groupedRows.get(key) ?? []), row]);
-      });
-      return Array.from(groupedRows, ([key, rows]) => {
-        const assessmentRow = [...rows].sort((left, right) => {
-          if (left.status === "not_applicable" && right.status !== "not_applicable") return 1;
-          if (right.status === "not_applicable" && left.status !== "not_applicable") return -1;
-          return STATUS_PRIORITY[left.status] - STATUS_PRIORITY[right.status];
-        })[0];
-        const catalogNutrient = nutrientByCode.get(assessmentRow.code);
+    const groupedRows = new Map<string, AssessmentRecord["rows"]>();
+    assessment?.rows.forEach((row) => {
+      const key = `${row.derived ? "derived" : "atomic"}:${canonicalNutrientCode(row.code)}`;
+      groupedRows.set(key, [...(groupedRows.get(key) ?? []), row]);
+    });
+    const selectAssessmentRow = (rows: AssessmentRecord["rows"] | undefined) => rows
+      ? [...rows].sort((left, right) => {
+        if (left.status === "not_applicable" && right.status !== "not_applicable") return 1;
+        if (right.status === "not_applicable" && left.status !== "not_applicable") return -1;
+        return STATUS_PRIORITY[left.status] - STATUS_PRIORITY[right.status];
+      })[0]
+      : undefined;
+    const atomicNutrients: TableNutrient[] = nutrients
+      .filter((item) => item.is_active)
+      .map((item) => {
+        const code = canonicalNutrientCode(item.code);
+        const rows = groupedRows.get(`atomic:${code}`);
+        const definition = nutrientColumnDefinition(code);
         return {
-          key,
-          code: assessmentRow.code,
-          name: assessmentRow.name,
-          unit: assessmentRow.unit,
-          category: assessmentRow.derived ? "derived" : (catalogNutrient?.category ?? "main"),
-          derived: assessmentRow.derived,
-          assessmentRow,
+          key: `catalog:${item.uuid}`,
+          code: item.code,
+          name: definition?.name ?? item.name,
+          unit: nutrientDisplayUnit(code, item.base_unit),
+          category: item.category,
+          derived: false,
+          assessmentRow: selectAssessmentRow(rows),
           assessmentRows: rows,
         };
       });
-    }
-    return nutrients
-      .filter((item) => item.is_active)
-      .map((item) => ({
-        key: `catalog:${item.uuid}`,
-        code: item.code,
-        name: item.name,
-        unit: item.base_unit,
-        category: item.category,
-        derived: false,
-      }));
-  }, [assessment, nutrientByCode, nutrients]);
+    const derivedNutrients: TableNutrient[] = Array.from(groupedRows).flatMap(([key, rows]) => {
+      if (!key.startsWith("derived:")) return [];
+      const assessmentRow = selectAssessmentRow(rows);
+      if (!assessmentRow) return [];
+      const code = canonicalNutrientCode(assessmentRow.code);
+      const definition = nutrientColumnDefinition(code);
+      return [{
+        key,
+        code,
+        name: definition?.name ?? assessmentRow.name,
+        unit: nutrientDisplayUnit(code, assessmentRow.unit),
+        category: "derived" as const,
+        derived: true,
+        assessmentRow,
+        assessmentRows: rows,
+      }];
+    });
+    return [...atomicNutrients, ...derivedNutrients];
+  }, [assessment, nutrients]);
+
+  const controlTableNutrients = React.useMemo<TableNutrient[]>(() => (
+    NUTRIENT_COLUMNS.control.map((column) => {
+      const existing = allTableNutrients.find(
+        (nutrient) => canonicalNutrientCode(nutrient.code) === column.code,
+      );
+      return existing ?? {
+        key: `control:${column.code}`,
+        code: column.code,
+        name: column.name,
+        unit: column.unit,
+        category: "derived",
+        derived: true,
+      };
+    })
+  ), [allTableNutrients]);
 
   const nutrientsForMode = React.useCallback((nextMode: NutrientTableMode) => {
     if (nextMode === "deviations") {
       if (!assessment) {
-        return allTableNutrients.filter((item) => CONTROL_NUTRIENT_CODES.has(item.code));
+        return controlTableNutrients;
       }
       return allTableNutrients
         .filter((item) => item.assessmentRow && isDeviationStatus(item.assessmentRow.status))
@@ -1077,10 +1108,14 @@ function RationWorkbench({
         ));
     }
     if (nextMode === "control") {
-      return allTableNutrients.filter((item) => CONTROL_NUTRIENT_CODES.has(item.code));
+      return controlTableNutrients;
     }
-    return allTableNutrients.filter((item) => item.category === nextMode);
-  }, [allTableNutrients, assessment]);
+    const categoryNutrients = allTableNutrients.filter((item) => item.category === nextMode);
+    if (nextMode === "main" || nextMode === "mineral" || nextMode === "vitamin") {
+      return orderedNutrients(categoryNutrients, nextMode);
+    }
+    return categoryNutrients;
+  }, [allTableNutrients, assessment, controlTableNutrients]);
   const visibleNutrients = nutrientsForMode(mode);
 
   const target = workingEnergyKcal ?? 0;
@@ -1209,19 +1244,25 @@ function RationWorkbench({
       ) : null}
 
       <div className="max-h-[calc(100dvh-20rem)] min-h-[22rem] overflow-auto scrollbar-thin">
-        <table className="w-max min-w-full border-collapse text-xs">
+        <table className="w-max min-w-full table-fixed border-collapse text-xs">
+          <colgroup>
+            <col className="w-28" />
+            <col className="w-64" />
+            <col className="w-28" />
+            {visibleNutrients.map((nutrient) => <col key={nutrient.key} className="w-24" />)}
+          </colgroup>
           <thead className="sticky top-0 z-40 bg-muted text-muted-foreground">
             <tr className="h-11 border-b">
-              <th className="sticky left-0 top-0 z-50 w-28 min-w-28 border-r bg-muted px-2.5 text-left font-semibold">Категория</th>
-              <th className="sticky left-28 top-0 z-50 w-64 min-w-64 border-r bg-muted px-3 text-left font-semibold">Название продукта</th>
-              <th className="sticky left-[23rem] top-0 z-50 w-28 min-w-28 border-r bg-muted px-2 text-right font-semibold">
+              <th scope="col" className="sticky left-0 top-0 z-50 w-28 min-w-28 border-r bg-muted px-2.5 text-left font-semibold">Категория</th>
+              <th scope="col" className="sticky left-28 top-0 z-50 w-64 min-w-64 border-r bg-muted px-3 text-left font-semibold">Название</th>
+              <th scope="col" className="sticky left-[23rem] top-0 z-50 w-28 min-w-28 border-r bg-muted px-2 text-right font-semibold">
                 <span className="block">Количество</span>
                 <span className="block text-[10px] font-normal">г/сут</span>
               </th>
               {visibleNutrients.map((nutrient) => (
-                <th key={nutrient.key} title={nutrient.assessmentRows && nutrient.assessmentRows.length > 1 ? `${nutrient.name} · норма зависит от контекста` : nutrient.name} className="w-24 min-w-24 border-r px-2 text-right font-semibold">
-                  <span className="block text-foreground">{nutrient.code}</span>
-                  <span className="block text-[10px] font-normal">{nutrient.unit}</span>
+                <th scope="col" key={nutrient.key} title={nutrient.assessmentRows && nutrient.assessmentRows.length > 1 ? `${nutrient.name} · норма зависит от контекста` : nutrient.name} className="w-24 min-w-24 border-r px-2 text-right font-semibold">
+                  <span className="block text-foreground">{canonicalNutrientCode(nutrient.code)}</span>
+                  <span className="block min-h-3.5 text-[10px] font-normal">{nutrient.unit || "\u00a0"}</span>
                 </th>
               ))}
             </tr>
@@ -1251,7 +1292,9 @@ function RationWorkbench({
               {visibleNutrients.map((nutrient) => {
                 const row = nutrient.assessmentRow;
                 const status = row ? STATUS[row.status] : null;
-                const value = row?.ration_daily_amount ?? row?.ration_per_1000_kcal_me ?? null;
+                const value = row?.ration_daily_amount
+                  ?? row?.ration_per_1000_kcal_me
+                  ?? rationNutrientValue(lines, foodRecords, nutrient);
                 return (
                   <td
                     key={nutrient.key}
@@ -1264,7 +1307,7 @@ function RationWorkbench({
                     )}
                     title={status ? status.label : "Расчёт ещё не выполнен"}
                   >
-                    <span className="mr-1" aria-hidden="true">{status?.symbol ?? "—"}</span>
+                    {status ? <span className="mr-1" aria-hidden="true">{status.symbol}</span> : null}
                     {value == null ? "—" : formatNumber(value, 2)}
                   </td>
                 );
@@ -1394,18 +1437,114 @@ function productNutrientValue(
   gramsText: string,
   pending: boolean,
 ): React.ReactNode {
-  if (nutrient.derived) return <span className="text-muted-foreground">—</span>;
   if (!food) return pending ? "…" : <span className="text-violet-700 dark:text-violet-300" title="Нет данных">?</span>;
-  const source = food.nutrient_values.find(
-    (item) => item.code === nutrient.code && item.basis === "per_100g_as_fed",
-  );
-  if (!source || source.value == null || source.value_status === "unknown") {
-    return <span className="text-violet-700 dark:text-violet-300" title="Нет данных продукта">?</span>;
-  }
   const grams = Number(gramsText.replace(",", "."));
   if (!Number.isFinite(grams) || grams <= 0) return "—";
-  const contribution = source.value * grams / 100;
-  return <span title={formatNumber(source.value, 3) + " " + nutrient.unit + " / 100 г"}>{formatNumber(contribution, 2)}</span>;
+  const code = canonicalNutrientCode(nutrient.code);
+  if (CONTROL_NUTRIENT_CODE_SET.has(code)) {
+    const value = controlNutrientValue(code, (atomicCode) => foodNutrientAsFedValue(food, atomicCode));
+    if (value == null) return <span className="text-muted-foreground">—</span>;
+    return <span title={`${nutrient.name}: ${formatNumber(value, 3)}${nutrient.unit ? ` ${nutrient.unit}` : ""}`}>{formatNumber(value, 2)}</span>;
+  }
+  if (nutrient.derived) return <span className="text-muted-foreground">—</span>;
+  const sourceValue = foodNutrientAsFedValue(food, code);
+  if (sourceValue == null) {
+    return <span className="text-violet-700 dark:text-violet-300" title="Нет данных продукта">?</span>;
+  }
+  const contribution = sourceValue * grams / 100;
+  const sourceUnit = code === "ME" ? "ккал / 100 г" : `${nutrient.unit} / 100 г`;
+  return <span title={`${formatNumber(sourceValue, 3)} ${sourceUnit}`}>{formatNumber(contribution, 2)}</span>;
+}
+
+function foodNutrientAsFedValue(food: FoodRecord, code: string): number | null {
+  const source = food.nutrient_values.find(
+    (item) => canonicalNutrientCode(item.code) === code && item.basis === "per_100g_as_fed",
+  );
+  if (!source || source.value == null || source.value_status === "unknown") return null;
+  return source.value;
+}
+
+function safeRatio(numerator: number | null, denominator: number | null, factor = 1): number | null {
+  if (numerator == null || denominator == null || denominator === 0) return null;
+  return numerator / denominator * factor;
+}
+
+function knownSum(codes: readonly string[], valueFor: (code: string) => number | null): number | null {
+  const values = codes.map(valueFor).filter((value): value is number => value != null);
+  return values.length ? values.reduce((sum, value) => sum + value, 0) : null;
+}
+
+function controlNutrientValue(
+  code: string,
+  valueFor: (code: string) => number | null,
+): number | null {
+  switch (code) {
+    case "ME/DM":
+      return safeRatio(valueFor("ME"), valueFor("DM"), 100);
+    case "CP/ME":
+      return safeRatio(valueFor("CP"), valueFor("ME"), 1000);
+    case "CP/DM":
+      return safeRatio(valueFor("CP"), valueFor("DM"), 100);
+    case "CH/DM":
+      return safeRatio(valueFor("CH"), valueFor("DM"), 100);
+    case "CFa/DM":
+      return safeRatio(valueFor("CFa"), valueFor("DM"), 100);
+    case "CFi/DM":
+      return safeRatio(valueFor("CFi"), valueFor("DM"), 100);
+    case "CAs/DM":
+      return safeRatio(valueFor("CAs"), valueFor("DM"), 100);
+    case "Ca/P":
+      return safeRatio(valueFor("Ca"), valueFor("P"));
+    case "Zn/Ca":
+      return safeRatio(valueFor("Zn"), valueFor("Ca"));
+    case "ω6/ω3":
+      return safeRatio(
+        knownSum(["LA", "AA"], valueFor),
+        knownSum(["ALA", "EPA", "DHA"], valueFor),
+      );
+    case "CAB":
+    case "pH":
+      return valueFor(code);
+    default:
+      return null;
+  }
+}
+
+function rationAtomicValue(
+  lines: RationLine[],
+  foodRecords: Record<string, FoodRecord | undefined>,
+  code: string,
+): number | null {
+  const activeLines = lines.flatMap((line) => {
+    const grams = Number(line.grams.replace(",", "."));
+    return Number.isFinite(grams) && grams > 0 ? [{ line, grams }] : [];
+  });
+  if (!activeLines.length) return null;
+  let total = 0;
+  for (const { line, grams } of activeLines) {
+    const food = foodRecords[line.food.uuid];
+    if (!food) return null;
+    const sourceValue = foodNutrientAsFedValue(food, code);
+    if (sourceValue == null) return null;
+    total += sourceValue * grams / 100;
+  }
+  return total;
+}
+
+function rationNutrientValue(
+  lines: RationLine[],
+  foodRecords: Record<string, FoodRecord | undefined>,
+  nutrient: TableNutrient,
+): number | null {
+  const code = canonicalNutrientCode(nutrient.code);
+  if (CONTROL_NUTRIENT_CODE_SET.has(code)) {
+    return controlNutrientValue(
+      code,
+      (atomicCode) => rationAtomicValue(lines, foodRecords, atomicCode),
+    );
+  }
+  if (nutrient.derived) return null;
+  return rationAtomicValue(lines, foodRecords, code);
 }
 
 function targetValueText(target: AssessmentRecord["rows"][number]["target"]): string {

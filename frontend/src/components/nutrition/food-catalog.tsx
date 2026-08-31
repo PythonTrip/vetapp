@@ -55,6 +55,11 @@ import type {
   FoodWrite,
   NutrientCategory,
 } from "@/lib/api-client";
+import {
+  canonicalGroupForCategory,
+  nutrientDisplayUnit,
+  orderedNutrients,
+} from "@/lib/nutrient-columns";
 import { apiErrorMessage } from "@/lib/patient-form";
 
 const TYPE_OPTIONS: { value: FoodType; label: string }[] = [
@@ -114,9 +119,15 @@ export function FoodCatalog() {
     [categories.data, selection],
   );
   const visibleNutrients = React.useMemo(
-    () => (nutrients.data ?? []).filter(
-      (nutrient) => nutrient.category === nutrientCategory && nutrient.is_active,
-    ),
+    () => {
+      const categoryNutrients = (nutrients.data ?? []).filter(
+        (nutrient) => nutrient.category === nutrientCategory && nutrient.is_active,
+      );
+      const canonicalGroup = canonicalGroupForCategory(nutrientCategory);
+      return canonicalGroup
+        ? orderedNutrients(categoryNutrients, canonicalGroup)
+        : categoryNutrients;
+    },
     [nutrientCategory, nutrients.data],
   );
   const hasActiveFilters = query.trim().length > 0 || categoryPairs.length > 0;
@@ -326,7 +337,11 @@ export function FoodCatalog() {
               </div>
             ) : null}
             <div className="overflow-x-auto">
-              <table className="w-full min-w-max border-collapse text-left text-sm">
+              <table className="w-max min-w-full table-fixed border-collapse text-left text-sm">
+                <colgroup>
+                  <col className="w-72" />
+                  {visibleNutrients.map((nutrient) => <col key={nutrient.code} className="w-24" />)}
+                </colgroup>
                 <thead className="border-b bg-muted/65 text-xs text-muted-foreground">
                   <tr>
                     <th
@@ -346,7 +361,7 @@ export function FoodCatalog() {
                     {visibleNutrients.map((nutrient) => (
                       <th
                         key={nutrient.code}
-                        className="min-w-24 px-3 py-3 text-right"
+                        className="w-24 min-w-24 px-3 py-3 text-right"
                         title={nutrient.name}
                         aria-sort={sort.field === nutrient.code
                           ? sort.direction === "asc" ? "ascending" : "descending"
@@ -354,12 +369,17 @@ export function FoodCatalog() {
                       >
                         <button
                           type="button"
-                          className="ml-auto flex items-center gap-1.5 font-mono font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="ml-auto flex flex-col items-end gap-0.5 font-mono font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           onClick={() => toggleNutrientSort(nutrient.code)}
-                          aria-label={`Сортировать по ${nutrient.name}`}
+                          aria-label={`Сортировать по ${nutrient.name}, ${nutrientDisplayUnit(nutrient.code, nutrient.base_unit)}`}
                         >
-                          {nutrient.code}
-                          <SortIcon active={sort.field === nutrient.code} direction={sort.direction} />
+                          <span className="flex items-center gap-1.5">
+                            {nutrient.code}
+                            <SortIcon active={sort.field === nutrient.code} direction={sort.direction} />
+                          </span>
+                          <span className="font-sans text-[10px] font-normal text-muted-foreground">
+                            {nutrientDisplayUnit(nutrient.code, nutrient.base_unit)}
+                          </span>
                         </button>
                       </th>
                     ))}
@@ -526,6 +546,10 @@ function FoodEditorDialog({
         setError(`Проверьте значение «${nutrient.code}»: требуется неотрицательное число`);
         return;
       }
+      if (nutrient.code === "ME" && numeric > 1000) {
+        setError("ME указывается в ккал / 100 г и не может превышать 1000.");
+        return;
+      }
       nutrientPayload.push({ code: nutrient.code, value: numeric, value_status: "measured" });
     }
 
@@ -638,19 +662,25 @@ function FoodEditorDialog({
 
               <div className="space-y-4 rounded-2xl border bg-muted/20 p-4">
                 <div>
-                  <h3 className="font-semibold">Нутриенты на 100 г</h3>
-                  <p className="text-xs text-muted-foreground">Пусто = NULL · 0 = известный ноль</p>
+                  <h3 className="font-semibold">Нутриенты на 100 г as fed</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Пусто = NULL · 0 = известный ноль · ME в ккал / 100 г
+                  </p>
                 </div>
                 {(Object.keys(CATEGORY_LABELS) as NutrientCategory[]).map((category) => {
                   const categoryNutrients = nutrients.data?.filter((nutrient) => nutrient.category === category) ?? [];
-                  if (!categoryNutrients.length) return null;
+                  const canonicalGroup = canonicalGroupForCategory(category);
+                  const orderedCategoryNutrients = canonicalGroup
+                    ? orderedNutrients(categoryNutrients, canonicalGroup)
+                    : categoryNutrients;
+                  if (!orderedCategoryNutrients.length) return null;
                   return (
                     <section key={category} className="space-y-2">
                       <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         {CATEGORY_LABELS[category]}
                       </h4>
                       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                        {categoryNutrients.map((nutrient) => (
+                        {orderedCategoryNutrients.map((nutrient) => (
                           <label key={nutrient.code} className="flex items-center gap-2 rounded-lg border bg-background px-3 py-2">
                             <span className="w-10 shrink-0 font-mono text-xs font-semibold">{nutrient.code}</span>
                             <Input
@@ -662,11 +692,13 @@ function FoodEditorDialog({
                                 nutrientValues: { ...current.nutrientValues, [nutrient.code]: event.target.value },
                               }))}
                               placeholder="пусто"
-                              aria-label={`${nutrient.name}, ${nutrient.base_unit}`}
+                              aria-label={`${nutrient.name}, ${nutrientDisplayUnit(nutrient.code, nutrient.base_unit)}`}
                               className="h-8 min-w-0"
                               disabled={pending}
                             />
-                            <span className="w-9 shrink-0 text-[11px] text-muted-foreground">{nutrient.base_unit}</span>
+                            <span className="w-[4.75rem] shrink-0 text-[11px] text-muted-foreground">
+                              {nutrientDisplayUnit(nutrient.code, nutrient.base_unit)}
+                            </span>
                           </label>
                         ))}
                       </div>

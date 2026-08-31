@@ -273,7 +273,7 @@ function FoodResult({ food, added, nutrientTotal, onAdd }: {
         <p className="mt-1 text-[11px] tabular-nums text-muted-foreground">
           {details.isPending
             ? "Загрузка состава…"
-            : `${energy == null ? "Энергия —" : `${energy.toLocaleString("ru-RU", { maximumFractionDigits: 0 })} ккал / 100 г`} · данные ${knownValues ?? 0}/${nutrientTotal || "—"}`}
+            : `${energy == null ? "Энергия —" : `${energy.toLocaleString("ru-RU", { maximumFractionDigits: 1 })} ккал / 100 г`} · данные ${knownValues ?? 0}/${nutrientTotal || "—"}`}
         </p>
       </div>
       <Button
