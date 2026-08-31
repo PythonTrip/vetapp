@@ -15,32 +15,57 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _execute(sql: str) -> None:
+    op.get_bind().exec_driver_sql(sql)
+
+
+def _jsonb_object(path_sql: str) -> str:
+    return (
+        f"CASE WHEN jsonb_typeof({path_sql}) = 'object' THEN {path_sql} ELSE '{{}}'::jsonb END"
+    )
+
+
 def upgrade() -> None:
-    op.execute(
-        """
+    snapshot = "assessment_snapshot_json"
+    request = _jsonb_object(f"({snapshot} -> 'request'::text)")
+    context = _jsonb_object(f"({snapshot} #> ARRAY['assessment','context']::text[])")
+    energy = _jsonb_object(f"({snapshot} #> ARRAY['assessment','energy']::text[])")
+    _execute(
+        f"""
         UPDATE diet_plans
         SET assessment_snapshot_json =
             jsonb_set(
                 jsonb_set(
                     jsonb_set(
-                        assessment_snapshot_json,
-                        '{request}',
+                        {snapshot},
+                        ARRAY['request']::text[],
                         (
-                            assessment_snapshot_json->'request'
-                            - 'confirmed_profile_code'
-                            - 'confirmed_energy_formula_code'
-                            - 'confirmed_size_class_code'
-                            - 'size_class_override_code'
-                            - 'weight_basis'
-                            - 'working_energy_target_kcal_day'
-                            - 'working_energy_target_source'
+                            {request}
+                            - ARRAY[
+                                'confirmed_profile_code',
+                                'confirmed_energy_formula_code',
+                                'confirmed_size_class_code',
+                                'size_class_override_code',
+                                'weight_basis',
+                                'working_energy_target_kcal_day',
+                                'working_energy_target_source'
+                            ]::text[]
                         ) || jsonb_build_object(
                             'energy_adjustment_percent',
                             CASE
-                                WHEN (assessment_snapshot_json#>>'{assessment,energy,reference_energy_kcal}')::numeric > 0
+                                WHEN NULLIF(
+                                    {snapshot} #>> ARRAY['assessment','energy','reference_energy_kcal']::text[],
+                                    ''
+                                )::numeric > 0
                                 THEN round(
-                                    (assessment_snapshot_json#>>'{request,working_energy_target_kcal_day}')::numeric
-                                    / (assessment_snapshot_json#>>'{assessment,energy,reference_energy_kcal}')::numeric
+                                    NULLIF(
+                                        {snapshot} #>> ARRAY['request','working_energy_target_kcal_day']::text[],
+                                        ''
+                                    )::numeric
+                                    / NULLIF(
+                                        {snapshot} #>> ARRAY['assessment','energy','reference_energy_kcal']::text[],
+                                        ''
+                                    )::numeric
                                     * 100,
                                     6
                                 )
@@ -49,82 +74,101 @@ def upgrade() -> None:
                         ),
                         true
                     ),
-                    '{nutrient_profile_code}',
+                    ARRAY['nutrient_profile_code']::text[],
                     coalesce(
-                        assessment_snapshot_json#>'{request,confirmed_profile_code}',
-                        assessment_snapshot_json#>'{assessment,context,profile_code}',
+                        {snapshot} #> ARRAY['request','confirmed_profile_code']::text[],
+                        {snapshot} #> ARRAY['assessment','context','profile_code']::text[],
                         'null'::jsonb
                     ),
                     true
                 ),
-                '{energy_formula_code}',
+                ARRAY['energy_formula_code']::text[],
                 coalesce(
-                    assessment_snapshot_json#>'{request,confirmed_energy_formula_code}',
-                    assessment_snapshot_json#>'{assessment,context,energy_formula_code}',
+                    {snapshot} #> ARRAY['request','confirmed_energy_formula_code']::text[],
+                    {snapshot} #> ARRAY['assessment','context','energy_formula_code']::text[],
                     'null'::jsonb
                 ),
                 true
             )
-        WHERE jsonb_typeof(assessment_snapshot_json) = 'object';
-
+        WHERE jsonb_typeof({snapshot}) = 'object'
+        """
+    )
+    _execute(
+        f"""
         UPDATE diet_plans
         SET assessment_snapshot_json = jsonb_set(
             jsonb_set(
-                assessment_snapshot_json,
-                '{assessment,context}',
+                {snapshot},
+                ARRAY['assessment','context']::text[],
                 (
-                    assessment_snapshot_json#>'{assessment,context}'
-                    - 'profile_code'
-                    - 'size_class_derived_code'
-                    - 'size_class_override_code'
-                    - 'working_energy_target_kcal_day'
-                    - 'working_energy_target_source'
+                    {context}
+                    - ARRAY[
+                        'profile_code',
+                        'size_class_derived_code',
+                        'size_class_override_code',
+                        'working_energy_target_kcal_day',
+                        'working_energy_target_source'
+                    ]::text[]
                 ) || jsonb_build_object(
-                    'nutrient_profile_code', assessment_snapshot_json->'nutrient_profile_code'
+                    'nutrient_profile_code', {snapshot} -> 'nutrient_profile_code'::text
                 ),
                 true
             ),
-            '{assessment,energy}',
+            ARRAY['assessment','energy']::text[],
             (
-                assessment_snapshot_json#>'{assessment,energy}'
-                - 'fediaf_mer_kcal_day'
-                - 'fediaf_mer_min_kcal_day'
-                - 'fediaf_mer_max_kcal_day'
-                - 'working_energy_target_kcal_day'
-                - 'working_energy_target_source'
+                {energy}
+                - ARRAY[
+                    'fediaf_mer_kcal_day',
+                    'fediaf_mer_min_kcal_day',
+                    'fediaf_mer_max_kcal_day',
+                    'working_energy_target_kcal_day',
+                    'working_energy_target_source'
+                ]::text[]
             ) || jsonb_build_object(
-                'energy_formula_code', assessment_snapshot_json->'energy_formula_code',
+                'energy_formula_code', {snapshot} -> 'energy_formula_code'::text,
                 'reference_energy_kcal', coalesce(
-                    assessment_snapshot_json#>'{assessment,energy,fediaf_mer_kcal_day}',
+                    {snapshot} #> ARRAY['assessment','energy','fediaf_mer_kcal_day']::text[],
                     to_jsonb(
                         (
-                            (assessment_snapshot_json#>>'{assessment,energy,fediaf_mer_min_kcal_day}')::numeric
-                            + (assessment_snapshot_json#>>'{assessment,energy,fediaf_mer_max_kcal_day}')::numeric
+                            NULLIF(
+                                {snapshot} #>> ARRAY['assessment','energy','fediaf_mer_min_kcal_day']::text[],
+                                ''
+                            )::numeric
+                            + NULLIF(
+                                {snapshot} #>> ARRAY['assessment','energy','fediaf_mer_max_kcal_day']::text[],
+                                ''
+                            )::numeric
                         ) / 2
                     ),
                     'null'::jsonb
                 ),
                 'reference_energy_min_kcal', coalesce(
-                    assessment_snapshot_json#>'{assessment,energy,fediaf_mer_min_kcal_day}',
+                    {snapshot} #> ARRAY['assessment','energy','fediaf_mer_min_kcal_day']::text[],
                     'null'::jsonb
                 ),
                 'reference_energy_max_kcal', coalesce(
-                    assessment_snapshot_json#>'{assessment,energy,fediaf_mer_max_kcal_day}',
+                    {snapshot} #> ARRAY['assessment','energy','fediaf_mer_max_kcal_day']::text[],
                     'null'::jsonb
                 ),
                 'range_working_point_rule', CASE
-                    WHEN assessment_snapshot_json#>'{assessment,energy,fediaf_mer_min_kcal_day}' IS NOT NULL
-                    THEN '"midpoint"'::jsonb
+                    WHEN {snapshot} #> ARRAY['assessment','energy','fediaf_mer_min_kcal_day']::text[] IS NOT NULL
+                    THEN to_jsonb('midpoint'::text)
                     ELSE 'null'::jsonb
                 END,
-                'energy_adjustment_percent', assessment_snapshot_json#>'{request,energy_adjustment_percent}',
+                'energy_adjustment_percent', {snapshot} #> ARRAY['request','energy_adjustment_percent']::text[],
                 'working_energy_kcal', coalesce(
-                    assessment_snapshot_json#>'{assessment,energy,working_energy_target_kcal_day}',
-                    assessment_snapshot_json#>'{assessment,energy,fediaf_mer_kcal_day}',
+                    {snapshot} #> ARRAY['assessment','energy','working_energy_target_kcal_day']::text[],
+                    {snapshot} #> ARRAY['assessment','energy','fediaf_mer_kcal_day']::text[],
                     to_jsonb(
                         (
-                            (assessment_snapshot_json#>>'{assessment,energy,fediaf_mer_min_kcal_day}')::numeric
-                            + (assessment_snapshot_json#>>'{assessment,energy,fediaf_mer_max_kcal_day}')::numeric
+                            NULLIF(
+                                {snapshot} #>> ARRAY['assessment','energy','fediaf_mer_min_kcal_day']::text[],
+                                ''
+                            )::numeric
+                            + NULLIF(
+                                {snapshot} #>> ARRAY['assessment','energy','fediaf_mer_max_kcal_day']::text[],
+                                ''
+                            )::numeric
                         ) / 2
                     ),
                     'null'::jsonb
@@ -132,35 +176,43 @@ def upgrade() -> None:
             ),
             true
         )
-        WHERE jsonb_typeof(assessment_snapshot_json) = 'object';
+        WHERE jsonb_typeof({snapshot}) = 'object'
         """
     )
 
 
 def downgrade() -> None:
-    op.execute(
-        """
+    snapshot = "assessment_snapshot_json"
+    request = _jsonb_object(f"({snapshot} -> 'request'::text)")
+    context = _jsonb_object(f"({snapshot} #> ARRAY['assessment','context']::text[])")
+    _execute(
+        f"""
         UPDATE diet_plans
         SET assessment_snapshot_json = jsonb_set(
             jsonb_set(
-                assessment_snapshot_json - 'nutrient_profile_code' - 'energy_formula_code',
-                '{request}',
-                (assessment_snapshot_json->'request') || jsonb_build_object(
-                    'confirmed_profile_code', assessment_snapshot_json->'nutrient_profile_code',
-                    'confirmed_energy_formula_code', assessment_snapshot_json->'energy_formula_code',
-                    'weight_basis', assessment_snapshot_json#>'{assessment,context,weight_basis}',
-                    'size_class_override_code', 'null'::jsonb,
-                    'working_energy_target_kcal_day', assessment_snapshot_json#>'{assessment,energy,working_energy_kcal}',
-                    'working_energy_target_source', '"clinician_override"'::jsonb
-                ) - 'energy_adjustment_percent',
+                {snapshot}
+                    - ARRAY['nutrient_profile_code','energy_formula_code']::text[],
+                ARRAY['request']::text[],
+                (
+                    {request} || jsonb_build_object(
+                        'confirmed_profile_code', {snapshot} -> 'nutrient_profile_code'::text,
+                        'confirmed_energy_formula_code', {snapshot} -> 'energy_formula_code'::text,
+                        'weight_basis', {snapshot} #> ARRAY['assessment','context','weight_basis']::text[],
+                        'size_class_override_code', 'null'::jsonb,
+                        'working_energy_target_kcal_day', {snapshot} #> ARRAY['assessment','energy','working_energy_kcal']::text[],
+                        'working_energy_target_source', to_jsonb('clinician_override'::text)
+                    )
+                ) - ARRAY['energy_adjustment_percent']::text[],
                 true
             ),
-            '{assessment,context}',
-            (assessment_snapshot_json#>'{assessment,context}') || jsonb_build_object(
-                'profile_code', assessment_snapshot_json->'nutrient_profile_code'
-            ) - 'nutrient_profile_code',
+            ARRAY['assessment','context']::text[],
+            (
+                {context} || jsonb_build_object(
+                    'profile_code', {snapshot} -> 'nutrient_profile_code'::text
+                )
+            ) - ARRAY['nutrient_profile_code']::text[],
             true
         )
-        WHERE jsonb_typeof(assessment_snapshot_json) = 'object';
+        WHERE jsonb_typeof({snapshot}) = 'object'
         """
     )
