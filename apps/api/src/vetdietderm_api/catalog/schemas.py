@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from vetdietderm_api.catalog.energy import ME_CODE, validate_me_kcal_per_100g
+
 
 class FoodType(StrEnum):
     commercial = "commercial"
@@ -102,6 +104,8 @@ class FoodNutrientValueWrite(BaseModel):
     def require_unknown_for_null(self) -> "FoodNutrientValueWrite":
         if self.value is None and self.value_status != NutrientValueStatus.unknown:
             raise ValueError("NULL value requires value_status=unknown")
+        if self.code == ME_CODE and self.value is not None:
+            validate_me_kcal_per_100g(self.value)
         return self
 
 

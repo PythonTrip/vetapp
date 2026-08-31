@@ -122,7 +122,7 @@ CODE_TO_PARAM = {
 
 
 CALCULATED_DECIMALS = {
-    "ME": 0,
+    "ME": 1,
     "ME/DM": 0,
     "CP/ME": 0,
     "CP/DM": 0,
@@ -240,6 +240,7 @@ def calculate_me_modified_atwater(
     fat: Decimal | None,
     carbohydrates: Decimal | None,
 ) -> Decimal | None:
+    """Return Modified Atwater ME in kcal/100 g as fed."""
     if protein is None or fat is None or carbohydrates is None:
         return None
 
@@ -247,23 +248,20 @@ def calculate_me_modified_atwater(
         protein * Decimal("3.5")
         + fat * Decimal("8.5")
         + carbohydrates * Decimal("3.5")
-    ) * Decimal("10")
+    )
 
 
 def calculate_cp_per_1000_kcal(
     protein_percent: Decimal | None,
-    me_kcal_per_kg: Decimal | None,
+    me_kcal_per_100g: Decimal | None,
 ) -> Decimal | None:
-    if protein_percent is None or me_kcal_per_kg is None:
+    if protein_percent is None or me_kcal_per_100g is None:
         return None
 
-    if me_kcal_per_kg <= 0:
+    if me_kcal_per_100g <= 0:
         return None
 
-    protein_grams_per_kg = protein_percent * Decimal("10")
-    thousands_kcal_per_kg = me_kcal_per_kg / Decimal("1000")
-
-    return protein_grams_per_kg / thousands_kcal_per_kg
+    return protein_percent * Decimal("1000") / me_kcal_per_100g
 
 
 def calculate_ratio(
@@ -403,6 +401,14 @@ def calculate_control_params(
     params = dict(source_params)
     sources = dict(source_map)
 
+    source_me = params.get("ME")
+    if source_me is not None and abs(source_me) > Decimal("1000"):
+        params["ME"] = source_me / Decimal("10")
+        sources["ME"] = "calculated"
+    elif source_me is not None and source_me < 0:
+        del params["ME"]
+        sources.pop("ME", None)
+
     calculated_dm = calculate_dry_matter(
         params.get("MO")
     )
@@ -485,7 +491,7 @@ def calculate_control_params(
 
     cp_me = calculate_cp_per_1000_kcal(
         protein_percent=params.get("CP"),
-        me_kcal_per_kg=params.get("ME"),
+        me_kcal_per_100g=params.get("ME"),
     )
 
     set_calculated(

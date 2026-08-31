@@ -167,6 +167,7 @@ def _ration_data(payload: AssessmentRequest, foods_by_id: Mapping[UUID, FoodSnap
         if not missing:
             complete_codes.add(code)
             totals[code] = sum(
+                # Stored nutrients are per 100 g as fed; ME is kcal/100 g.
                 (_known_value(food, code) or 0.0) * grams / 100.0
                 for food, grams in foods
             )

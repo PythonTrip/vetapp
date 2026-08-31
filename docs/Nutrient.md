@@ -1,7 +1,7 @@
 ---
 title: Nutrient
 module: nutrition
-updated: 2026-08-30
+updated: 2026-08-31
 scope: nutrition-nutrient-inventory
 related: docs/PROJECT.md
 ---
@@ -49,7 +49,7 @@ Shared dictionary for catalog and guidelines. Seeded in Alembic `0003_food_catal
 
 | Category | Codes | Base units |
 | --- | --- | --- |
-| `main` | `ME`, `CP`, `CFa`, `CFi`, `CAs`, `CH`, `MO`, `DM` | `kcal` (`ME`); `g` (rest) |
+| `main` | `ME`, `CP`, `CFa`, `CFi`, `CAs`, `CH`, `MO`, `DM` | `kcal/100g` (`ME`); `g` (rest), all `per_100g_as_fed` |
 | `mineral` | `Ca`, `P`, `Mg`, `Na`, `K`, `Cl`, `Fe`, `Cu`, `Zn`, `Mn`, `Se`, `J` | `mg` except `Se`, `J` (`mcg`) |
 | `vitamin` | `A`, `D`, `E`, `B1`, `B2`, `B3`, `B4`, `B5`, `B6`, `B7`, `B9`, `B12`, `C` | `IU` (`A`, `D`); `mg` / `mcg` (rest). Catalog includes **vitamin C**; FEDIAF guidelines do not use `C` as a min target here |
 | `amino_acid` | `His`, `Phe`, `Tau`, `Thr`, `Trp`, `Tyr`, `Val`, `Met`, `Ile`, `Lys`, `Arg`, `Leu`, `Cys` | `g` |
@@ -123,7 +123,9 @@ Import also sets stored `type` / `feed_form`:
 
 Clinician browse is the category panel + matrix table, not a commercial / ingredient / supplement filter. Stored `type` remains on the Food row and on ration lines.
 
-**Stored values** (`food_nutrient_values`): preferred basis `per_100g_as_fed`. `value = 0` is a known zero; `NULL` + `value_status = unknown` (or absent row) is missing data. Catalog-table empty cell ≠ `0`.
+**Stored values** (`food_nutrient_values`): preferred basis `per_100g_as_fed`. Canonical `ME` is **kcal/100 g as fed**; `CP`, `CFa`, `CFi`, `CAs`, `MO`, `CH`, and `DM` are g/100 g as fed. Values around 3000–4500 kcal are kcal/kg and are rejected. `value = 0` is a known zero; `NULL` + `value_status = unknown` (or absent row) is missing data. Catalog-table empty cell ≠ `0`.
+
+Assessment energy is `grams × ME / 100`. Daily RER/MER is a separate animal-requirement module.
 
 Catalog matrix API (`GET /foods/matrix`): one SPEC group at a time, page size 50, sort by name or one as-fed nutrient (missing last). Ration search on the analysis tab uses summary `GET /foods?q=` (cap 50, no matrix).
 

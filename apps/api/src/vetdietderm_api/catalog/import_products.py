@@ -8,6 +8,7 @@ from typing import Any
 from sqlalchemy import delete, insert, select
 from sqlalchemy.orm import Session
 
+from vetdietderm_api.catalog.energy import ME_CODE, canonicalize_imported_me
 from vetdietderm_api.catalog.models import Food, FoodNutrientValue, Nutrient
 from vetdietderm_api.db import get_session_factory
 from vetdietderm_api.ids import uuid6
@@ -15,6 +16,15 @@ from vetdietderm_api.ids import uuid6
 REPO_ROOT = Path(__file__).resolve().parents[5]
 PRODUCTS_PATH = REPO_ROOT / "products_normalized.json"
 AS_FED_BASIS = "per_100g_as_fed"
+
+
+def _optional_decimal(value: Any) -> Decimal | None:
+    if value is None or isinstance(value, bool):
+        return None
+    if not isinstance(value, (int, float, Decimal, str)):
+        raise ValueError("ME/macronutrient values must be numeric or null")
+    return Decimal(str(value))
+
 
 TYPE_MAPPING = {
     "сухие корма": ("commercial", "dry"),
@@ -104,8 +114,35 @@ def import_products(session: Session, path: Path = PRODUCTS_PATH) -> ImportRepor
     null_count = 0
     for name, item in products_by_name.items():
         food = foods_by_name[name]
+        protein = _optional_decimal(item.get("CP"))
+        fat = _optional_decimal(item.get("CFa"))
+        carbohydrates = _optional_decimal(item.get("CH"))
         for nutrient in nutrients:
             raw_value = item.get(nutrient.code)
+            if nutrient.code == ME_CODE:
+                value = canonicalize_imported_me(
+                    _optional_decimal(raw_value),
+                    protein=protein,
+                    fat=fat,
+                    carbohydrates=carbohydrates,
+                )
+                if value is None:
+                    null_count += 1
+                    continue
+                value_rows.append(
+                    {
+                        "uuid": uuid6(),
+                        "food_uuid": food.uuid,
+                        "nutrient_uuid": nutrient.uuid,
+                        "value": value,
+                        "basis": AS_FED_BASIS,
+                        "value_status": "calculated",
+                        "source_uuid": None,
+                        "created_at": now,
+                        "updated_at": now,
+                    }
+                )
+                continue
             if raw_value is None:
                 null_count += 1
                 continue
