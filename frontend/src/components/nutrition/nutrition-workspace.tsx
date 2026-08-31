@@ -93,16 +93,16 @@ const STATUS: Record<AssessmentStatus, { label: string; symbol: string; classNam
   missing_product_data: { label: "Нет данных продукта", symbol: "?", className: "text-violet-700 dark:text-violet-300" },
 };
 
-const FEED_LABEL: Record<FeedForm, string> = { dry: "сухая", wet: "влажная", unknown: "смешанная / неизвестная" };
-
 function formatNumber(value: number | null, digits = 2): string {
   return value == null ? "—" : value.toLocaleString("ru-RU", { maximumFractionDigits: digits });
 }
 
 function resolvedStandardLabel(code: string | null | undefined, edition = "2025"): string {
   const labels: Record<string, string> = {
+    dog_adult_maintenance: "Взрослая собака · суточные минимумы",
     dog_adult_mer95: "Взрослая собака · MER 95 · низкая активность",
     dog_adult_mer110: "Взрослая собака · MER 110",
+    cat_adult_maintenance: "Взрослая кошка · суточные минимумы",
     cat_adult_mer75: "Взрослая кошка · MER 75 · домашняя и/или стерилизованная",
     cat_adult_mer100: "Взрослая кошка · MER 100 · активная",
     dog_early_growth_reproduction: "Собака · ранний рост / репродукция",
@@ -110,7 +110,21 @@ function resolvedStandardLabel(code: string | null | undefined, edition = "2025"
     cat_growth: "Кошка · рост",
     cat_reproduction: "Кошка · репродукция",
   };
-  return code ? `FEDIAF ${edition} · ${labels[code] ?? code}` : `FEDIAF ${edition} · определяется сервером`;
+  return code ? `FEDIAF ${edition} · ${labels[code] ?? "стандарт по выбранному контексту"}` : `FEDIAF ${edition} · определяется сервером`;
+}
+
+function humanFieldLabel(field: string): string {
+  const labels: Record<string, string> = {
+    body_weight_kg: "текущая масса",
+    current_body_weight_kg: "текущая масса",
+    age_months: "возраст",
+    expected_adult_weight_kg: "ожидаемый взрослый вес",
+    expected_mature_weight_kg: "ожидаемый взрослый вес",
+    maintenance_energy_kcal_day: "базовый MER",
+    lactation_week: "неделя лактации",
+    litter_size: "размер помёта",
+  };
+  return labels[field] ?? "дополнительные данные пациента";
 }
 
 function rationKcalTotal(lines: RationLine[], energyValues: Record<string, number | null>): number | null {
@@ -337,7 +351,7 @@ export function NutritionWorkspace() {
       setAssessmentDirty(false);
       setSaveOpen(false);
       toast.success(planId ? "Snapshot плана заменён" : "План сохранён", {
-        description: `${saved.name} · ${saved.uuid}`,
+        description: saved.name,
       });
       if (!planId) router.replace(`/nutrition?planId=${saved.uuid}`);
     } catch (cause) {
@@ -375,7 +389,7 @@ export function NutritionWorkspace() {
     ?? suggestions.data?.suggested_energy_formula_code;
   const resolvedFormulaName = suggestions.data?.energy_formula_options.find(
     (item) => item.code === resolvedFormulaCode,
-  )?.name_ru ?? resolvedFormulaCode ?? null;
+  )?.name_ru ?? null;
   const resolvedEnergy = displayedAssessment?.energy;
   const workingEnergyKcal = resolvedEnergy?.working_energy_kcal
     ?? energyEstimate.data?.working_energy_kcal
@@ -516,7 +530,6 @@ export function NutritionWorkspace() {
                 estimate={energyEstimate}
                 assessmentEnergy={resolvedEnergy}
                 formulaName={resolvedFormulaName}
-                sizeClassCode={displayedAssessment?.context.size_class_code ?? energyEstimate.data?.size_class_code ?? null}
                 adjustment={energyAdjustmentPercent}
                 rerFactor={rerFactor}
                 currentBodyWeightKg={animal.currentBodyWeightKg}
@@ -578,7 +591,7 @@ function SnapshotNotice({ plan, historical, recalculationStarted, onStartCurrent
 }) {
   return (
     <div className="rounded-lg border border-sky-300/70 bg-sky-50/70 px-3 py-2 text-xs text-sky-950 dark:bg-sky-950/25 dark:text-sky-200">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><span className="flex items-center gap-1.5 font-semibold"><Save className="size-3.5" /> Сохранённый snapshot</span><span>FEDIAF {plan.edition_code} · {plan.engine_id}</span><span>{historical ? "Предыдущая версия расчёта" : "Без пересчёта при открытии"}</span></div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><span className="flex items-center gap-1.5 font-semibold"><Save className="size-3.5" /> Сохранённый расчёт</span><span>FEDIAF {plan.edition_code}</span><span>{historical ? "Предыдущая методика расчёта" : "Без пересчёта при открытии"}</span></div>
       {historical && !recalculationStarted ? (
         <div className="mt-2 flex flex-wrap items-center gap-3 border-t border-sky-300/50 pt-2">
           <Button type="button" size="sm" onClick={onStartCurrentRecalculation}>
@@ -609,7 +622,7 @@ function RecentPlans({ plans, pending, error }: {
     <Card>
       <CardHeader><CardTitle className="text-base">Недавние планы</CardTitle><CardDescription>Не более 50 планов, включая ручные профили без Patient.</CardDescription></CardHeader>
       <CardContent className="space-y-2">
-        {plans.map((item) => <Link key={item.uuid} href={`/nutrition?planId=${item.uuid}`} className="flex flex-col gap-1 rounded-lg border p-3 transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"><span><strong>{item.name}</strong><span className="ml-2 text-xs text-muted-foreground">{item.patient?.name ?? "без Patient"}</span></span><span className="text-xs text-muted-foreground">FEDIAF {item.edition_code} · {item.engine_id}</span></Link>)}
+        {plans.map((item) => <Link key={item.uuid} href={`/nutrition?planId=${item.uuid}`} className="flex flex-col gap-1 rounded-lg border p-3 transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"><span><strong>{item.name}</strong><span className="ml-2 text-xs text-muted-foreground">{item.patient?.name ?? "без пациента"}</span></span><span className="text-xs text-muted-foreground">FEDIAF {item.edition_code}</span></Link>)}
         {!plans.length ? <p className="py-6 text-center text-sm text-muted-foreground">Сохранённых планов пока нет</p> : null}
       </CardContent>
     </Card>
@@ -703,38 +716,36 @@ function ClinicalContextSummary({
   const ageText = animal.ageMonths && Number.isFinite(Number(animal.ageMonths.replace(",", ".")))
     ? `${formatNumber(Number(animal.ageMonths.replace(",", ".")), 0)} мес`
     : "возраст —";
+  const bcsText = animal.bcs ? `BCS ${animal.bcs}/9` : "BCS не указан";
 
   return (
     <section className="min-w-0 overflow-hidden rounded-xl border bg-background" aria-label="Параметры расчёта питания">
-      <div className="border-b bg-muted/20 px-4 py-3 sm:px-5">
-        <div className="grid gap-3 lg:grid-cols-[minmax(240px,320px)_minmax(220px,1fr)_minmax(260px,360px)] lg:items-center lg:gap-6">
-          <div className="min-w-0">
-            <Label htmlFor="nutrition-patient-picker" className="mb-1.5 block text-[11px] text-muted-foreground">Пациент</Label>
-            <PatientPicker
-              id="nutrition-patient-picker"
-              value={selectedPatientId}
-              selected={patient}
-              selectedPending={selectedPatientPending}
-              onChange={onPatientChange}
-              className="max-w-80 bg-background"
-            />
-          </div>
-          <div className="min-w-0 lg:border-l lg:pl-6">
-            <p className="text-[11px] font-medium text-muted-foreground">Контекст пациента</p>
-            <p className="mt-1.5 truncate text-sm font-medium">
-              {species} · {ageText} · {weightText} · BCS {animal.bcs || "—"}/9
-            </p>
-          </div>
-          <div className="min-w-0 lg:border-l lg:pl-6">
-            <p className="text-[11px] font-medium text-muted-foreground">Используемый стандарт</p>
-            <div className="mt-1.5 flex min-w-0 items-center gap-2 text-xs">
-              {standardPending ? <Skeleton className="h-4 w-56" /> : (
-                <span className="min-w-0 truncate font-medium text-foreground">{standard ?? `FEDIAF ${edition} · определяется сервером`}</span>
-              )}
-              <Badge variant="secondary" className="h-5 shrink-0 rounded px-1.5 text-[10px] font-semibold">Авто</Badge>
-            </div>
-            <p className="mt-1 truncate text-[11px] text-muted-foreground">{lifeStage}</p>
-          </div>
+      <div className="border-b bg-muted/15 px-4 py-2.5 sm:px-5">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-sm">
+          <PatientPicker
+            id="nutrition-patient-picker"
+            value={selectedPatientId}
+            selected={patient}
+            selectedPending={selectedPatientPending}
+            onChange={onPatientChange}
+            compact
+            className="h-7 w-auto max-w-[14rem] border-transparent bg-transparent px-0 font-semibold shadow-none hover:bg-transparent hover:text-primary"
+          />
+          <span className="text-muted-foreground" aria-hidden="true">·</span>
+          <span>{species}</span>
+          <span className="text-muted-foreground" aria-hidden="true">·</span>
+          <span>{ageText}</span>
+          <span className="text-muted-foreground" aria-hidden="true">·</span>
+          <span>{weightText}</span>
+          <span className="text-muted-foreground" aria-hidden="true">·</span>
+          <span>{bcsText}</span>
+        </div>
+        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2 text-xs">
+          {standardPending ? <Skeleton className="h-4 w-64" /> : (
+            <span className="min-w-0 truncate font-medium text-foreground">{standard ?? `FEDIAF ${edition} · определяется сервером`}</span>
+          )}
+          <Badge variant="secondary" className="h-5 shrink-0 rounded px-1.5 text-[10px] font-semibold">Авто</Badge>
+          <span className="text-muted-foreground">· {lifeStage}</span>
         </div>
         {patientError ? <p className="mt-2 text-xs text-destructive" role="alert">{patientError}</p> : null}
         {standardError ? <p className="mt-2 text-xs text-destructive" role="alert">{standardError}</p> : null}
@@ -758,14 +769,11 @@ function AnimalContextPanel({ animal, disabled, onPatch, showExpectedMatureWeigh
   const showLactation = animal.lifeStage === "lactation" || animal.lactating;
   return (
     <section className="min-w-0 px-4 py-5 sm:px-5 lg:px-6" aria-labelledby="clinical-context-details">
-      <div>
-        <h2 id="clinical-context-details" className="text-base font-semibold tracking-[-0.01em]">Параметры</h2>
-        <p className="mt-1 text-xs text-muted-foreground">Физиологические данные для текущего расчёта</p>
-      </div>
-      <div className="mt-5 grid gap-x-10 gap-y-4 sm:grid-cols-2">
+      <h2 id="clinical-context-details" className="text-base font-semibold tracking-[-0.01em]">Параметры</h2>
+      <div className="mt-4 grid gap-x-5 gap-y-3 sm:grid-cols-2 lg:grid-cols-[13.75rem_14.5rem_8.75rem] lg:items-end lg:gap-x-2">
         <Field label="Вид">
           <Select value={animal.species} onValueChange={(species) => onPatch({ species: species as NutritionAnimalForm["species"] })} disabled={disabled}>
-            <SelectTrigger className="max-w-[18rem] shadow-none"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full shadow-none"><SelectValue /></SelectTrigger>
             <SelectContent>{SPECIES_OPTIONS.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent>
           </Select>
         </Field>
@@ -775,29 +783,29 @@ function AnimalContextPanel({ animal, disabled, onPatch, showExpectedMatureWeigh
             <SelectContent><SelectItem value="none">Не указана</SelectItem>{LIFE_STAGE_OPTIONS.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent>
           </Select>
         </Field>
-        <Field label="Текущая масса">
-          <UnitInput unit="кг" className="max-w-40" inputMode="decimal" value={animal.currentBodyWeightKg} onChange={(event) => onPatch({ currentBodyWeightKg: event.target.value })} disabled={disabled} />
-        </Field>
         <Field label="Возраст">
           <UnitInput unit="мес" className="max-w-40" inputMode="decimal" value={animal.ageMonths} onChange={(event) => onPatch({ ageMonths: event.target.value })} disabled={disabled} />
+        </Field>
+        <Field label="Текущая масса">
+          <UnitInput unit="кг" className="max-w-40" inputMode="decimal" value={animal.currentBodyWeightKg} onChange={(event) => onPatch({ currentBodyWeightKg: event.target.value })} disabled={disabled} />
         </Field>
         <Field label="Целевая масса">
           <UnitInput unit="кг" className="max-w-40" inputMode="decimal" value={animal.targetBodyWeightKg} onChange={(event) => onPatch({ targetBodyWeightKg: event.target.value })} disabled={disabled} />
         </Field>
+        {showExpectedMatureWeight ? (
+          <Field label="Ожидаемый взрослый вес">
+            <UnitInput unit="кг" className="max-w-40" inputMode="decimal" value={animal.expectedMatureWeightKg} onChange={(event) => onPatch({ expectedMatureWeightKg: event.target.value })} disabled={disabled} />
+          </Field>
+        ) : <div className="hidden lg:block" aria-hidden="true" />}
         <Field label="BCS">
           <Select value={animal.bcs || "none"} onValueChange={(value) => onPatch({ bcs: value === "none" ? "" : value })} disabled={disabled}>
             <SelectTrigger className="max-w-40 shadow-none"><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="none">Не указан</SelectItem>{Array.from({ length: 9 }, (_, index) => String(index + 1)).map((value) => <SelectItem key={value} value={value}>{value} / 9</SelectItem>)}</SelectContent>
           </Select>
         </Field>
-        {showExpectedMatureWeight ? (
-          <Field label="Ожидаемый взрослый вес">
-            <UnitInput unit="кг" className="max-w-40" inputMode="decimal" value={animal.expectedMatureWeightKg} onChange={(event) => onPatch({ expectedMatureWeightKg: event.target.value })} disabled={disabled} />
-          </Field>
-        ) : <div className="hidden sm:block" aria-hidden="true" />}
         <Field label="Активность">
           <Select value={animal.activity || "none"} onValueChange={(value) => onPatch({ activity: value === "none" ? "" : value })} disabled={disabled}>
-            <SelectTrigger className="max-w-[22rem] shadow-none"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full shadow-none"><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="none">Не указана</SelectItem>{ACTIVITY_OPTIONS.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent>
           </Select>
         </Field>
@@ -807,7 +815,7 @@ function AnimalContextPanel({ animal, disabled, onPatch, showExpectedMatureWeigh
           </div>
         </Field>
         <Field label="Корректировка энергии">
-          <UnitInput unit="%" className="max-w-40" inputMode="decimal" value={adjustment} onChange={(event) => onAdjustment(event.target.value)} />
+          <UnitInput unit="%" className="max-w-44" inputMode="decimal" value={adjustment} onChange={(event) => onAdjustment(event.target.value)} />
         </Field>
         <Field label="Коэффициент RER">
           <Input className="h-9 max-w-40 shadow-none" inputMode="decimal" value={rerFactor} onChange={(event) => onRerFactor(event.target.value)} />
@@ -825,16 +833,14 @@ function AnimalContextPanel({ animal, disabled, onPatch, showExpectedMatureWeigh
   );
 }
 
-function EnergyStrip({ estimate, assessmentEnergy, formulaName, sizeClassCode, adjustment, rerFactor, currentBodyWeightKg }: {
+function EnergyStrip({ estimate, assessmentEnergy, formulaName, adjustment, rerFactor, currentBodyWeightKg }: {
   estimate: ReturnType<typeof useEnergyEstimate>;
   assessmentEnergy: AssessmentEnergyRecord | undefined;
   formulaName: string | null;
-  sizeClassCode: string | null;
   adjustment: string;
   rerFactor: string;
   currentBodyWeightKg: string;
 }) {
-  const referenceEnergy = assessmentEnergy?.reference_energy_kcal ?? estimate.data?.reference_energy_kcal ?? null;
   const workingEnergy = assessmentEnergy?.working_energy_kcal ?? estimate.data?.working_energy_kcal ?? null;
   const rangeMinimum = assessmentEnergy?.reference_energy_min_kcal
     ?? (estimate.data?.value?.kind === "range" ? estimate.data.value.min_kcal_day : null);
@@ -842,56 +848,59 @@ function EnergyStrip({ estimate, assessmentEnergy, formulaName, sizeClassCode, a
     ?? (estimate.data?.value?.kind === "range" ? estimate.data.value.max_kcal_day : null);
   const midpointRule = assessmentEnergy?.range_working_point_rule ?? estimate.data?.range_working_point_rule;
   const currentWeight = Number(currentBodyWeightKg.replace(",", "."));
-  const factor = Number(rerFactor.replace(",", "."));
-  const rer = Number.isFinite(currentWeight) && currentWeight > 0 ? 70 * currentWeight ** 0.75 : null;
-  const rerAdjusted = rer != null && Number.isFinite(factor) && factor > 0 ? rer * factor : null;
+  const localFactor = Number(rerFactor.replace(",", "."));
+  const factor = assessmentEnergy?.rer_factor ?? localFactor;
+  const calculatedRer = Number.isFinite(currentWeight) && currentWeight > 0 ? 70 * currentWeight ** 0.75 : null;
+  const rer = assessmentEnergy?.rer_kcal_day ?? calculatedRer;
+  const rerAdjusted = assessmentEnergy?.rer_factor_kcal_day
+    ?? (rer != null && Number.isFinite(factor) && factor > 0 ? rer * factor : null);
+  const adjustmentValue = Number(adjustment.replace(",", "."));
+  const visibleMissingFields = Array.from(new Set((estimate.data?.missing_fields ?? []).map(humanFieldLabel)));
   return (
     <section className="min-w-0 border-t bg-muted/25 px-4 py-5 sm:px-5 lg:px-6 xl:border-l xl:border-t-0" aria-labelledby="energy-result-title" aria-live="polite">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="energy-result-title" className="text-base font-semibold tracking-[-0.01em]">Требования энергии</h2>
-        <Badge variant="secondary" className="h-5 rounded px-1.5 text-[10px] font-semibold">Авто</Badge>
-      </div>
+      <h2 id="energy-result-title" className="text-base font-semibold tracking-[-0.01em]">Требования энергии</h2>
       {estimate.isPending && !assessmentEnergy ? <Skeleton className="mt-6 h-16 w-48" /> : (
-        <div className="mt-5">
+        <div className="mt-4">
           {workingEnergy == null ? (
             <p className="max-w-64 text-lg font-semibold text-muted-foreground">Расчёт ещё не готов</p>
           ) : (
-            <p className="tabular-nums text-[clamp(2.75rem,5vw,4.5rem)] font-bold leading-[0.9] tracking-[-0.04em] text-foreground">
+            <p className="tabular-nums text-[clamp(3.25rem,4vw,3.5rem)] font-bold leading-none tracking-[-0.035em] text-foreground">
               {formatNumber(workingEnergy, 0)}
               <span className="ml-2 inline-block text-base font-semibold tracking-normal text-muted-foreground">ккал/сут</span>
             </p>
           )}
-          <p className="mt-4 text-sm font-medium leading-5">{formulaName ?? "Формула определяется сервером"}</p>
+          <p className="mt-3 text-sm font-medium leading-5">{formulaName ?? "Метод определяется по контексту пациента"}</p>
         </div>
       )}
 
-      <dl className="mt-6 divide-y border-y text-sm">
+      <dl className="mt-5 border-t pt-1 text-sm">
         <EnergyMetric
           label="RER"
-          value={rer == null ? "—" : `${formatNumber(rer, 0)} ккал/сут`}
+          value={rer == null ? "—" : `${formatNumber(rer, 1)} ккал/сут`}
           formula={rer == null ? "Нужна текущая масса" : `70 × ${formatNumber(currentWeight, 1)}^0,75`}
         />
         <EnergyMetric
-          label="RER × коэффициент"
-          value={rerAdjusted == null ? "—" : `${formatNumber(rerAdjusted, 0)} ккал/сут`}
-          formula={rer == null || !Number.isFinite(factor) ? "Нужны масса и коэффициент" : `${formatNumber(rer, 0)} × ${formatNumber(factor, 2)}`}
-        />
-        <EnergyMetric
-          label="Корректировка"
-          value={`${adjustment || "—"}%`}
-          formula={referenceEnergy == null ? "Референс определяется" : `Референс ${formatNumber(referenceEnergy, 0)} ккал/сут`}
+          label="MER"
+          value={rerAdjusted == null ? "—" : `${formatNumber(rerAdjusted, 1)} ккал/сут`}
+          formula={rer == null || !Number.isFinite(factor) || rerAdjusted == null
+            ? "Нужны масса и коэффициент"
+            : `${formatNumber(rer, 1)} × ${formatNumber(factor, 2)} = ${formatNumber(rerAdjusted, 1)}`}
         />
       </dl>
 
-      {(rangeMinimum != null && rangeMaximum != null) || sizeClassCode ? (
+      <dl className="border-t pt-2 text-sm">
+        <ResultMetric label="Корректировка энергии" value={Number.isFinite(adjustmentValue) ? `${formatNumber(adjustmentValue, 1)}%` : "—"} />
+        <ResultMetric label="Итог" value={workingEnergy == null ? "—" : `${formatNumber(workingEnergy, 0)} ккал/сут`} strong />
+      </dl>
+
+      {rangeMinimum != null && rangeMaximum != null ? (
         <p className="mt-4 text-xs leading-5 text-muted-foreground">
-          {rangeMinimum != null && rangeMaximum != null ? `Диапазон ${formatNumber(rangeMinimum, 0)}–${formatNumber(rangeMaximum, 0)} ккал/сут` : ""}
+          Диапазон {formatNumber(rangeMinimum, 0)}–{formatNumber(rangeMaximum, 0)} ккал/сут
           {midpointRule === "midpoint" ? " · рабочая точка — середина" : ""}
-          {sizeClassCode ? ` · размерный класс ${sizeClassCode}` : ""}
         </p>
       ) : null}
       {estimate.error ? <p className="mt-4 text-sm text-destructive">{apiErrorMessage(estimate.error)}</p> : null}
-      {estimate.data?.missing_fields.length ? <p className="mt-4 text-xs text-amber-700 dark:text-amber-300">Для расчёта нужны поля: {estimate.data.missing_fields.join(", ")}.</p> : null}
+      {visibleMissingFields.length ? <p className="mt-4 text-xs text-amber-700 dark:text-amber-300">Для расчёта нужны: {visibleMissingFields.join(", ")}.</p> : null}
     </section>
   );
 }
@@ -902,6 +911,15 @@ function EnergyMetric({ label, value, formula }: { label: string; value: string;
       <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
       <dd className="row-span-2 text-right font-semibold tabular-nums">{value}</dd>
       <dd className="text-xs tabular-nums text-muted-foreground">{formula}</dd>
+    </div>
+  );
+}
+
+function ResultMetric({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className="flex items-baseline justify-between gap-4 py-2">
+      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+      <dd className={cn("text-right tabular-nums", strong ? "font-bold text-foreground" : "font-semibold")}>{value}</dd>
     </div>
   );
 }
@@ -1281,7 +1299,7 @@ function RationWorkbench({
                     <div className="min-w-0 flex-1">
                       <p className="truncate">{line.food.name}</p>
                       <p className="truncate text-[10px] font-normal text-muted-foreground">
-                        {line.food.subcategory ?? (line.food.type === "commercial" ? FEED_LABEL[line.food.feed_form] : line.food.type)}
+                        {line.food.subcategory ?? foodCategoryLabel(line)}
                       </p>
                     </div>
                     <Button
@@ -1361,7 +1379,7 @@ function RationWorkbench({
               {sources.slice(0, 4).map((source, index) => (
                 <p key={source.title + String(index)}>{source.title} · {source.table ?? "таблица —"} · стр. {source.page ?? "—"}</p>
               ))}
-              {assessment ? <p>{assessment.engine_id} · FEDIAF {assessment.edition.code} · покрытие {formatNumber(assessment.coverage.percent, 1)}%</p> : null}
+              {assessment ? <p>FEDIAF {assessment.edition.code} · покрытие {formatNumber(assessment.coverage.percent, 1)}%</p> : null}
             </div>
           </details>
         </div>

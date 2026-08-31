@@ -32,6 +32,7 @@ type PatientPickerProps = {
   disabled?: boolean;
   id?: string;
   className?: string;
+  compact?: boolean;
   onChange: (patientId: string) => void;
 };
 
@@ -42,6 +43,7 @@ export function PatientPicker({
   disabled = false,
   id,
   className,
+  compact = false,
   onChange,
 }: PatientPickerProps) {
   const [open, setOpen] = React.useState(false);
@@ -50,10 +52,10 @@ export function PatientPicker({
   const patients = usePatientsQuery(debouncedQuery, open);
   const matches = patients.data ?? [];
   const selectedLabel = value && selected
-    ? patientOptionLabel(selected)
+    ? compact ? selected.name : patientOptionLabel(selected)
     : value
       ? "Пациент не найден"
-      : MANUAL_PATIENT_LABEL;
+      : compact ? "Ручной профиль" : MANUAL_PATIENT_LABEL;
 
   function choose(nextId: string) {
     onChange(nextId);
@@ -98,7 +100,10 @@ export function PatientPicker({
       <PopoverContent
         align="start"
         sideOffset={6}
-        className="w-[var(--radix-popover-trigger-width)] p-0 shadow-[0_12px_34px_-26px_oklch(0.25_0.04_175_/_0.38)]"
+        className={cn(
+          "w-[var(--radix-popover-trigger-width)] p-0 shadow-[0_12px_34px_-26px_oklch(0.25_0.04_175_/_0.38)]",
+          compact && "w-[22rem] max-w-[calc(100vw-2rem)]",
+        )}
       >
         <Command shouldFilter={false} className="rounded-[10px]">
           <CommandInput
