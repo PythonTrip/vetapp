@@ -1,3 +1,5 @@
+"""Legacy SQL edition publisher retained for pre-provider database maintenance."""
+
 import argparse
 from datetime import datetime, timezone
 from uuid import UUID
@@ -6,7 +8,8 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from vetdietderm_api.db import get_session_factory
-from vetdietderm_api.guidelines.models import GuidelineEdition, GuidelineStandard
+from vetdietderm_api.guidelines.legacy_models import GuidelineEdition, GuidelineStandard
+from vetdietderm_api.guidelines.legacy_guard import require_legacy_runtime_tables
 
 
 def _resolve_edition(session: Session, identifier: str) -> GuidelineEdition:
@@ -43,6 +46,7 @@ def _resolve_edition(session: Session, identifier: str) -> GuidelineEdition:
 
 
 def publish_fediaf(session: Session, identifier: str) -> GuidelineEdition:
+    require_legacy_runtime_tables(session)
     edition = _resolve_edition(session, identifier)
     if edition.status != "validated":
         raise ValueError(

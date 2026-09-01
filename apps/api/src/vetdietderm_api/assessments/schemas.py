@@ -285,6 +285,34 @@ class AssessmentSnapshot(BaseModel):
     assessment: AssessmentResponse
     nutrient_profile_code: str | None
     energy_formula_code: str | None
+    standard_code: str
+    edition: str
+    provider_version: str
+    provider_checksum: str
+    resolved_context: ResolvedContext
+    result: AssessmentResponse
+
+    @model_validator(mode="before")
+    @classmethod
+    def map_legacy_provenance(cls, value: object) -> object:
+        """Expose old stored plans through the new immutable snapshot contract."""
+        if not isinstance(value, dict):
+            return value
+        mapped = dict(value)
+        assessment = mapped.get("assessment")
+        if not isinstance(assessment, dict):
+            return mapped
+        edition = assessment.get("edition")
+        context = assessment.get("context")
+        source_checksum = edition.get("source_checksum") if isinstance(edition, dict) else None
+        edition_code = edition.get("code") if isinstance(edition, dict) else None
+        mapped.setdefault("standard_code", "fediaf")
+        mapped.setdefault("edition", edition_code or "unknown")
+        mapped.setdefault("provider_version", "legacy/sql")
+        mapped.setdefault("provider_checksum", source_checksum or "unknown")
+        mapped.setdefault("resolved_context", context)
+        mapped.setdefault("result", assessment)
+        return mapped
 
 
 class DietPlanWrite(BaseModel):

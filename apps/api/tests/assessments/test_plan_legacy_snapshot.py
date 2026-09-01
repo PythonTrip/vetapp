@@ -118,6 +118,12 @@ def test_legacy_plan_read_maps_null_or_missing_adjustment_without_recalculation(
     assert result.assessment_snapshot.request.energy_adjustment_percent == 100
     assert result.assessment_snapshot.assessment.energy.energy_adjustment_percent == 100
     assert result.assessment_snapshot.assessment.energy.working_energy_kcal == 777
+    assert result.assessment_snapshot.standard_code == "fediaf"
+    assert result.assessment_snapshot.edition == "2025"
+    assert result.assessment_snapshot.provider_version == "legacy/sql"
+    assert result.assessment_snapshot.provider_checksum == "saved-checksum"
+    assert result.assessment_snapshot.resolved_context == result.assessment_snapshot.assessment.context
+    assert result.assessment_snapshot.result == result.assessment_snapshot.assessment
     assert stored_snapshot == original_snapshot
 
 

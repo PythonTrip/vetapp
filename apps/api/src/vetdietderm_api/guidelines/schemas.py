@@ -11,6 +11,8 @@ class ActiveGuidelineRead(BaseModel):
     standard_code: str
     code: str
     import_version: int
+    provider_version: str
+    provider_checksum: str
     source_checksum: str
     source_title: str
     source_url: str

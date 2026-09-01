@@ -1,3 +1,5 @@
+"""Legacy one-time SQL importer; not used by assessment or guideline APIs."""
+
 import argparse
 import ast
 import hashlib
@@ -18,7 +20,7 @@ from vetdietderm_api.catalog.models import (
     NutrientGroup,
 )
 from vetdietderm_api.db import get_session_factory
-from vetdietderm_api.guidelines.models import (
+from vetdietderm_api.guidelines.legacy_models import (
     ApplicabilityRule,
     DerivedExpression,
     EnergyFormula,
@@ -30,6 +32,7 @@ from vetdietderm_api.guidelines.models import (
     LactationFactor,
     SourceReference,
 )
+from vetdietderm_api.guidelines.legacy_guard import require_legacy_runtime_tables
 from vetdietderm_api.ids import uuid6
 
 REPO_ROOT = Path(__file__).resolve().parents[5]
@@ -661,6 +664,7 @@ def import_fediaf(
     golden_path: Path = GOLDEN_PATH,
     import_version: int = 1,
 ) -> ImportReport:
+    require_legacy_runtime_tables(session)
     if import_version < 1:
         raise ValueError("import_version must be at least 1")
     payload, checksum = _load_source(source_path, schema_path)

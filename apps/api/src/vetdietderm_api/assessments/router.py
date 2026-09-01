@@ -6,11 +6,6 @@ from loguru import logger
 from sqlalchemy.orm import Session
 
 from vetdietderm_api.assessments import plans, repository
-from vetdietderm_api.assessments.engine import (
-    assess_nutrition,
-    evaluate_energy_scenario,
-    suggest_context,
-)
 from vetdietderm_api.assessments.schemas import (
     AssessmentRequest,
     AssessmentResponse,
@@ -23,6 +18,7 @@ from vetdietderm_api.assessments.schemas import (
     SuggestionsResponse,
 )
 from vetdietderm_api.db import get_session
+from vetdietderm_api.standards import STANDARD_REGISTRY
 
 SessionDep = Annotated[Session, Depends(get_session)]
 
@@ -33,27 +29,23 @@ plans_router = APIRouter(prefix="/diet-plans", tags=["diet-plans"])
 
 @assessments_router.post("/suggestions", response_model=SuggestionsResponse)
 @logger.catch(reraise=True)
-def suggestions(payload: SuggestionRequest, session: SessionDep) -> SuggestionsResponse:
-    snapshot = repository.load_published_guideline(session)
-    return suggest_context(payload.animal, snapshot)
+def suggestions(payload: SuggestionRequest) -> SuggestionsResponse:
+    return STANDARD_REGISTRY.active().suggest(payload.animal)
 
 
 @assessments_router.post("/energy-estimate", response_model=EnergyEstimateResponse)
 @logger.catch(reraise=True, exclude=HTTPException)
 def energy_estimate(
     payload: EnergyEstimateRequest,
-    session: SessionDep,
 ) -> EnergyEstimateResponse:
-    snapshot = repository.load_published_guideline(session)
-    return evaluate_energy_scenario(payload, snapshot)
+    return STANDARD_REGISTRY.active().estimate_energy(payload)
 
 
 @assessments_router.post("", response_model=AssessmentResponse)
 @logger.catch(reraise=True, exclude=HTTPException)
 def create_assessment(payload: AssessmentRequest, session: SessionDep) -> AssessmentResponse:
-    snapshot = repository.load_published_guideline(session)
     foods = repository.load_foods(session, [item.food_uuid for item in payload.components])
-    return assess_nutrition(payload, snapshot, foods)
+    return STANDARD_REGISTRY.active().assess(payload, foods)
 
 
 @plans_router.get("", response_model=list[DietPlanSummary])

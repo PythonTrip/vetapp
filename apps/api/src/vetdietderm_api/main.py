@@ -7,7 +7,7 @@ from loguru import logger
 from pydantic import BaseModel
 
 from vetdietderm_api.appointments import router as appointments_router
-from vetdietderm_api.assessments import router as assessments_router
+from vetdietderm_api.assessments.router import router as assessments_router
 from vetdietderm_api.attachments import router as attachments_router
 from vetdietderm_api.auth import require_instance_password
 from vetdietderm_api.catalog import router as catalog_router

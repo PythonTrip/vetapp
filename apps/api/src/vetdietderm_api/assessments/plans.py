@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from vetdietderm_api.assessments import repository
-from vetdietderm_api.assessments.engine import assess_nutrition
+from vetdietderm_api.assessments.engine import assess_nutrition  # noqa: F401 - legacy test hook
 from vetdietderm_api.assessments.models import DietPlan, utc_now
 from vetdietderm_api.assessments.schemas import (
     AssessmentSnapshot,
@@ -16,6 +16,7 @@ from vetdietderm_api.assessments.schemas import (
     PatientPlanReference,
 )
 from vetdietderm_api.patients.models import Patient
+from vetdietderm_api.standards import STANDARD_REGISTRY
 
 LIST_CAP = 50
 LEGACY_ENERGY_ADJUSTMENT_PERCENT = 100.0
@@ -42,9 +43,9 @@ def _compute_snapshot(
     payload: DietPlanWrite,
 ) -> tuple[list[dict[str, object]], dict[str, object]]:
     request = payload.assessment_request
-    guideline = repository.load_published_guideline(session)
+    provider = STANDARD_REGISTRY.active()
     foods = repository.load_foods(session, [item.food_uuid for item in request.components])
-    assessment = assess_nutrition(request, guideline, foods)
+    assessment = provider.assess(request, foods)
     ration = [
         DietPlanRationComponent(
             food_uuid=item.food_uuid,
@@ -60,6 +61,12 @@ def _compute_snapshot(
         assessment=assessment,
         nutrient_profile_code=assessment.context.nutrient_profile_code,
         energy_formula_code=assessment.context.energy_formula_code,
+        standard_code=provider.metadata.standard_code,
+        edition=provider.metadata.edition,
+        provider_version=provider.metadata.provider_version,
+        provider_checksum=provider.metadata.provider_checksum,
+        resolved_context=assessment.context,
+        result=assessment,
     ).model_dump(mode="json")
     return ration, snapshot
 

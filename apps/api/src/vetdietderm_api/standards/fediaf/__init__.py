@@ -1,0 +1,1 @@
+"""FEDIAF provider editions."""
