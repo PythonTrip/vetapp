@@ -18,6 +18,7 @@ from vetdietderm_api.assessments.schemas import (
 from vetdietderm_api.patients.models import Patient
 
 LIST_CAP = 50
+LEGACY_ENERGY_ADJUSTMENT_PERCENT = 100.0
 
 
 def _not_found() -> HTTPException:
@@ -80,8 +81,40 @@ def _patient_reference(patient: Patient | None) -> PatientPlanReference | None:
     return PatientPlanReference(uuid=patient.uuid, name=patient.name)
 
 
+def _legacy_compatible_snapshot(snapshot_json: dict[str, object]) -> dict[str, object]:
+    """Map nullable legacy fields without mutating or recalculating the stored snapshot."""
+    snapshot = dict(snapshot_json)
+
+    request = snapshot.get("request")
+    if isinstance(request, dict) and request.get("energy_adjustment_percent") is None:
+        snapshot["request"] = {
+            **request,
+            "energy_adjustment_percent": LEGACY_ENERGY_ADJUSTMENT_PERCENT,
+        }
+
+    assessment = snapshot.get("assessment")
+    if isinstance(assessment, dict):
+        energy = assessment.get("energy")
+        if isinstance(energy, dict) and energy.get("energy_adjustment_percent") is None:
+            snapshot["assessment"] = {
+                **assessment,
+                "energy": {
+                    **energy,
+                    "energy_adjustment_percent": LEGACY_ENERGY_ADJUSTMENT_PERCENT,
+                },
+            }
+
+    return snapshot
+
+
+def _snapshot_from_plan(plan: DietPlan) -> AssessmentSnapshot:
+    return AssessmentSnapshot.model_validate(
+        _legacy_compatible_snapshot(plan.assessment_snapshot_json)
+    )
+
+
 def to_read(plan: DietPlan) -> DietPlanRead:
-    snapshot = AssessmentSnapshot.model_validate(plan.assessment_snapshot_json)
+    snapshot = _snapshot_from_plan(plan)
     return DietPlanRead(
         uuid=plan.uuid,
         name=plan.name,
@@ -99,7 +132,7 @@ def to_read(plan: DietPlan) -> DietPlanRead:
 
 
 def to_summary(plan: DietPlan) -> DietPlanSummary:
-    snapshot = AssessmentSnapshot.model_validate(plan.assessment_snapshot_json)
+    snapshot = _snapshot_from_plan(plan)
     return DietPlanSummary(
         uuid=plan.uuid,
         name=plan.name,
