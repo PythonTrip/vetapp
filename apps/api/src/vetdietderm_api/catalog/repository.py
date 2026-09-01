@@ -204,6 +204,7 @@ def get_food(session: Session, food_uuid: UUID) -> Food:
         select(Food)
         .options(selectinload(Food.nutrient_values).selectinload(FoodNutrientValue.nutrient))
         .where(Food.uuid == food_uuid)
+        .execution_options(populate_existing=True)
     )
     food = session.scalars(stmt).one_or_none()
     if food is None:

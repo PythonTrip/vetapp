@@ -114,18 +114,10 @@ def import_products(session: Session, path: Path = PRODUCTS_PATH) -> ImportRepor
     null_count = 0
     for name, item in products_by_name.items():
         food = foods_by_name[name]
-        protein = _optional_decimal(item.get("CP"))
-        fat = _optional_decimal(item.get("CFa"))
-        carbohydrates = _optional_decimal(item.get("CH"))
         for nutrient in nutrients:
             raw_value = item.get(nutrient.code)
             if nutrient.code == ME_CODE:
-                value = canonicalize_imported_me(
-                    _optional_decimal(raw_value),
-                    protein=protein,
-                    fat=fat,
-                    carbohydrates=carbohydrates,
-                )
+                value = canonicalize_imported_me(_optional_decimal(raw_value))
                 if value is None:
                     null_count += 1
                     continue
@@ -136,7 +128,7 @@ def import_products(session: Session, path: Path = PRODUCTS_PATH) -> ImportRepor
                         "nutrient_uuid": nutrient.uuid,
                         "value": value,
                         "basis": AS_FED_BASIS,
-                        "value_status": "calculated",
+                        "value_status": "measured",
                         "source_uuid": None,
                         "created_at": now,
                         "updated_at": now,

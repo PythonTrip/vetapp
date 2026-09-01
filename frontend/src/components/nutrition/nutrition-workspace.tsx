@@ -84,8 +84,6 @@ import {
 import {
   canonicalNutrientCode,
   NUTRIENT_COLUMNS,
-  nutrientColumnDefinition,
-  nutrientDisplayUnit,
   orderedNutrients,
 } from "@/lib/nutrient-columns";
 import { cn } from "@/lib/utils";
@@ -1047,12 +1045,11 @@ function RationWorkbench({
       .map((item) => {
         const code = canonicalNutrientCode(item.code);
         const rows = groupedRows.get(`atomic:${code}`);
-        const definition = nutrientColumnDefinition(code);
         return {
           key: `catalog:${item.uuid}`,
           code: item.code,
-          name: definition?.name ?? item.name,
-          unit: nutrientDisplayUnit(code, item.base_unit),
+          name: item.name,
+          unit: item.base_unit,
           category: item.category,
           derived: false,
           assessmentRow: selectAssessmentRow(rows),
@@ -1064,12 +1061,11 @@ function RationWorkbench({
       const assessmentRow = selectAssessmentRow(rows);
       if (!assessmentRow) return [];
       const code = canonicalNutrientCode(assessmentRow.code);
-      const definition = nutrientColumnDefinition(code);
       return [{
         key,
         code,
-        name: definition?.name ?? assessmentRow.name,
-        unit: nutrientDisplayUnit(code, assessmentRow.unit),
+        name: assessmentRow.name,
+        unit: assessmentRow.unit,
         category: "derived" as const,
         derived: true,
         assessmentRow,
@@ -1087,8 +1083,8 @@ function RationWorkbench({
       return existing ?? {
         key: `control:${column.code}`,
         code: column.code,
-        name: column.name,
-        unit: column.unit,
+        name: column.name ?? column.code,
+        unit: column.unit ?? "",
         category: "derived",
         derived: true,
       };
@@ -1260,7 +1256,7 @@ function RationWorkbench({
                 <span className="block text-[10px] font-normal">г/сут</span>
               </th>
               {visibleNutrients.map((nutrient) => (
-                <th scope="col" key={nutrient.key} title={nutrient.assessmentRows && nutrient.assessmentRows.length > 1 ? `${nutrient.name} · норма зависит от контекста` : nutrient.name} className="w-24 min-w-24 border-r px-2 text-right font-semibold">
+                <th scope="col" key={nutrient.key} title={nutrient.assessmentRows && nutrient.assessmentRows.length > 1 ? `${canonicalNutrientCode(nutrient.code)} — ${nutrient.name} · норма зависит от контекста` : `${canonicalNutrientCode(nutrient.code)} — ${nutrient.name}`} className="w-24 min-w-24 border-r px-2 text-right font-semibold">
                   <span className="block text-foreground">{canonicalNutrientCode(nutrient.code)}</span>
                   <span className="block min-h-3.5 text-[10px] font-normal">{nutrient.unit || "\u00a0"}</span>
                 </th>

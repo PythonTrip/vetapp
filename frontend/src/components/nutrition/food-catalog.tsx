@@ -62,7 +62,6 @@ import type {
 } from "@/lib/api-client";
 import {
   canonicalGroupForCategory,
-  nutrientDisplayUnit,
   orderedNutrients,
 } from "@/lib/nutrient-columns";
 import { apiErrorMessage } from "@/lib/patient-form";
@@ -533,8 +532,9 @@ export function FoodCatalog() {
                     </button>
                   </th>
                   {visibleNutrients.map((nutrient) => {
-                    const unit = nutrientDisplayUnit(nutrient.code, nutrient.base_unit);
-                    const tooltip = NUTRIENT_TOOLTIP_CODES.has(nutrient.code);
+                    const unit = nutrient.base_unit;
+                    const tooltip = NUTRIENT_TOOLTIP_CODES.has(nutrient.code)
+                      || nutrient.category === "vitamin";
                     return (
                       <th
                         key={nutrient.code}
@@ -551,7 +551,7 @@ export function FoodCatalog() {
                           )}
                           onClick={() => toggleNutrientSort(nutrient.code)}
                           aria-label={`Сортировать по ${nutrient.name}, ${unit}`}
-                          title={`${nutrient.name}, ${unit}`}
+                          title={`${nutrient.code} — ${nutrient.name}, ${unit}`}
                         >
                           <span className="flex items-center gap-1">
                             {nutrient.code}
@@ -563,7 +563,7 @@ export function FoodCatalog() {
                               role="tooltip"
                               className="pointer-events-none absolute right-0 top-[calc(100%+0.4rem)] z-50 hidden w-48 rounded-lg bg-foreground px-2.5 py-2 text-left font-sans text-[11px] font-normal leading-4 text-background shadow-[0_10px_26px_-16px_oklch(0.2_0.03_175_/_0.75)] group-hover/sort:block group-focus-visible/sort:block"
                             >
-                              <strong className="block font-semibold">{nutrient.name}</strong>
+                              <strong className="block font-semibold">{nutrient.code} — {nutrient.name}</strong>
                               <span className="opacity-75">{unit}</span>
                             </span>
                           ) : null}
@@ -892,12 +892,12 @@ function FoodEditorDialog({
                                 nutrientValues: { ...current.nutrientValues, [nutrient.code]: event.target.value },
                               }))}
                               placeholder="пусто"
-                              aria-label={`${nutrient.name}, ${nutrientDisplayUnit(nutrient.code, nutrient.base_unit)}`}
+                              aria-label={`${nutrient.name}, ${nutrient.base_unit}`}
                               className="h-8 min-w-0"
                               disabled={pending}
                             />
                             <span className="w-[4.75rem] shrink-0 text-[11px] text-muted-foreground">
-                              {nutrientDisplayUnit(nutrient.code, nutrient.base_unit)}
+                              {nutrient.base_unit}
                             </span>
                           </label>
                         ))}

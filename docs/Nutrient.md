@@ -50,7 +50,7 @@ Shared dictionary for catalog and guidelines. Seeded in Alembic `0003_food_catal
 | Category | Codes | Base units |
 | --- | --- | --- |
 | `main` | `ME`, `CP`, `CFa`, `CFi`, `CAs`, `CH`, `MO`, `DM` | `kcal/100g` (`ME`); `g` (rest), all `per_100g_as_fed` |
-| `mineral` | `Ca`, `P`, `Mg`, `Na`, `K`, `Cl`, `Fe`, `Cu`, `Zn`, `Mn`, `Se`, `J` | `mg` except `Se`, `J` (`mcg`) |
+| `mineral` | `Ca`, `P`, `Mg`, `Na`, `K`, `Cl`, `Fe`, `Cu`, `Zn`, `Mn`, `I`, `Se` | `mg` except `Se` (`mcg`) |
 | `vitamin` | `A`, `D`, `E`, `B1`, `B2`, `B3`, `B4`, `B5`, `B6`, `B7`, `B9`, `B12`, `C` | `IU` (`A`, `D`); `mg` / `mcg` (rest). Catalog includes **vitamin C**; FEDIAF guidelines do not use `C` as a min target here |
 | `amino_acid` | `His`, `Phe`, `Tau`, `Thr`, `Trp`, `Tyr`, `Val`, `Met`, `Ile`, `Lys`, `Arg`, `Leu`, `Cys` | `g` |
 | `fatty_acid` | `LA`, `ALA`, `AA`, `EPA`, `DHA` | `g` |
@@ -140,7 +140,9 @@ Engine statuses (`AssessmentStatus`): `met`, `below_minimum`, `above_maximum`, `
 | Therapeutic goal | Ignored compatibility field; not a skip |
 | Mixed / unknown feed form | Form-dependent Se/Tau rows `insufficient_context` until override |
 | Missing catalog value | `missing_product_data`; never converted to zero and never counted as `met` |
-| Catalog `mg` vs FEDIAF `g` | Converted (`1 g = 1000 mg`) before comparison; displayed ration amount is in the target unit |
+| FEDIAF minerals in `g` (`Ca`, `P`, `Mg`, `Na`, `K`, `Cl`) | Converted once on provider load (`1 g = 1000 mg`); targets and catalog values then use canonical `mg` |
+| Other FEDIAF minerals | `Fe`, `Cu`, `Zn`, `Mn`, `I` stay in `mg`; `Se` stays in `mcg` |
+| API/UI units | Nutrition engine and catalog API own unit strings; frontend displays returned units without remapping or conversion |
 | Unconvertible Vitamin E | `insufficient_context`; the engine never silently compares catalog mg with a published IU target |
 | Valid request with missing evidence | HTTP 200, rows remain explicit, and `overall = indeterminate` |
 | Nutritional vs legal maxima | Applicable nutritional constraints may affect the verdict; EU legal maxima remain excluded from the clinical ration verdict |

@@ -275,7 +275,7 @@
         "unit_per_1000_kcal_me": "mg"
       },
       {
-        "code": "J",
+        "code": "I",
         "name_ru": "Йод",
         "name_en": "Iodine",
         "category_code": "mineral",
@@ -705,7 +705,7 @@
             {"code": "Cl", "minimum": 0.04, "established": true, "unit": "g", "source_value_text": "0.04", "footnote": "c"},
             {"code": "Mg", "minimum": 0.02, "established": true, "unit": "g", "source_value_text": "0.02", "footnote": null},
             {"code": "Cu", "minimum": 0.20, "established": true, "unit": "mg", "source_value_text": "0.20", "footnote": "*"},
-            {"code": "J", "minimum": 0.03, "established": true, "unit": "mg", "source_value_text": "0.03", "footnote": "*"},
+            {"code": "I", "minimum": 0.03, "established": true, "unit": "mg", "source_value_text": "0.03", "footnote": "*"},
             {"code": "Fe", "minimum": 1.00, "established": true, "unit": "mg", "source_value_text": "1.00", "footnote": "*"},
             {"code": "Mn", "minimum": 0.16, "established": true, "unit": "mg", "source_value_text": "0.16", "footnote": null},
             {"code": "Se", "applicability_rule_code": "feed_form_wet", "minimum": 6.40, "established": true, "unit": "µg", "source_value_text": "6.40", "footnote": "*; d"},
@@ -1001,7 +1001,7 @@
               "note_ru": null
             },
             {
-              "code": "J",
+              "code": "I",
               "minimum": 0.3,
               "minimum_upper": null,
               "established": true,
@@ -1473,7 +1473,7 @@
               "note_ru": null
             },
             {
-              "code": "J",
+              "code": "I",
               "minimum": 0.26,
               "minimum_upper": null,
               "established": true,
@@ -1944,7 +1944,7 @@
               "note_ru": "FEDIAF объединяет ранний рост и репродукцию в одной колонке."
             },
             {
-              "code": "J",
+              "code": "I",
               "minimum": 0.38,
               "minimum_upper": null,
               "established": true,
@@ -2415,7 +2415,7 @@
               "note_ru": null
             },
             {
-              "code": "J",
+              "code": "I",
               "minimum": 0.38,
               "minimum_upper": null,
               "established": true,
@@ -2925,7 +2925,7 @@
             {"code": "Cl", "minimum": 0.03, "established": true, "unit": "g", "source_value_text": "0.03", "footnote": null},
             {"code": "Mg", "minimum": 0.01, "established": true, "unit": "g", "source_value_text": "0.01", "footnote": null},
             {"code": "Cu", "minimum": 0.13, "established": true, "unit": "mg", "source_value_text": "0.13", "footnote": "*"},
-            {"code": "J", "minimum": 0.03, "established": true, "unit": "mg", "source_value_text": "0.03", "footnote": "*"},
+            {"code": "I", "minimum": 0.03, "established": true, "unit": "mg", "source_value_text": "0.03", "footnote": "*"},
             {"code": "Fe", "minimum": 2.00, "established": true, "unit": "mg", "source_value_text": "2.00", "footnote": "*"},
             {"code": "Mn", "minimum": 0.13, "established": true, "unit": "mg", "source_value_text": "0.13", "footnote": null},
             {"code": "Se", "applicability_rule_code": "feed_form_wet", "minimum": 6.60, "established": true, "unit": "µg", "source_value_text": "6.60", "footnote": "*; d"},
@@ -2973,7 +2973,7 @@
             {
               "code": "Arg",
               "minimum": 3.3,
-              "minimum_upper": null,
+              "minimum_upper": null, 
               "established": true,
               "unit": "g",
               "source_value_text": null,
@@ -3243,7 +3243,7 @@
               "note_ru": null
             },
             {
-              "code": "J",
+              "code": "I",
               "minimum": 0.43,
               "minimum_upper": null,
               "established": true,
@@ -3737,7 +3737,7 @@
               "note_ru": null
             },
             {
-              "code": "J",
+              "code": "I",
               "minimum": 0.33,
               "minimum_upper": null,
               "established": true,
@@ -4230,7 +4230,7 @@
               "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
             },
             {
-              "code": "J",
+              "code": "I",
               "minimum": 0.45,
               "minimum_upper": null,
               "established": true,
@@ -4723,7 +4723,7 @@
               "note_ru": "В исходной таблице рост и репродукция объединены; значение одинаковое."
             },
             {
-              "code": "J",
+              "code": "I",
               "minimum": 0.45,
               "minimum_upper": null,
               "established": true,
