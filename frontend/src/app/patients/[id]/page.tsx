@@ -1,11 +1,13 @@
-import { AppShell } from "@/components/app-shell";
-import { PatientDetail } from "@/components/modules/patient-detail";
+import { PatientsWorkspace } from "@/components/modules/patients";
 
-export default async function PatientPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PatientPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string | string[] }>;
+}) {
   const { id } = await params;
-  return (
-    <AppShell>
-      <PatientDetail patientId={id} />
-    </AppShell>
-  );
+  const { tab } = await searchParams;
+  return <PatientsWorkspace initialPatientId={id} initialTab={typeof tab === "string" ? tab : undefined} />;
 }
