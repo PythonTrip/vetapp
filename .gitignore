@@ -56,11 +56,14 @@ local-*
 dev.log
 dev.out.log
 test
+!docs/test/
+!docs/test/INTEGRATION_*.md
 prompt
 
 server.log
 # Skills directory
 /skills/
+
 # Python / uv
 .venv/
 __pycache__/
@@ -72,4 +75,3 @@ __pycache__/
 graphify-out/
 .mega/
 .impeccable/
-
