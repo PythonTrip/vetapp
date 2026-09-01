@@ -1,8 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown } from "lucide-react";
+import { Check, ChevronDown, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { FoodCategoryGroupRecord, FoodCategoryPair } from "@/lib/api-client";
@@ -29,11 +31,11 @@ export function categorySelectionPairs(
   }).flat();
 }
 
-function categoryLabel(category: string | null): string {
+export function categoryLabel(category: string | null): string {
   return category ?? "Без категории";
 }
 
-function subcategoryLabel(subcategory: string | null): string {
+export function subcategoryLabel(subcategory: string | null): string {
   return subcategory ?? "Без подкатегории";
 }
 
@@ -46,6 +48,7 @@ export function CategoryPanel({
   selection,
   onToggleAll,
   onToggleSubcategory,
+  onClearCategory,
   idPrefix = "food-category",
 }: {
   groups: FoodCategoryGroupRecord[];
@@ -56,33 +59,22 @@ export function CategoryPanel({
     subcategory: string | null,
     checked: boolean,
   ) => void;
+  onClearCategory: (category: string | null) => void;
   idPrefix?: string;
 }) {
   const [openKey, setOpenKey] = React.useState<string | null>(null);
-  const closeTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const cancelClose = React.useCallback(() => {
-    if (closeTimer.current) clearTimeout(closeTimer.current);
-    closeTimer.current = null;
-  }, []);
-
-  const scheduleClose = React.useCallback(() => {
-    cancelClose();
-    closeTimer.current = setTimeout(() => setOpenKey(null), 160);
-  }, [cancelClose]);
-
-  React.useEffect(() => () => cancelClose(), [cancelClose]);
+  const [subcategoryQuery, setSubcategoryQuery] = React.useState("");
 
   if (!groups.length) {
     return (
-      <div className="rounded-xl border border-dashed bg-card px-4 py-6 text-sm text-muted-foreground">
+      <p className="text-xs text-muted-foreground">
         Категории появятся после импорта или создания продукта.
-      </div>
+      </p>
     );
   }
 
   return (
-    <div className="flex flex-wrap gap-2" aria-label="Категории каталога">
+    <div className="flex min-w-max flex-wrap gap-1.5 xl:flex-nowrap" aria-label="Категории каталога">
       {groups.map((group, groupIndex) => {
         const key = categoryKey(group.category);
         const selected = selection.get(group.category);
@@ -92,86 +84,130 @@ export function CategoryPanel({
         const partiallySelected = selectedCount > 0 && !fullySelected;
         const active = selectedCount > 0;
         const allId = `${idPrefix}-all-${groupIndex}`;
+        const normalizedQuery = subcategoryQuery.trim().toLocaleLowerCase("ru-RU");
+        const visibleSubcategories = normalizedQuery
+          ? group.subcategories.filter((subcategory) => (
+            subcategoryLabel(subcategory).toLocaleLowerCase("ru-RU").includes(normalizedQuery)
+          ))
+          : group.subcategories;
 
         return (
           <Popover
             key={key}
             open={openKey === key}
             onOpenChange={(open) => {
-              cancelClose();
               setOpenKey(open ? key : null);
+              setSubcategoryQuery("");
             }}
           >
-            <div
-              className={cn(
-                "flex h-9 items-center overflow-hidden rounded-full border bg-card shadow-xs transition-colors",
-                active ? "border-primary/50 bg-accent text-accent-foreground" : "hover:border-primary/35",
-              )}
-              onMouseEnter={() => {
-                cancelClose();
-                setOpenKey(key);
-              }}
-              onMouseLeave={scheduleClose}
-            >
-              <div className="flex h-full items-center gap-1.5 border-r px-2.5">
-                <Checkbox
-                  id={allId}
-                  checked={partiallySelected ? "indeterminate" : fullySelected}
-                  onCheckedChange={() => onToggleAll(group)}
-                  aria-label={`Выбрать все подкатегории: ${categoryLabel(group.category)}`}
-                />
-                <Label htmlFor={allId} className="cursor-pointer text-[11px] font-semibold text-muted-foreground">
-                  Все
-                </Label>
-              </div>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  className="flex h-full items-center gap-1.5 px-3 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                  aria-label={`Открыть подкатегории: ${categoryLabel(group.category)}`}
-                >
-                  <span>{categoryLabel(group.category)}</span>
-                  {active ? (
-                    <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] leading-none text-primary-foreground">
-                      {selectedCount}
-                    </span>
-                  ) : null}
-                  <ChevronDown className="size-3.5 text-muted-foreground" />
-                </button>
-              </PopoverTrigger>
-            </div>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className={cn(
+                  "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold outline-none transition-colors",
+                  "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  active
+                    ? "border-primary/35 bg-accent text-accent-foreground hover:bg-accent/75"
+                    : "bg-card text-foreground hover:border-primary/35 hover:bg-muted/55",
+                )}
+                aria-label={`Фильтр категории: ${categoryLabel(group.category)}`}
+              >
+                {active ? <Check className="size-3.5 text-primary" aria-hidden="true" /> : null}
+                <span>{categoryLabel(group.category)}</span>
+                {group.subcategories.length ? (
+                  <span className={cn("font-medium", active ? "text-primary" : "text-muted-foreground")}>
+                    · {active ? selectedCount : group.subcategories.length}
+                  </span>
+                ) : null}
+                <ChevronDown className="size-3.5 text-muted-foreground" aria-hidden="true" />
+              </button>
+            </PopoverTrigger>
             <PopoverContent
               align="start"
-              sideOffset={8}
-              className="w-72 rounded-xl p-2 shadow-[0_12px_34px_-26px_oklch(0.25_0.04_175_/_0.38)]"
-              onMouseEnter={cancelClose}
-              onMouseLeave={scheduleClose}
+              sideOffset={7}
+              className="w-[min(22rem,calc(100vw-1.5rem))] rounded-xl p-0 shadow-[0_16px_38px_-24px_oklch(0.24_0.035_175_/_0.45)]"
             >
-              <div className="border-b px-2 pb-2 pt-1">
-                <p className="font-semibold">{categoryLabel(group.category)}</p>
-                <p className="text-xs text-muted-foreground">Выберите одну или несколько подкатегорий</p>
+              <div className="flex items-start justify-between gap-3 border-b px-3.5 py-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold">{categoryLabel(group.category)}</p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    Выбрано {selectedCount} из {group.subcategories.length}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  disabled={!active}
+                  onClick={() => onClearCategory(group.category)}
+                >
+                  Очистить
+                </Button>
               </div>
-              <div className="max-h-64 space-y-0.5 overflow-y-auto py-1" role="group" aria-label="Подкатегории">
-                {group.subcategories.map((subcategory, subcategoryIndex) => {
-                  const subcategoryKey = subcategory === null ? "null" : `value:${subcategory}`;
-                  const id = `${allId}-${subcategoryIndex}`;
-                  const checked = selected?.has(subcategory) ?? false;
-                  return (
-                    <div
-                      key={subcategoryKey}
-                      className="flex min-h-9 items-center gap-2 rounded-lg px-2 hover:bg-accent"
-                    >
-                      <Checkbox
-                        id={id}
-                        checked={checked}
-                        onCheckedChange={(value) => onToggleSubcategory(group.category, subcategory, value === true)}
-                      />
-                      <Label htmlFor={id} className="min-w-0 flex-1 cursor-pointer truncate font-normal">
-                        {subcategoryLabel(subcategory)}
-                      </Label>
-                    </div>
-                  );
-                })}
+
+              <div className="p-2.5">
+                <div className="relative mb-2">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    value={subcategoryQuery}
+                    onChange={(event) => setSubcategoryQuery(event.target.value)}
+                    placeholder="Найти подкатегорию"
+                    className="h-8 pl-8 text-xs"
+                    aria-label={`Поиск в категории ${categoryLabel(group.category)}`}
+                  />
+                </div>
+
+                <div className="mb-1 flex min-h-9 items-center gap-2 rounded-lg bg-muted/55 px-2.5">
+                  <Checkbox
+                    id={allId}
+                    checked={partiallySelected ? "indeterminate" : fullySelected}
+                    onCheckedChange={() => onToggleAll(group)}
+                    aria-label={`Выбрать всю категорию: ${categoryLabel(group.category)}`}
+                  />
+                  <Label htmlFor={allId} className="min-w-0 flex-1 cursor-pointer text-xs font-semibold">
+                    Вся категория
+                  </Label>
+                  <span className="text-[11px] tabular-nums text-muted-foreground">
+                    {group.subcategories.length}
+                  </span>
+                </div>
+
+                <div
+                  className="scrollbar-thin max-h-64 space-y-0.5 overflow-y-auto"
+                  role="group"
+                  aria-label="Подкатегории"
+                >
+                  {visibleSubcategories.map((subcategory) => {
+                    const subcategoryIndex = group.subcategories.indexOf(subcategory);
+                    const subcategoryValueKey = subcategory === null ? "null" : `value:${subcategory}`;
+                    const id = `${allId}-${subcategoryIndex}`;
+                    const checked = selected?.has(subcategory) ?? false;
+                    return (
+                      <div
+                        key={subcategoryValueKey}
+                        className="flex min-h-9 items-center gap-2 rounded-lg px-2.5 hover:bg-accent/70"
+                      >
+                        <Checkbox
+                          id={id}
+                          checked={checked}
+                          onCheckedChange={(value) => (
+                            onToggleSubcategory(group.category, subcategory, value === true)
+                          )}
+                        />
+                        <Label htmlFor={id} className="min-w-0 flex-1 cursor-pointer truncate text-xs font-normal">
+                          {subcategoryLabel(subcategory)}
+                        </Label>
+                      </div>
+                    );
+                  })}
+                  {!visibleSubcategories.length ? (
+                    <p className="px-2.5 py-6 text-center text-xs text-muted-foreground">
+                      Ничего не найдено
+                    </p>
+                  ) : null}
+                </div>
               </div>
             </PopoverContent>
           </Popover>

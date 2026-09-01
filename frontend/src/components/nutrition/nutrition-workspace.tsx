@@ -491,7 +491,7 @@ export function NutritionWorkspace() {
           <TabsTrigger value="plans" className="h-7 rounded-md px-3 text-xs">Недавние планы</TabsTrigger>
           <TabsTrigger value="catalog" className="h-7 rounded-md px-3 text-xs">Каталог</TabsTrigger>
         </TabsList>
-        <TabsContent value="catalog"><FoodCatalog /></TabsContent>
+        <TabsContent value="catalog" data-catalog-workbench><FoodCatalog /></TabsContent>
         <TabsContent value="plans"><RecentPlans plans={recentPlans.data ?? []} pending={recentPlans.isPending} error={recentPlans.isError ? apiErrorMessage(recentPlans.error) : null} /></TabsContent>
         <TabsContent value="assessment" className="space-y-3">
           {plan.data ? (
