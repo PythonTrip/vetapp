@@ -1,7 +1,7 @@
 ---
 project_id: vetdietderm
 title: VetDietDerm
-updated: 2026-08-30
+updated: 2026-08-31
 source: product-discovery
 ---
 
@@ -77,20 +77,202 @@ Not shipped: Food `species_compatibility` (dropped from cycle #6), users/roles, 
 - **API:** one FastAPI process (Pydantic contracts) with internal bounded contexts (`patients`, `encounters`, `encounter_templates`, `attachments`, `appointments`, `communications`, `catalog`, `guidelines`, `assessments`). Module boundaries are the foundation for later extraction; multiple API processes remain deferred.
 - **Data:** existing PostgreSQL at `127.0.0.1:15432` (local and the already-provisioned VPS instance). No Vercel, no Neon. No Docker Compose / orchestration as a cycle deliverable.
 - **Access:** single instance password (not per-user roles).
-- **Core entities:** Client (owner), Patient (animal), Encounter, EncounterTemplate, Appointment, Attachment (disk + metadata), Communication, Food (commercial / ingredient / supplement stored, but catalog browse is by import `category` / `subcategory`), Nutrient and `food_nutrient_values` (see `docs/Nutrient.md`), FEDIAF guideline edition data in PostgreSQL, Diet Plan with a replaced-on-save assessment snapshot.
+- **Core entities:** Client, Patient, Encounter, EncounterTemplate, Appointment, Attachment, Communication, Food, Nutrient, FEDIAF guideline edition, Diet Plan. Physical tables, keys, JSONB payloads, and import formats are in [Data](#data).
 - **Nutrition analysis model:** Animal Context lets the server independently resolve an Energy Formula and Nutrient Profile. Compatibility is species + physiological context + required fields — not `energy_formula.profile_id`. Adult verdicts use imported MER95/110 and MER75/100 concentration profiles; growth and reproduction keep their published life-stage profiles. Table VII-11 remains available as reference data but is not auto-selected for adults.
 - **Later entities:** User/Role, signed encounter, S3 object store, specialty calculators. They must attach to Client/Patient without collapsing owner back into Patient.
 - Disease-specific therapeutic profiles are not a product mode. Species other than dog/cat still skip normative comparison.
 
+## Data
+
+Operational source of truth is PostgreSQL (`127.0.0.1:15432`). Schema is Alembic through `0017_me_kcal_per_100g`. Primary keys are UUID (UUIDv6). Timestamps are `timestamptz`. Nutrient inventory and assessment honesty rules live in `docs/Nutrient.md`; this chapter is the table, relationship, and format map.
+
+No User/Role tables. Assessments are not stored as rows: the engine writes one JSON snapshot onto `diet_plans` at save. Lesion binaries live on disk; PostgreSQL keeps metadata only.
+
+### Relationship map
+
+```mermaid
+erDiagram
+    clients ||--o{ patients : owns
+    clients ||--o{ communications : "owner on log"
+    patients ||--o{ encounters : has
+    patients ||--o{ appointments : has
+    patients ||--o{ attachments : has
+    patients ||--o{ communications : has
+    patients ||--o{ diet_plans : "optional"
+    encounters ||--o{ attachments : "optional link"
+    encounters ||--o{ appointments : "optional link"
+
+    nutrients ||--o{ food_nutrient_values : measured
+    foods ||--o{ food_nutrient_values : has
+    nutrients ||--o{ nutrient_group_members : member
+    nutrient_groups ||--o{ nutrient_group_members : contains
+    nutrients ||--o{ nutrient_aliases : "schema leftover"
+    nutrients ||--o{ guideline_targets : "atomic subject"
+
+    guideline_standards ||--o{ guideline_editions : versions
+    guideline_editions ||--o{ guideline_profiles : profiles
+    guideline_editions ||--o{ source_references : cites
+    guideline_editions ||--o{ applicability_rules : rules
+    guideline_editions ||--o{ derived_expressions : composites
+    guideline_editions ||--o{ energy_formulas : formulas
+    guideline_editions ||--o{ guideline_targets : targets
+    guideline_editions ||--o{ growth_size_classes : size
+    guideline_editions ||--o{ lactation_factors : lactation
+    guideline_profiles ||--o{ guideline_targets : owns
+    guideline_profiles ||--o{ energy_formulas : "optional leftover FK"
+    derived_expressions ||--o{ guideline_targets : "derived subject"
+    applicability_rules ||--o{ energy_formulas : optional
+    applicability_rules ||--o{ guideline_targets : optional
+    source_references ||--o{ applicability_rules : optional
+    source_references ||--o{ energy_formulas : optional
+    source_references ||--o{ guideline_targets : optional
+    source_references ||--o{ growth_size_classes : optional
+    source_references ||--o{ lactation_factors : optional
+```
+
+`encounter_templates` has no foreign keys.
+
+### Foreign keys
+
+| From | Column | To | On delete | Cardinality |
+| --- | --- | --- | --- | --- |
+| `patients` | `client_uuid` | `clients.uuid` | RESTRICT | many patients → one client |
+| `encounters` | `patient_uuid` | `patients.uuid` | CASCADE | required |
+| `appointments` | `patient_uuid` | `patients.uuid` | CASCADE | required |
+| `appointments` | `encounter_uuid` | `encounters.uuid` | SET NULL | optional |
+| `attachments` | `patient_uuid` | `patients.uuid` | CASCADE | required |
+| `attachments` | `encounter_uuid` | `encounters.uuid` | SET NULL | optional |
+| `communications` | `patient_uuid` | `patients.uuid` | CASCADE | required |
+| `communications` | `client_uuid` | `clients.uuid` | RESTRICT | required (owner of the patient) |
+| `diet_plans` | `patient_uuid` | `patients.uuid` | SET NULL | optional; plan may be saved without a patient |
+| `food_nutrient_values` | `food_uuid` | `foods.uuid` | CASCADE | many values → one food |
+| `food_nutrient_values` | `nutrient_uuid` | `nutrients.uuid` | RESTRICT | many values → one nutrient |
+| `nutrient_group_members` | `group_uuid` | `nutrient_groups.uuid` | CASCADE | composite PK |
+| `nutrient_group_members` | `nutrient_uuid` | `nutrients.uuid` | CASCADE | composite PK |
+| `nutrient_aliases` | `nutrient_uuid` | `nutrients.uuid` | CASCADE | leftover table; no ORM model |
+| `guideline_editions` | `standard_uuid` | `guideline_standards.uuid` | RESTRICT | many editions → one standard |
+| `guideline_profiles` | `edition_uuid` | `guideline_editions.uuid` | CASCADE | |
+| `source_references` | `edition_uuid` | `guideline_editions.uuid` | CASCADE | |
+| `applicability_rules` | `edition_uuid` | `guideline_editions.uuid` | CASCADE | |
+| `applicability_rules` | `source_reference_uuid` | `source_references.uuid` | SET NULL | optional |
+| `derived_expressions` | `edition_uuid` | `guideline_editions.uuid` | CASCADE | |
+| `energy_formulas` | `edition_uuid` | `guideline_editions.uuid` | CASCADE | |
+| `energy_formulas` | `profile_uuid` | `guideline_profiles.uuid` | RESTRICT | **nullable leftover**; not an application pairing invariant |
+| `energy_formulas` | `applicability_rule_uuid` | `applicability_rules.uuid` | SET NULL | optional |
+| `energy_formulas` | `source_reference_uuid` | `source_references.uuid` | SET NULL | optional |
+| `guideline_targets` | `edition_uuid` | `guideline_editions.uuid` | CASCADE | |
+| `guideline_targets` | `profile_uuid` | `guideline_profiles.uuid` | CASCADE | |
+| `guideline_targets` | `nutrient_uuid` | `nutrients.uuid` | RESTRICT | XOR with `derived_expression_uuid` |
+| `guideline_targets` | `derived_expression_uuid` | `derived_expressions.uuid` | RESTRICT | XOR with `nutrient_uuid` |
+| `guideline_targets` | `applicability_rule_uuid` | `applicability_rules.uuid` | SET NULL | optional |
+| `guideline_targets` | `source_reference_uuid` | `source_references.uuid` | SET NULL | optional |
+| `growth_size_classes` | `edition_uuid` | `guideline_editions.uuid` | CASCADE | |
+| `growth_size_classes` | `source_reference_uuid` | `source_references.uuid` | SET NULL | optional |
+| `lactation_factors` | `edition_uuid` | `guideline_editions.uuid` | CASCADE | |
+| `lactation_factors` | `source_reference_uuid` | `source_references.uuid` | SET NULL | optional |
+
+Uniqueness that matters at runtime: one **published** edition per `guideline_standards` row (`uq_guideline_editions_one_published`); `food_nutrient_values` identity `(food_uuid, nutrient_uuid, basis, source_uuid)`; profile/formula/rule/expression codes unique per edition.
+
+`food_nutrient_values.source_uuid` is an optional UUID with **no** `Source` table.
+
+### Clinical CRM
+
+| Table | Role | Notable columns / formats |
+| --- | --- | --- |
+| `clients` | Owner | `name`, optional `email`, `phone` |
+| `patients` | Animal | `species` `dog` \| `cat` \| `other`; `body_weight_kg`, `expected_adult_weight_kg` (numeric); `birth_date`; `life_stage`, `activity` (free strings); `neutered` / `pregnant` / `lactating`; `lactation_week`, `litter_size`; `bcs` 1–9; `allergies` and `chronic_conditions` JSONB `string[]`; `feeding_notes` |
+| `encounters` | SOAP visit | `specialty` `dermatology` \| `nutrition` \| `general`; `type` `appointment` \| `note` \| `diagnostic` \| `treatment`; `status` `draft` \| `in_progress` \| `completed`; SOAP text; `anamnesis_data` JSONB `{ specialty, answers, free_text }`; `diagnoses` JSONB `string[]`; `prescriptions` JSONB `{ name, dosage, frequency, duration, instructions }[]`; `vas_score`; `occurred_at` |
+| `encounter_templates` | Insert snippets | `scope` `standard` \| `clinic` \| `doctor`; `section` `anamnesis` \| `exam` \| `plan`; `specialty`; `title`, `body`; optional `doctor_name`. `standard` is read-only in product |
+| `appointments` | Schedule | `starts_at`, `duration_min`; `visit_type` `consultation` \| `recheck` \| `procedure` \| `telemedicine`; `status` `scheduled` \| `completed` \| `cancelled` \| `no_show`; optional `encounter_uuid` |
+| `attachments` | Gallery metadata | `kind` `lesion_photo` \| `document`; `caption`, `body_region`, `vas_score`; `content_type`, `byte_size`; `storage_key` (path under `ATTACHMENT_DIR`, not the bytes) |
+| `communications` | Owner log | `channel` `phone` \| `email` \| `text` \| `video` \| `in_person`; `direction` `inbound` \| `outbound`; `subject`, `body`; `occurred_at`, optional `follow_up_at` |
+
+### Food catalog
+
+| Table | Role | Notable columns / formats |
+| --- | --- | --- |
+| `nutrients` | Canonical 51 atomic codes (seed `0003_food_catalog`) | `code` unique; `category` `main` \| `mineral` \| `vitamin` \| `amino_acid` \| `fatty_acid`; `base_unit`; `sort_order`; `is_active`. `ME` unit is `kcal/100g` after `0017` |
+| `foods` | Catalog row | `type` `commercial` \| `ingredient` \| `supplement`; `feed_form` `dry` \| `wet` \| `unknown`; browse keys `category` / `subcategory` (import `type` / `subcat`) |
+| `food_nutrient_values` | Measured values | `value` numeric nullable (`NULL` ≠ 0); `basis` `per_100g_as_fed` \| `per_100g_dm` \| `per_1000_kcal` \| `per_mj` (preferred store: `per_100g_as_fed`); `value_status` `measured` \| `calculated` \| `estimated` \| `trace` \| `not_detected` \| `unknown`; optional `source_uuid` |
+| `nutrient_groups` | Derived-ratio groups | Seeded `OMEGA_3` (`ALA`, `EPA`, `DHA`), `OMEGA_6` (`LA`, `AA`) |
+| `nutrient_group_members` | Group membership | Composite PK `(group_uuid, nutrient_uuid)` |
+| `nutrient_aliases` | Unused leftover | Recreated in `0010`; namespaces `fediaf_legacy` \| `product`; not mapped in SQLAlchemy |
+
+Eight import browse categories stored on `foods.category`: `сухие корма`, `влажные корма`, `лакомства`, `добавки`, `белки`, `углеводы`, `жиры`, `клетчатка`. Mapping to stored `type` / `feed_form` is in `docs/Nutrient.md` §3.6. Ratios (`Ca/P`, `ω6/ω3`, `/DM`, `/ME`) are calculated, never `nutrients` rows.
+
+### FEDIAF guidelines
+
+Runtime engine reads only the **published** edition. Import is operator CLI, not the request path.
+
+| Table | Role | Notable columns / formats |
+| --- | --- | --- |
+| `guideline_standards` | Publisher family | `code` unique (FEDIAF); `name`, `publisher` |
+| `guideline_editions` | Versioned import | identity `(standard_uuid, code, import_version)`; `status` `draft` \| `validated` \| `published` \| `retired`; `source_checksum`, `source_title`, `source_url`; `publication_date` string; `language`; `clinical_warning_ru`; `validated_at` / `published_at` / `retired_at` |
+| `guideline_profiles` | Nutrient standard | `species_code` `dog` \| `cat`; `code`, `name_ru`; `physiological_state`; energy basis value/unit/type; `calculation_basis` `published_per_1000_kcal` \| `daily_per_metabolic_bw`; `clinician_selectable`, `active` |
+| `source_references` | Citation | URL, language, optional `page`, `table_code`, `section_code`, `row_code`, `footnote`, `source_value_text`, `note_ru` |
+| `applicability_rules` | Predicates | unique `(edition_uuid, code)`; `predicate_json` JSONB; optional source |
+| `derived_expressions` | Composites | `expression_type` `sum` \| `ratio` \| `formula`; `result_unit`; `ast_json` JSONB. Codes: `epa_dha`, `ca_p_ratio`, `methionine_cystine`, `phenylalanine_tyrosine`, `omega6_omega3` |
+| `energy_formulas` | Energy methods | unique `(edition_uuid, species_code, code)`; `result_kind` `point` \| `range`; executable XOR: point → `formula_ast`, range → `range_ast`; `required_animal_fields` JSONB `string[]`; `allowed_weight_bases` JSONB (default `["current"]`); `result_unit`; `active` |
+| `guideline_targets` | Min/max rows | subject XOR nutrient vs derived; `target_status` `established` \| `not_established`; `minimum_value` / `maximum_value` nullable; `unit`; `basis` `per_1000_kcal_me` \| `daily_per_metabolic_bw`; `source_code`, `sort_order` |
+| `growth_size_classes` | Dog size bands | weight bounds + inclusivity flags; optional `growth_curve_ast`; optional age weeks |
+| `lactation_factors` | Week multipliers | unique `(edition_uuid, species_code, week)`; `factor` |
+
+Adult auto-select uses imported MER concentration profiles (`dog_adult_mer95` / `mer110`, `cat_adult_mer75` / `mer100`). Table VII-11 `daily_per_metabolic_bw` profiles stay stored as reference. Growth and reproduction keep published life-stage profiles.
+
+### Diet plans (persistence, not a live engine table)
+
+| Table | Role | Notable columns / formats |
+| --- | --- | --- |
+| `diet_plans` | Saved ration + snapshot | `name`; optional `patient_uuid`; `notes`; `ration_json` JSONB; `assessment_snapshot_json` JSONB. One snapshot per save (replaced on next save). Read path does not recompute |
+
+`ration_json` is `[{ food_uuid, grams, food_name, food_type, feed_form }, ...]`.
+
+`assessment_snapshot_json` is `{ request, assessment, nutrient_profile_code, energy_formula_code }`:
+
+- `request`: animal card (`species`, current/target/expected weights, age, life stage, activity, neuter/pregnancy/lactation, BCS), `feed_form`, ignored `therapeutic_goal`, `rer_factor`, `energy_adjustment_percent`, `components[{ food_uuid, grams }]`
+- `assessment`: edition identity, resolved context, energy result (`reference_energy_kcal`, `working_energy_kcal`, point vs range), coverage rows, `input_hash`, engine id
+
+Legacy snapshots may still use `body_weight_kg` / `expected_adult_weight_kg`; the read mapper accepts those aliases. Historical engine id or missing `input_hash` is rendered as stored, not remapped.
+
+### Import artifacts (CLI only)
+
+Never opened by FastAPI request handlers or Next.js.
+
+| File | Format | Maps to |
+| --- | --- | --- |
+| `docs/data/products_normalized.json` | JSON **array** of food objects | `foods` + `food_nutrient_values` via `vetdietderm_api.catalog.import_products`. Clinician can also create/edit Food in the UI |
+| `docs/data/fediaf_2025_veterinary_nutrition_database_ru.json` | JSON **object** (Russian FEDIAF snapshot, edition `2025.09`) | guideline tables via `vetdietderm_api.guidelines.import_fediaf` then CLI publish |
+| `docs/data/fediaf_2025_veterinary_nutrition_schema.json` | JSON Schema 2020-12 | validates the FEDIAF snapshot |
+| `docs/data/fediaf_2025_vii11_golden.json` | JSON fixture | Table VII-11 import checks |
+| `docs/data/fediaf_2025_*.csv`, `docs/data/fediaf_2025_veterinary_nutrition_ru.xlsx` | CSV / XLSX | **archival only**; not runtime SoT; VII-11 is not in those files |
+
+**Catalog JSON object** (one array element): `name`; `type` → `foods.category`; `subcat` → `foods.subcategory`; `calculated` string[] of ratio keys (not stored); atomic keys `ME`, `CP`, `CFa`, … matching `nutrients.code` (`number` or `null`); ratio keys such as `ME/DM`, `Ca/P`, `ω6/ω3` (not stored as nutrients). `null` → missing (`unknown`), not zero.
+
+**FEDIAF JSON object** (required top-level per schema): `database_meta`, `catalogs`, `species_data`, `diseases_and_conditions`. Snapshot also carries `data_model` (animal-profile field names, `null` meaning, nutrient basis). Nested shape:
+
+| Path | Content |
+| --- | --- |
+| `database_meta` | `id`, `version` (currently `2025.09`), `language` `ru`, `source{ title, publication_date, url }`, `scope`, `clinical_warning_ru` |
+| `catalogs` | `species`, `nutrient_categories`, `nutrients` (canonical codes + `unit_per_1000_kcal_me`), `derived_expressions`, `life_stages` |
+| `species_data.dog` / `.cat` | `name_ru`, `breeds`, `size_classes`, `nutrient_profiles[]`, `energy_formulas[]`, `lactation` |
+| `nutrient_profiles[]` | `code`, `species_code`, `calculation_basis`, `basis`, `nutrients[]` targets (`minimum` / `minimum_upper` / `established` / `unit` / optional `applicability_rule_code` `feed_form_wet` \| `feed_form_dry`) |
+| `energy_formulas[]` | `code`, `name_ru`, `expression` and/or `expression_min`/`expression_max`, `parameters[]`, `result_unit` `kcal_ME_per_day` |
+| `diseases_and_conditions` | present; disease-specific therapeutic profiles are **not** a product mode |
+
+External publication cited by edition metadata: [FEDIAF Nutritional Guidelines 2025](https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf) (tables III-3 / III-4 / VII-11 / VII-17 / VII-18).
+
+### Off-database storage
+
+| Store | What |
+| --- | --- |
+| PostgreSQL | All product rows and JSONB snapshots above |
+| `ATTACHMENT_DIR` on disk | Lesion originals and PDFs; `attachments.storage_key` is the relative key. No base64 in primary tables. S3 is later |
+
 ## Data, Integrations, and Constraints
 
-- Operational source of truth after the rebuild: PostgreSQL only.
-- Catalog and nutrient values: 51 atomic nutrients seeded in migration `0003_food_catalog` (`main`, `mineral`, `vitamin`, `amino_acid`, `fatty_acid`); `NULL` ≠ 0; preferred stored basis `per_100g_as_fed`; derived ratios calculated; optional `source_uuid`. Inventory and runtime semantics: `docs/Nutrient.md`.
-- Food `category` / `subcategory` come from catalog import (`type` / `subcat` in `products_normalized.json`). Categories are the eight import buckets; subcategories are mostly brands.
-- Import artifacts (CLI only, never read by the running UI or API): `docs/data/products_normalized.json` (catalog) and `docs/data/fediaf_2025_veterinary_nutrition_database_ru.json` (+ schema). Cycle #6 added Table VII-11 adult daily amounts to that JSON SoT. Clinician can also create/edit Food in the UI.
-- External reference: FEDIAF Nutritional Guidelines PDF (edition metadata, currently `2025.09`), including Table VII-11 for adult daily minima and life-stage concentration tables (III-3 / III-4 / VII-17 / VII-18) for growth, reproduction, and archival adult densities.
-- Archival only: `docs/data/fediaf_2025_*.csv`, `docs/data/fediaf_2025_veterinary_nutrition_ru.xlsx`. Table VII-11 is not in those files today.
-- Clinical outputs remain informational with an explicit disclaimer (`GET /guidelines/active` `clinical_warning_ru`).
+- Operational source of truth: PostgreSQL only. Table map: [Data](#data). Nutrient semantics: `docs/Nutrient.md`.
+- Import artifacts under `docs/data/` are operator CLI only; the running UI and API never read JSON/CSV/XLSX at request time.
+- Clinical outputs remain informational (`GET /guidelines/active` `clinical_warning_ru`).
 - UI language: Russian. FEDIAF import content is Russian.
 - Guideline import/publish remains operator CLI, not an unauthenticated public API.
 
