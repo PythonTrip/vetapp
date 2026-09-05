@@ -10,7 +10,6 @@ import {
   CirclePlus,
   ClipboardPlus,
   CopyPlus,
-  FileText,
   GripVertical,
   Library,
   ListPlus,
@@ -36,7 +35,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
+import { ClinicalTextarea } from "@/components/clinical/clinical-textarea";
 import {
   Select,
   SelectContent,
@@ -46,7 +45,6 @@ import {
 } from "@/components/ui/select";
 import type {
   EncounterSpecialty,
-  EncounterTemplateRecord,
 } from "@/lib/api-client";
 import {
   catalogFromRecords,
@@ -78,7 +76,6 @@ type Props = {
   specialty: EncounterSpecialty;
   value: ClinicalDocument;
   catalog: ClinicalBuilderCatalog;
-  textTemplates: EncounterTemplateRecord[];
   doctorName: string;
   disabled?: boolean;
   saveState?: SaveState;
@@ -374,7 +371,6 @@ export function ClinicalFormBuilder({
   specialty,
   value,
   catalog,
-  textTemplates,
   doctorName,
   disabled,
   saveState,
@@ -466,13 +462,6 @@ export function ClinicalFormBuilder({
     setOpenSections(new Set(next.sectionIds.slice(0, 1)));
     commit(next, !value.textEdited);
     toast.success(`Шаблон «${template.title}» применён`);
-  }
-
-  function applyTextTemplate(template: EncounterTemplateRecord) {
-    const finalText = value.finalText.trim() ? `${value.finalText.trim()}\n\n${template.body}` : template.body;
-    onChange({ ...value, finalText, textEdited: true });
-    setMode("text");
-    toast.success(`Текстовый шаблон «${template.title}» добавлен`);
   }
 
   function addField(field: ClinicalField) {
@@ -676,7 +665,7 @@ export function ClinicalFormBuilder({
           </div>
           <p className="mt-1 pl-10 text-xs text-muted-foreground">{description}</p>
         </div>
-        <div className="flex items-center gap-3 self-end sm:self-auto">
+        <div className="flex flex-wrap items-center justify-end gap-3 self-end sm:self-auto">
           <SaveIndicator state={saveState} />
           <div className="inline-flex rounded-lg bg-muted p-0.5" aria-label={`Режим раздела ${title}`}>
             <button type="button" aria-pressed={mode === "structured"} onClick={() => setMode("structured")} className={cn("min-h-8 rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/45", mode === "structured" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>Структурировано</button>
@@ -685,8 +674,8 @@ export function ClinicalFormBuilder({
         </div>
       </div>
 
-      <div className="grid xl:grid-cols-[minmax(0,1fr)_19rem]">
-        <div className="min-h-[360px] xl:border-r">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_19rem]">
+        <div className="min-h-[360px] min-w-0 xl:border-r">
           {mode === "structured" ? (
             <div>
               {activeSections.map((section, index) => {
@@ -738,13 +727,13 @@ export function ClinicalFormBuilder({
                 <Label htmlFor={`clinical-final-${kind}`}>Медицинская запись</Label>
                 <Button type="button" variant="ghost" size="sm" onClick={() => onChange({ ...value, finalText: generateClinicalText(value, catalog), textEdited: false })} disabled={disabled}><RotateCcw className="h-3.5 w-3.5" />Собрать заново</Button>
               </div>
-              <Textarea
+              <ClinicalTextarea
                 id={`clinical-final-${kind}`}
                 value={value.finalText}
                 disabled={disabled}
                 onChange={(event) => onChange({ ...value, finalText: event.target.value, textEdited: true })}
                 placeholder="Текст появится после заполнения структурированных пунктов. Его можно дополнить вручную."
-                className="min-h-[330px] resize-y bg-background text-[15px] leading-7"
+                className="min-h-[330px] bg-background text-[15px] leading-7"
               />
               {value.textEdited ? <p className="mt-2 text-xs text-muted-foreground">Текст изменён вручную. Структурированные данные сохраняются отдельно.</p> : null}
             </div>
@@ -784,14 +773,7 @@ export function ClinicalFormBuilder({
                 ))}
                 {!availableTemplates.length ? <p className="px-3 py-8 text-center text-xs text-muted-foreground">Структурированные шаблоны не найдены.</p> : null}
               </div>
-              {textTemplates.length ? (
-                <div className="mt-3 border-t pt-3">
-                  <p className="px-2 pb-1.5 text-[10px] font-semibold text-muted-foreground">Текстовые шаблоны</p>
-                  {textTemplates.filter((item) => (scope === "all" || item.scope === scope) && (!normalizedQuery || `${item.title} ${item.body}`.toLocaleLowerCase("ru").includes(normalizedQuery))).map((template) => (
-                    <button key={template.uuid} type="button" onClick={() => applyTextTemplate(template)} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/45"><FileText className="h-3.5 w-3.5 text-muted-foreground" /><span className="min-w-0 flex-1 truncate text-xs">{template.title}</span><Plus className="h-3.5 w-3.5 text-primary" /></button>
-                  ))}
-                </div>
-              ) : null}
+
             </TabsContent>
 
             <TabsContent value="fields" className="m-0 p-2.5">

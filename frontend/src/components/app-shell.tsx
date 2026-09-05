@@ -85,8 +85,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const activeSection = sectionFromPathname(pathname);
 
   return (
-    <div className="grid h-dvh grid-rows-[1fr_auto] overflow-hidden bg-background md:grid-cols-[16rem_1fr]">
-        <aside className="hidden h-full min-h-0 w-64 shrink-0 flex-col overflow-y-auto border-r bg-sidebar row-start-1 col-start-1 md:flex">
+    <div className={cn("grid h-dvh grid-rows-[minmax(0,1fr)_auto] overflow-hidden bg-background md:grid-cols-[16rem_minmax(0,1fr)]", activeSection === "encounter" && "fixed inset-0")}>
+        <aside className="hidden h-full min-h-0 w-64 shrink-0 flex-col overflow-hidden border-r bg-sidebar row-start-1 col-start-1 md:flex">
           <Link href="/" className="flex h-16 items-center gap-2.5 border-b px-5">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-emerald-600 text-primary-foreground shadow-sm">
               <PawPrint className="h-5 w-5" />
@@ -99,7 +99,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </Link>
 
-          <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-3 scrollbar-thin" aria-label="Основная навигация">
+          <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-3 scrollbar-thin" aria-label="Основная навигация">
             {NAV_ITEMS.map((item) => {
               const active = activeSection === item.id;
               return (

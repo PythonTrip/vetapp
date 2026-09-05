@@ -13,19 +13,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PlanEditor } from "@/components/clinical/plan-editor";
 import { ClinicalFormBuilder } from "@/components/clinical/clinical-form-builder";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -37,7 +28,6 @@ import type {
   AppointmentRecord,
   EncounterRecord,
   EncounterSpecialty,
-  EncounterTemplateRecord,
   EncounterType,
   EncounterWrite,
 } from "@/lib/api-client";
@@ -53,15 +43,12 @@ import {
   useAppointmentsQuery,
   useClinicalCatalogQuery,
   useCreateEncounter,
-  useCreateEncounterTemplate,
   useDebouncedValue,
-  useDeleteEncounterTemplate,
   useEncounterTemplatesQuery,
   useEncountersQuery,
   usePatientsQuery,
   useUpdateAppointment,
   useUpdateEncounter,
-  useUpdateEncounterTemplate,
 } from "@/lib/hooks";
 import {
   adaptClinicalDocument,
@@ -108,11 +95,6 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
   const [doctorName, setDoctorName] = React.useState("");
   const [editingEncounterId, setEditingEncounterId] = React.useState(initialEncounterId ?? "");
   const [form, setForm] = React.useState(emptyForm);
-  const [templateDialogOpen, setTemplateDialogOpen] = React.useState(false);
-  const [editingTemplate, setEditingTemplate] = React.useState<EncounterTemplateRecord | null>(null);
-  const [templateScope, setTemplateScope] = React.useState<"clinic" | "doctor">("doctor");
-  const [templateTitle, setTemplateTitle] = React.useState("");
-  const [templateBody, setTemplateBody] = React.useState("");
   const [formError, setFormError] = React.useState<string | null>(null);
   const [contextQuery, setContextQuery] = React.useState("");
   const [pendingAction, setPendingAction] = React.useState<"complete" | null>(null);
@@ -130,9 +112,6 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
   const debouncedDoctorName = useDebouncedValue(doctorName, 250);
   const templateQuery = useEncounterTemplatesQuery(debouncedDoctorName);
   const clinicalCatalogQuery = useClinicalCatalogQuery(debouncedDoctorName);
-  const createTemplate = useCreateEncounterTemplate();
-  const updateTemplate = useUpdateEncounterTemplate();
-  const deleteTemplate = useDeleteEncounterTemplate();
 
   const clinicalCatalog = React.useMemo(() => {
     const custom = catalogFromRecords((clinicalCatalogQuery.data ?? []).filter(
@@ -331,7 +310,6 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
     }
   }
 
-  const templates = (templateQuery.data ?? []).filter((template) => template.specialty === form.specialty);
   const saveInFlight = createEncounter.isPending || updateEncounter.isPending || updateAppointment.isPending;
   const saveContext = byAppointment && selectedAppointment
     ? `${selectedPatient?.name ?? "Пациент"} · ${formatDateTime(selectedAppointment.starts_at)}`
@@ -352,63 +330,6 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
     }, 1100);
     return () => window.clearTimeout(handle);
   }, [appointmentId, byAppointment, formFingerprint, patientId, saveInFlight]);
-
-  function openTemplateCreate(body: string) {
-    setEditingTemplate(null);
-    setTemplateScope(doctorName.trim() ? "doctor" : "clinic");
-    setTemplateTitle("");
-    setTemplateBody(body);
-    setTemplateDialogOpen(true);
-  }
-
-  function openTemplateEdit(template: EncounterTemplateRecord) {
-    setEditingTemplate(template);
-    setTemplateScope(template.scope === "doctor" ? "doctor" : "clinic");
-    setTemplateTitle(template.title);
-    setTemplateBody(template.body);
-    setTemplateDialogOpen(true);
-  }
-
-  async function saveTemplate() {
-    if (!templateTitle.trim() || !templateBody.trim()) {
-      toast.error("Заполните название и текст шаблона");
-      return;
-    }
-    if (templateScope === "doctor" && !doctorName.trim()) {
-      toast.error("Укажите имя врача в шапке приёма");
-      return;
-    }
-    const body = {
-      scope: templateScope,
-      section: "plan" as const,
-      specialty: form.specialty,
-      title: templateTitle.trim(),
-      body: templateBody.trim(),
-      doctor_name: templateScope === "doctor" ? doctorName.trim() : null,
-    };
-    try {
-      if (editingTemplate) {
-        await updateTemplate.mutateAsync({ id: editingTemplate.uuid, body });
-        toast.success("Шаблон обновлён");
-      } else {
-        await createTemplate.mutateAsync(body);
-        toast.success("Шаблон создан");
-      }
-      setTemplateDialogOpen(false);
-    } catch (cause) {
-      toast.error(apiErrorMessage(cause));
-    }
-  }
-
-  async function removeTemplate(template: EncounterTemplateRecord) {
-    if (!window.confirm(`Удалить шаблон «${template.title}»?`)) return;
-    try {
-      await deleteTemplate.mutateAsync(template.uuid);
-      toast.success("Шаблон удалён");
-    } catch (cause) {
-      toast.error(apiErrorMessage(cause));
-    }
-  }
 
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-5 p-3 sm:p-5 lg:p-7">
@@ -566,7 +487,6 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
             specialty={form.specialty}
             value={form.anamnesisDoc}
             catalog={clinicalCatalog}
-            textTemplates={templates.filter((template) => template.section === "anamnesis" && !template.definition)}
             doctorName={doctorName}
             saveState={saveState}
             onChange={(anamnesisDoc: ClinicalDocument) => setForm((current) => ({ ...current, anamnesisDoc }))}
@@ -577,7 +497,6 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
             specialty={form.specialty}
             value={form.examDoc}
             catalog={clinicalCatalog}
-            textTemplates={templates.filter((template) => template.section === "exam" && !template.definition)}
             doctorName={doctorName}
             saveState={saveState}
             onChange={(examDoc: ClinicalDocument) => setForm((current) => ({ ...current, examDoc }))}
@@ -585,11 +504,7 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
 
           <PlanEditor
             value={form.plan}
-            templates={templates.filter((template) => template.section === "plan")}
             onChange={(plan) => setForm((current) => ({ ...current, plan }))}
-            onCreate={openTemplateCreate}
-            onEdit={openTemplateEdit}
-            onDelete={(template) => void removeTemplate(template)}
           />
 
           <section className="rounded-2xl border bg-card p-4 sm:p-5">
@@ -610,34 +525,6 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
           </div>
         </>
       ) : null}
-
-      <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
-        <DialogContent className="sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle>{editingTemplate ? "Изменить шаблон" : "Новый шаблон"}</DialogTitle>
-            <DialogDescription>Шаблон будет доступен в разделе «План» для специальности «{SPECIALTY_LABELS[form.specialty]}».</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4">
-            <div className="space-y-2">
-              <Label>Доступ</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => setTemplateScope("clinic")} aria-pressed={templateScope === "clinic"} className={cn("rounded-xl border p-3 text-left text-sm transition-colors", templateScope === "clinic" ? "border-primary bg-primary/8" : "hover:bg-muted")}>
-                  <span className="font-semibold">Шаблон клиники</span><span className="mt-1 block text-xs text-muted-foreground">Виден всем врачам инстанса</span>
-                </button>
-                <button type="button" onClick={() => setTemplateScope("doctor")} aria-pressed={templateScope === "doctor"} className={cn("rounded-xl border p-3 text-left text-sm transition-colors", templateScope === "doctor" ? "border-primary bg-primary/8" : "hover:bg-muted")}>
-                  <span className="font-semibold">Шаблон врача</span><span className="mt-1 block text-xs text-muted-foreground">Только для {doctorName.trim() || "указанного врача"}</span>
-                </button>
-              </div>
-            </div>
-            <div className="space-y-2"><Label htmlFor="template-title">Название</Label><Input id="template-title" value={templateTitle} onChange={(event) => setTemplateTitle(event.target.value)} placeholder="Например: Контрольный осмотр при атопии" /></div>
-            <div className="space-y-2"><Label htmlFor="template-body">Текст шаблона</Label><Textarea id="template-body" value={templateBody} onChange={(event) => setTemplateBody(event.target.value)} className="min-h-52 leading-6" /></div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setTemplateDialogOpen(false)}>Отмена</Button>
-            <Button type="button" onClick={() => void saveTemplate()} disabled={createTemplate.isPending || updateTemplate.isPending}>{createTemplate.isPending || updateTemplate.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}{editingTemplate ? "Сохранить" : "Создать шаблон"}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
