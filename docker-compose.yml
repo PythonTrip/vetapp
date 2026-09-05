@@ -2,7 +2,9 @@ services:
   api:
     build:
       context: ./apps/api
+    container_name: vetapp-api
     restart: unless-stopped
+
     environment:
       DATABASE_ADDRESS: ${DATABASE_ADDRESS:?Set DATABASE_ADDRESS in .env}
       DATABASE_PORT: ${DATABASE_PORT:-5432}
@@ -10,19 +12,28 @@ services:
       DATABASE_USER: ${DATABASE_USER:?Set DATABASE_USER in .env}
       DATABASE_PASSWORD: ${DATABASE_PASSWORD:?Set DATABASE_PASSWORD in .env}
       DATABASE_SSLMODE: ${DATABASE_SSLMODE:-prefer}
+
       INSTANCE_PASSWORD: ${INSTANCE_PASSWORD:?Set INSTANCE_PASSWORD in .env}
       FRONTEND_URL: ${FRONTEND_URL:-https://vetapp.syndex-ai.ru}
       ATTACHMENT_DIR: /data/attachments
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+
+    networks:
+      shared:
+        aliases:
+          - vetapp-api
+
+    # Loopback only — nginx must not proxy here; Next.js reaches API via Docker DNS.
     ports:
       - "127.0.0.1:${API_PORT:-8001}:8000"
+
     volumes:
       - attachments:/data/attachments
+
     command:
       - /bin/sh
       - -c
       - alembic upgrade head && exec uvicorn vetdietderm_api.main:app --host 0.0.0.0 --port 8000
+
     healthcheck:
       test:
         - CMD
@@ -38,13 +49,31 @@ services:
     build:
       context: ./frontend
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://vetapp.syndex-ai.ru/api}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
+        API_INTERNAL_URL: ${API_INTERNAL_URL:-http://vetapp-api:8000}
+
+    container_name: vetapp-frontend
     restart: unless-stopped
+
+    environment:
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://vetapp-api:8000}
+
+    networks:
+      shared:
+        aliases:
+          - vetapp-frontend
+
     ports:
       - "127.0.0.1:${FRONTEND_PORT:-3003}:3000"
+
     depends_on:
       api:
         condition: service_healthy
 
 volumes:
   attachments:
+
+networks:
+  shared:
+    external: true
+    name: shared-backend

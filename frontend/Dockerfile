@@ -4,8 +4,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-ARG NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+ARG NEXT_PUBLIC_API_URL=/api
+ARG API_INTERNAL_URL=http://vetapp-api:8000
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
+    API_INTERNAL_URL=$API_INTERNAL_URL \
     DOCKER_BUILD=1
 RUN npm run build
 
@@ -14,7 +16,8 @@ WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     HOSTNAME=0.0.0.0 \
-    PORT=3000
+    PORT=3000 \
+    API_INTERNAL_URL=http://vetapp-api:8000
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 COPY --from=builder --chown=node:node /app/public ./public

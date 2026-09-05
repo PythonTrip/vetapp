@@ -168,13 +168,40 @@ Copy-Item .env.example .env
 docker compose up -d --build
 ```
 
-Для PostgreSQL на компьютере с Docker задайте `DATABASE_ADDRESS=host.docker.internal` и опубликованный порт базы (в примере `15432`). Для удалённой базы укажите её DNS-имя/IP и порт (обычно `5432`). `127.0.0.1` внутри контейнера указывает на сам контейнер. PostgreSQL должен разрешать соединения из сети Docker.
+Для PostgreSQL на этом VPS задайте `DATABASE_ADDRESS=host.docker.internal` и опубликованный порт базы (в примере `15432`). Для удалённой базы укажите её DNS-имя/IP и порт (обычно `5432`). `127.0.0.1` внутри контейнера указывает на сам контейнер. PostgreSQL должен разрешать соединения из сети Docker.
 
 `DATABASE_SSLMODE` по умолчанию — `prefer`; для сервера, требующего TLS, задайте `require` или подходящий режим проверки сертификата. Пароль можно записать в одинарных кавычках, чтобы Compose не подставлял переменные вместо символов `$`. Спецсимволы в пароле кодировать как URL не нужно.
 
 Перед запуском API автоматически выполняется `alembic upgrade head` для указанной базы. Frontend запускается после успешной проверки API и подключения к БД. Вложения сохраняются в постоянном томе `attachments`; существующие локальные файлы из `data/attachments` в него автоматически не переносятся.
 
-Интерфейс: `http://127.0.0.1:3000`, API: `http://127.0.0.1:8000`. При доступе с другого компьютера укажите адрес сервера в `NEXT_PUBLIC_API_URL` и `FRONTEND_URL`. После изменения `NEXT_PUBLIC_API_URL` пересоберите frontend: `docker compose up -d --build frontend`.
+На VPS с несколькими приложениями схема такая:
+
+| Кто | Куда |
+| --- | --- |
+| nginx `vetapp.syndex-ai.ru` | только `127.0.0.1:3003` (vetapp-frontend) |
+| браузер | `https://…/api/*` → тот же frontend (Next rewrite) |
+| vetapp-frontend | Docker DNS `http://vetapp-api:8000` (сеть `shared-backend`) |
+| vetapp-api | Postgres по `DATABASE_ADDRESS` (у вас `pgsql` в `shared-backend`) |
+| отладка API с хоста | `127.0.0.1:8001` (в интернет не публиковать) |
+
+Порты на этом хосте (loopback): frontend `3003`, API `8001`; заняты другими стеками `3000`/`3001`/`3002`/`8000`. Имена в общей сети уникальны: `vetapp-api`, `vetapp-frontend` — не используйте короткое `api`, чтобы не пересечься с другими compose-проектами.
+
+Не проксируйте `/api` из nginx на FastAPI. После смены `NEXT_PUBLIC_API_URL` / `API_INTERNAL_URL` пересоберите: `docker compose up -d --build`.
+
+Пример nginx только для UI:
+
+```nginx
+server {
+    server_name vetapp.syndex-ai.ru;
+
+    location / {
+        proxy_pass http://127.0.0.1:3003;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
+```
 
 Логи: `docker compose logs -f`. Остановка: `docker compose down` (том вложений сохраняется).
 
@@ -197,7 +224,7 @@ npm install --prefix frontend
 npm run dev
 ```
 
-`NEXT_PUBLIC_API_URL` читается из корневого `.env` или из `frontend/.env`. UI: `http://127.0.0.1:3000`. API: `http://127.0.0.1:8000`.
+`NEXT_PUBLIC_API_URL` (по умолчанию `/api`) и `API_INTERNAL_URL` (локально `http://127.0.0.1:8000`) читаются из корневого `.env` или из `frontend/.env`. UI: `http://127.0.0.1:3000`. API: `http://127.0.0.1:8000` (через rewrite `/api`).
 
 API также читает `apps/api/.env`, значения которого имеют приоритет над корневым `.env`. Старый `DATABASE_URL` поддерживается и имеет приоритет над отдельными `DATABASE_*`; удалите его из env при переходе на новый формат. В Docker локальные env-файлы не копируются в образы, параметры передаёт Compose.
 
