@@ -11,12 +11,12 @@ services:
       DATABASE_PASSWORD: ${DATABASE_PASSWORD:?Set DATABASE_PASSWORD in .env}
       DATABASE_SSLMODE: ${DATABASE_SSLMODE:-prefer}
       INSTANCE_PASSWORD: ${INSTANCE_PASSWORD:?Set INSTANCE_PASSWORD in .env}
-      FRONTEND_URL: ${FRONTEND_URL:-http://127.0.0.1:3000}
+      FRONTEND_URL: ${FRONTEND_URL:-https://vetapp.syndex-ai.ru}
       ATTACHMENT_DIR: /data/attachments
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
-      - "8000:8000"
+      - "127.0.0.1:${API_PORT:-8001}:8000"
     volumes:
       - attachments:/data/attachments
     command:
@@ -38,10 +38,10 @@ services:
     build:
       context: ./frontend
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://127.0.0.1:8000}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://vetapp.syndex-ai.ru/api}
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "127.0.0.1:${FRONTEND_PORT:-3003}:3000"
     depends_on:
       api:
         condition: service_healthy
