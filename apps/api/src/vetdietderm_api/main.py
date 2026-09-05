@@ -11,6 +11,7 @@ from vetdietderm_api.assessments.router import router as assessments_router
 from vetdietderm_api.attachments import router as attachments_router
 from vetdietderm_api.auth import require_instance_password
 from vetdietderm_api.catalog import router as catalog_router
+from vetdietderm_api.clinical_catalog import router as clinical_catalog_router
 from vetdietderm_api.communications import router as communications_router
 from vetdietderm_api.db import ping_database
 from vetdietderm_api.encounters import router as encounters_router
@@ -64,6 +65,7 @@ def create_app() -> FastAPI:
     application.include_router(patients_router, dependencies=auth)
     application.include_router(encounters_router, dependencies=auth)
     application.include_router(encounter_templates_router, dependencies=auth)
+    application.include_router(clinical_catalog_router, dependencies=auth)
     application.include_router(attachments_router, dependencies=auth)
     application.include_router(appointments_router, dependencies=auth)
     application.include_router(communications_router, dependencies=auth)

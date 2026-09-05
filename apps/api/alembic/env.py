@@ -7,6 +7,7 @@ from vetdietderm_api.appointments import models as appointment_models  # noqa: F
 from vetdietderm_api.assessments import models as assessment_models  # noqa: F401
 from vetdietderm_api.attachments import models as attachment_models  # noqa: F401
 from vetdietderm_api.catalog import models as catalog_models  # noqa: F401
+from vetdietderm_api.clinical_catalog import models as clinical_catalog_models  # noqa: F401
 from vetdietderm_api.communications import models as communication_models  # noqa: F401
 from vetdietderm_api.encounters import models as encounter_models  # noqa: F401
 from vetdietderm_api.encounter_templates import models as encounter_template_models  # noqa: F401

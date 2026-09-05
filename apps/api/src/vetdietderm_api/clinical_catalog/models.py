@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
+from typing import Any
 from uuid import UUID
 
-from sqlalchemy import DateTime, Index, String, Text, Uuid
+from sqlalchemy import DateTime, Index, String, Uuid
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -13,19 +14,20 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-class EncounterTemplate(Base):
-    __tablename__ = "encounter_templates"
+class ClinicalCatalogItem(Base):
+    __tablename__ = "clinical_catalog_items"
     __table_args__ = (
-        Index("ix_encounter_templates_lookup", "section", "specialty", "scope"),
+        Index("ix_clinical_catalog_lookup", "kind", "scope", "specialty"),
+        Index("ix_clinical_catalog_owner", "doctor_name"),
     )
 
     uuid: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid6)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
     scope: Mapped[str] = mapped_column(String(16), nullable=False)
-    section: Mapped[str] = mapped_column(String(16), nullable=False)
-    specialty: Mapped[str] = mapped_column(String(32), nullable=False)
-    title: Mapped[str] = mapped_column(String(160), nullable=False)
-    body: Mapped[str] = mapped_column(Text, nullable=False)
-    definition: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    specialty: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    key: Mapped[str] = mapped_column(String(160), nullable=False)
+    label: Mapped[str] = mapped_column(String(160), nullable=False)
+    definition: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     doctor_name: Mapped[str | None] = mapped_column(String(160), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)

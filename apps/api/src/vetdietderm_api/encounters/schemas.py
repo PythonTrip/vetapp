@@ -44,8 +44,10 @@ class PrescriptionItem(BaseModel):
 
 class AnamnesisData(BaseModel):
     specialty: EncounterSpecialty
-    answers: dict[str, str | list[str]] = Field(default_factory=dict)
+    version: int = Field(default=1, ge=1)
+    answers: dict[str, Any] = Field(default_factory=dict)
     free_text: str | None = None
+    documents: dict[str, Any] | None = None
 
 
 class EncounterWrite(BaseModel):

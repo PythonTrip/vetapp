@@ -2,6 +2,8 @@ from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from vetdietderm_api.encounters.schemas import EncounterSpecialty
@@ -27,6 +29,7 @@ class EncounterTemplateWrite(BaseModel):
     specialty: EncounterSpecialty
     title: str = Field(min_length=1, max_length=160)
     body: str = Field(min_length=1)
+    definition: dict[str, Any] | None = None
     doctor_name: str | None = Field(default=None, max_length=160)
 
     @model_validator(mode="after")
@@ -48,6 +51,7 @@ class EncounterTemplateUpdate(BaseModel):
     specialty: EncounterSpecialty | None = None
     title: str | None = Field(default=None, min_length=1, max_length=160)
     body: str | None = Field(default=None, min_length=1)
+    definition: dict[str, Any] | None = None
     doctor_name: str | None = Field(default=None, max_length=160)
 
 
@@ -60,6 +64,7 @@ class EncounterTemplateRead(BaseModel):
     specialty: EncounterSpecialty
     title: str
     body: str
+    definition: dict[str, Any] | None
     doctor_name: str | None
     created_at: datetime
     updated_at: datetime
