@@ -179,7 +179,7 @@ docker compose up -d --build
 | Кто | Куда |
 | --- | --- |
 | nginx `vetapp.syndex-ai.ru` | только `127.0.0.1:3003` (vetapp-frontend) |
-| браузер | `https://…/api/*` → тот же frontend (Next rewrite) |
+| браузер | `https://…/api/*` → Next Route Handler → Docker DNS `vetapp-api` |
 | vetapp-frontend | Docker DNS `http://vetapp-api:8000` (сеть `shared-backend`) |
 | vetapp-api | Postgres по `DATABASE_ADDRESS` (у вас `pgsql` в `shared-backend`) |
 | отладка API с хоста | `127.0.0.1:8001` (в интернет не публиковать) |
@@ -224,7 +224,7 @@ npm install --prefix frontend
 npm run dev
 ```
 
-`NEXT_PUBLIC_API_URL` (по умолчанию `/api`) и `API_INTERNAL_URL` (локально `http://127.0.0.1:8000`) читаются из корневого `.env` или из `frontend/.env`. UI: `http://127.0.0.1:3000`. API: `http://127.0.0.1:8000` (через rewrite `/api`).
+`NEXT_PUBLIC_API_URL` (по умолчанию `/api`) и `API_INTERNAL_URL` (локально `http://127.0.0.1:8000`) читаются из корневого `.env` или из `frontend/.env`. UI: `http://127.0.0.1:3000`. API: через Route Handler `/api/*` → FastAPI.
 
 API также читает `apps/api/.env`, значения которого имеют приоритет над корневым `.env`. Старый `DATABASE_URL` поддерживается и имеет приоритет над отдельными `DATABASE_*`; удалите его из env при переходе на новый формат. В Docker локальные env-файлы не копируются в образы, параметры передаёт Compose.
 

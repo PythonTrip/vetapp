@@ -4,22 +4,9 @@ import path from "node:path";
 
 loadEnvConfig(path.join(__dirname, ".."));
 
-const apiInternalUrl = (process.env.API_INTERNAL_URL ?? "http://127.0.0.1:8000").replace(
-  /\/$/,
-  "",
-);
-
 const nextConfig: NextConfig = {
   output: process.env.DOCKER_BUILD === "1" ? "standalone" : undefined,
   reactStrictMode: true,
-  async rewrites() {
-    return [
-      {
-        source: "/api/:path*",
-        destination: `${apiInternalUrl}/:path*`,
-      },
-    ];
-  },
   async headers() {
     return [
       {
