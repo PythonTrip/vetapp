@@ -10,7 +10,7 @@ import {
   CirclePlus,
   ClipboardPlus,
   CopyPlus,
-  GripVertical,
+  MoreHorizontal,
   Library,
   ListPlus,
   Loader2,
@@ -32,6 +32,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -133,6 +134,7 @@ function SegmentedChoice({
     <div className="flex flex-wrap gap-1.5" role={multiple ? "group" : "radiogroup"} aria-label={field.label}>
       {options.map((item, index) => {
         const active = selected.includes(item.value);
+        const special = ["неизвестно", "не уточнялось", "не применимо"].includes(item.label.trim().toLocaleLowerCase("ru"));
         return (
           <button
             key={item.value}
@@ -162,11 +164,14 @@ function SegmentedChoice({
             }}
             className={cn(
               "min-h-9 rounded-lg border px-2.5 py-1 text-xs font-medium transition-[background-color,border-color,color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/45 disabled:cursor-not-allowed disabled:opacity-50",
-              active
-                ? "border-primary bg-primary text-primary-foreground shadow-[0_3px_10px_-7px_oklch(0.25_0.04_175/0.55)]"
+              special
+                ? active ? "border-foreground/50 bg-muted text-foreground" : "border-border bg-transparent text-muted-foreground hover:bg-muted"
+                : active
+                ? "border-primary bg-primary text-primary-foreground"
                 : "border-border/80 bg-background text-muted-foreground hover:border-primary/35 hover:bg-primary/5 hover:text-foreground",
             )}
           >
+            {special && active ? <Check className="mr-1 inline h-3 w-3" aria-hidden="true" /> : null}
             {item.label}
           </button>
         );
@@ -226,6 +231,7 @@ function FieldRow({
   value,
   note,
   disabled,
+  editingStructure,
   canMoveUp,
   canMoveDown,
   onValueChange,
@@ -237,6 +243,7 @@ function FieldRow({
   value: unknown;
   note?: string;
   disabled?: boolean;
+  editingStructure: boolean;
   canMoveUp: boolean;
   canMoveDown: boolean;
   onValueChange: (value: unknown) => void;
@@ -250,10 +257,9 @@ function FieldRow({
       : field.clarification.when.includes(String(value)));
 
   return (
-    <div className="group grid gap-2 border-t border-border/55 px-3 py-2.5 first:border-t-0 sm:grid-cols-[minmax(9.5rem,0.42fr)_minmax(0,1fr)_8.75rem] sm:items-start sm:px-4">
+    <div data-clinical-field={field.id} className={cn("group grid gap-2 border-t border-border/55 px-3 py-[0.55rem] first:border-t-0 sm:items-start sm:px-4", editingStructure ? "sm:grid-cols-[minmax(9.5rem,0.42fr)_minmax(0,1fr)_8.75rem]" : "sm:grid-cols-[minmax(9.5rem,0.42fr)_minmax(0,1fr)]")}>
       <div className="flex min-w-0 items-center gap-1.5 pt-1">
-        <GripVertical className="h-3.5 w-3.5 shrink-0 text-muted-foreground/35" aria-hidden="true" />
-        <span className="text-xs font-semibold leading-5 text-foreground/85">{field.label}</span>
+        <span className="text-xs font-semibold leading-5 text-foreground/85">{field.label}{field.type === "multi_select" ? <span className="block text-[10px] font-normal text-muted-foreground">Можно выбрать несколько</span> : null}</span>
       </div>
       <div className="min-w-0 space-y-2">
         <FieldControl field={field} value={value} disabled={disabled} onChange={onValueChange} />
@@ -268,11 +274,11 @@ function FieldRow({
           />
         ) : null}
       </div>
-      <div className="flex justify-end gap-0.5 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+      {editingStructure ? <div className="flex justify-end gap-0.5">
         <Button type="button" variant="ghost" size="icon" className="h-11 w-11" disabled={!canMoveUp || disabled} onClick={() => onMove(-1)} aria-label={`Переместить «${field.label}» выше`}><ArrowUp className="h-3.5 w-3.5" /></Button>
         <Button type="button" variant="ghost" size="icon" className="h-11 w-11" disabled={!canMoveDown || disabled} onClick={() => onMove(1)} aria-label={`Переместить «${field.label}» ниже`}><ArrowDown className="h-3.5 w-3.5" /></Button>
         <Button type="button" variant="ghost" size="icon" className="h-11 w-11 text-muted-foreground hover:text-destructive" disabled={disabled} onClick={onRemove} aria-label={`Убрать «${field.label}» из приёма`}><Trash2 className="h-3.5 w-3.5" /></Button>
-      </div>
+      </div> : null}
     </div>
   );
 }
@@ -283,6 +289,7 @@ function ClinicalSectionBlock({
   document,
   disabled,
   open,
+  editingStructure,
   canMoveUp,
   canMoveDown,
   onOpenChange,
@@ -298,6 +305,7 @@ function ClinicalSectionBlock({
   document: ClinicalDocument;
   disabled?: boolean;
   open: boolean;
+  editingStructure: boolean;
   canMoveUp: boolean;
   canMoveDown: boolean;
   onOpenChange: (open: boolean) => void;
@@ -312,13 +320,12 @@ function ClinicalSectionBlock({
   const statusField = fields.find((field) => field.id === section.statusFieldId);
   const statusValue = document.values.find((item) => item.fieldId === section.statusFieldId)?.value;
   const compactNormal = section.disclosure === "system" && statusValue === "normal";
-  const revealChanges = section.disclosure !== "system" || statusValue === "changes";
   const visibleFields = fields.filter((field) => field.id !== section.statusFieldId);
 
   return (
     <div className={cn("border-b border-border/70 last:border-b-0", open && "bg-card")}>
       <div className="flex min-h-12 items-center gap-2 px-3 py-2 sm:px-4">
-        <button type="button" onClick={() => onOpenChange(!open)} className="flex min-w-0 flex-1 items-center gap-2 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/45" aria-expanded={open}>
+        <button type="button" onClick={() => onOpenChange(!open)} className="flex min-h-9 min-w-0 flex-1 items-center gap-2 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/45" aria-expanded={open}>
           {open ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
           <span className="truncate text-sm font-semibold">{section.label}</span>
           {completion.filled === completion.total && completion.total > 0 ? <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" /> : null}
@@ -326,20 +333,20 @@ function ClinicalSectionBlock({
         <span className={cn("shrink-0 text-xs tabular-nums", completion.filled ? "font-medium text-foreground" : "text-muted-foreground")}>
           {completion.filled ? `${completion.filled}/${completion.total}` : "—"}
         </span>
-        <div className="flex shrink-0 gap-0.5">
+        {editingStructure ? <div className="flex shrink-0 gap-0.5">
           <Button type="button" variant="ghost" size="icon" className="h-11 w-11" disabled={!canMoveUp || disabled} onClick={() => onMoveSection(-1)} aria-label={`Переместить раздел «${section.label}» выше`}><ArrowUp className="h-3.5 w-3.5" /></Button>
           <Button type="button" variant="ghost" size="icon" className="h-11 w-11" disabled={!canMoveDown || disabled} onClick={() => onMoveSection(1)} aria-label={`Переместить раздел «${section.label}» ниже`}><ArrowDown className="h-3.5 w-3.5" /></Button>
           <Button type="button" variant="ghost" size="icon" className="h-11 w-11 text-muted-foreground hover:text-destructive" disabled={disabled} onClick={onRemoveSection} aria-label={`Убрать раздел «${section.label}» из приёма`}><Trash2 className="h-3.5 w-3.5" /></Button>
-        </div>
+        </div> : null}
       </div>
 
       {section.disclosure === "system" && statusField ? (
-        <div className={cn("px-4 pb-3 pl-9", compactNormal && !open && "pb-2.5")}>
+        <div data-clinical-field={statusField.id} className={cn("px-4 pb-3 pl-9", compactNormal && !open && "pb-2.5")}>
           <SegmentedChoice field={statusField} value={statusValue} disabled={disabled} onChange={(value) => onFieldValue(statusField, value)} />
         </div>
       ) : null}
 
-      {open && revealChanges ? (
+      {open ? (
         <div className="border-t border-border/55 bg-muted/[0.12]">
           {visibleFields.map((field, index) => {
             const fieldValue = document.values.find((item) => item.fieldId === field.id);
@@ -350,6 +357,7 @@ function ClinicalSectionBlock({
                 value={fieldValue?.value}
                 note={fieldValue?.note}
                 disabled={disabled}
+                editingStructure={editingStructure}
                 canMoveUp={index > 0}
                 canMoveDown={index < visibleFields.length - 1}
                 onValueChange={(value) => onFieldValue(field, value)}
@@ -376,6 +384,11 @@ export function ClinicalFormBuilder({
   saveState,
   onChange,
 }: Props) {
+  const rootRef = React.useRef<HTMLElement>(null);
+  const searchRef = React.useRef<HTMLInputElement>(null);
+  const [editingStructure, setEditingStructure] = React.useState(false);
+  const [actionsOpen, setActionsOpen] = React.useState(false);
+  const [focusFieldId, setFocusFieldId] = React.useState<string | null>(null);
   const [mode, setMode] = React.useState<"structured" | "text">("structured");
   const [libraryTab, setLibraryTab] = React.useState<"templates" | "fields">("templates");
   const [scope, setScope] = React.useState<ClinicalItemScope | "all">("all");
@@ -416,6 +429,38 @@ export function ClinicalFormBuilder({
   });
   const frequentFields = availableFields.filter((field) => field.frequent);
 
+  React.useEffect(() => {
+    if (!focusFieldId || mode !== "structured") return;
+    const row = Array.from(rootRef.current?.querySelectorAll<HTMLElement>("[data-clinical-field]") ?? [])
+      .find((node) => node.dataset.clinicalField === focusFieldId);
+    if (!row) return;
+    row.scrollIntoView({ block: "center", behavior: "instant" });
+    row.querySelector<HTMLElement>('input:not(:disabled), button:not(:disabled)[tabindex="0"], button:not(:disabled)')?.focus({ preventScroll: true });
+    setFocusFieldId(null);
+  }, [focusFieldId, mode, openSections, value]);
+
+  function isFieldAdded(field: ClinicalField) {
+    const section = activeSections.find((item) => item.id === field.sectionId);
+    return !!section && (value.sectionFieldIds[section.id] ?? section.fieldIds).includes(field.id);
+  }
+
+  const normalSystems = activeSections.flatMap((section) => {
+    const field = catalog.fields.find((item) => item.id === section.statusFieldId);
+    return section.disclosure === "system" && field && isFieldAdded(field) && field.options?.some((option) => option.value === "normal" && option.normal)
+      ? [{ section, field }] : [];
+  });
+
+  function markAllNormal() {
+    if (disabled) return;
+    const clearedIds = new Set(normalSystems.flatMap(({ section }) => value.sectionFieldIds[section.id] ?? section.fieldIds));
+    commit({ ...value, values: [
+      ...value.values.filter((item) => !clearedIds.has(item.fieldId)),
+      ...normalSystems.map(({ field }) => ({ fieldId: field.id, type: field.type, value: "normal" })),
+    ] });
+    setOpenSections((current) => new Set([...current].filter((id) => !normalSystems.some(({ section }) => section.id === id))));
+    toast.success("Системы отмечены без особенностей");
+  }
+
   function commit(next: ClinicalDocument, forceRegenerate = false) {
     const shouldGenerate = forceRegenerate || !next.textEdited;
     onChange({ ...next, finalText: shouldGenerate ? generateClinicalText(next, catalog) : next.finalText });
@@ -433,10 +478,20 @@ export function ClinicalFormBuilder({
       const dependentIds = new Set((value.sectionFieldIds[section.id] ?? section.fieldIds).filter((id) => id !== field.id));
       values = values.filter((item) => !dependentIds.has(item.fieldId));
     }
+    if (section?.disclosure === "system" && field.key.endsWith("_changes") && !isEmptyClinicalValue(fieldValue)) {
+      const status = catalog.fields.find((item) => item.id === section.statusFieldId);
+      if (status && isFieldAdded(status)) {
+        values = values.filter((item) => item.fieldId !== status.id);
+        values.push({ fieldId: status.id, type: status.type, value: "changes" });
+      }
+    }
     if (!isEmptyClinicalValue(fieldValue)) values.push({ fieldId: field.id, type: field.type, value: fieldValue, note: clarificationActive ? previous?.note : undefined });
     const next = { ...value, values };
     commit(next);
-    if (field.id.endsWith("_status") && fieldValue === "changes") {
+    if (section?.statusFieldId === field.id && fieldValue === "normal") {
+      setOpenSections((current) => { const next = new Set(current); next.delete(section.id); return next; });
+    }
+    if (section?.statusFieldId === field.id && fieldValue === "changes") {
       setOpenSections((current) => new Set(current).add(field.sectionId));
     }
   }
@@ -465,6 +520,10 @@ export function ClinicalFormBuilder({
   }
 
   function addField(field: ClinicalField) {
+    setMode("structured");
+    setOpenSections((current) => new Set(current).add(field.sectionId));
+    setFocusFieldId(field.id);
+    if (isFieldAdded(field) || disabled) return;
     const section = catalog.sections.find((item) => item.id === field.sectionId);
     if (!section) return;
     const sectionIds = value.sectionIds.includes(section.id) ? value.sectionIds : [...value.sectionIds, section.id];
@@ -653,7 +712,7 @@ export function ClinicalFormBuilder({
     : "Норму отмечайте одним кликом; подробности открываются только при изменениях.";
 
   return (
-    <section className="overflow-hidden rounded-2xl bg-card shadow-[0_12px_34px_-26px_oklch(0.25_0.04_175/0.38)] ring-1 ring-border">
+    <section ref={rootRef} className="overflow-hidden rounded-2xl bg-card shadow-[0_12px_34px_-26px_oklch(0.25_0.04_175/0.38)] ring-1 ring-border">
       <div className="flex flex-col gap-3 border-b bg-muted/30 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
         <div className="min-w-0">
           <div className="flex items-center gap-2.5">
@@ -678,6 +737,7 @@ export function ClinicalFormBuilder({
         <div className="min-h-[360px] min-w-0 xl:border-r">
           {mode === "structured" ? (
             <div>
+              {kind === "exam" && normalSystems.length > 0 ? <div className="border-b px-4 py-2"><Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={markAllNormal}><Check className="h-4 w-4" />Отметить всё без особенностей</Button></div> : null}
               {activeSections.map((section, index) => {
                 const fieldIds = value.sectionFieldIds[section.id] ?? section.fieldIds;
                 const sectionFields = fieldIds.flatMap((id) => {
@@ -692,6 +752,7 @@ export function ClinicalFormBuilder({
                     document={value}
                     disabled={disabled}
                     open={openSections.has(section.id)}
+                    editingStructure={editingStructure}
                     canMoveUp={index > 0}
                     canMoveDown={index < activeSections.length - 1}
                     onOpenChange={(open) => setOpenSections((current) => {
@@ -715,10 +776,17 @@ export function ClinicalFormBuilder({
                   <p className="mt-1 max-w-sm text-xs leading-5 text-muted-foreground">Выберите готовую структуру справа — её можно изменить и сохранить как собственную.</p>
                 </div>
               ) : null}
-              <div className="flex flex-wrap gap-2 border-t bg-muted/15 px-4 py-3">
-                <Button type="button" variant="ghost" size="sm" onClick={() => { setLibraryTab("fields"); setQuery(""); }}><Plus className="h-3.5 w-3.5" />Добавить пункт</Button>
-                <Button type="button" variant="ghost" size="sm" onClick={() => openItemDialog("section")}><ListPlus className="h-3.5 w-3.5" />Новый раздел</Button>
-                <Button type="button" variant="ghost" size="sm" onClick={() => { setTemplateDefinition(null); setTemplateTitle(""); setTemplateDialog(true); }}><CopyPlus className="h-3.5 w-3.5" />Сохранить как шаблон</Button>
+              <div className="flex flex-wrap items-center gap-2 border-t bg-muted/15 px-4 py-3">
+                <Button type="button" variant="outline" size="sm" disabled={disabled} onClick={() => { setLibraryTab("fields"); setQuery(""); searchRef.current?.focus(); searchRef.current?.scrollIntoView({ block: "nearest" }); }}><Plus className="h-3.5 w-3.5" />Добавить пункт</Button>
+                {editingStructure ? <Button type="button" variant="ghost" size="sm" onClick={() => setEditingStructure(false)}><Check className="h-3.5 w-3.5" />Готово</Button> : null}
+                <Popover open={actionsOpen} onOpenChange={setActionsOpen}>
+                  <PopoverTrigger asChild><Button type="button" variant="ghost" size="icon" aria-label="Действия со структурой" disabled={disabled}><MoreHorizontal className="h-4 w-4" /></Button></PopoverTrigger>
+                  <PopoverContent align="start" className="w-64 p-1" aria-label="Действия со структурой">
+                    <Button type="button" variant="ghost" className="w-full justify-start" onClick={() => { setActionsOpen(false); setEditingStructure(!editingStructure); }}>{editingStructure ? "Завершить настройку структуры" : "Настроить структуру"}</Button>
+                    <Button type="button" variant="ghost" className="w-full justify-start" onClick={() => { setActionsOpen(false); openItemDialog("section"); }}><ListPlus className="h-3.5 w-3.5" />Новый раздел</Button>
+                    <Button type="button" variant="ghost" className="w-full justify-start" onClick={() => { setActionsOpen(false); setTemplateDefinition(null); setTemplateTitle(""); setTemplateDialog(true); }}><CopyPlus className="h-3.5 w-3.5" />Сохранить как шаблон</Button>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
           ) : (
@@ -740,16 +808,16 @@ export function ClinicalFormBuilder({
           )}
         </div>
 
-        <aside className="min-h-[360px] bg-muted/15">
-          <Tabs value={libraryTab} onValueChange={(next) => setLibraryTab(next as "templates" | "fields")}>
-            <div className="border-b p-3">
+        <aside aria-label="Библиотека клинических пунктов" className="h-[min(40rem,75dvh)] min-h-80 min-w-0 self-start overflow-hidden bg-muted/15">
+          <Tabs value={libraryTab} onValueChange={(next) => setLibraryTab(next as "templates" | "fields")} className="h-full min-h-0 gap-0">
+            <div className="shrink-0 border-b p-3">
               <TabsList className="grid h-8 w-full grid-cols-2 bg-muted/70">
                 <TabsTrigger value="templates" className="text-xs">Шаблоны</TabsTrigger>
                 <TabsTrigger value="fields" className="text-xs">Пункты</TabsTrigger>
               </TabsList>
               <div className="relative mt-3">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={libraryTab === "templates" ? "Найти шаблон" : "Например, вакцинация"} className="h-8 bg-background pl-8 text-xs" />
+                <Input ref={searchRef} aria-label="Поиск в библиотеке" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={libraryTab === "templates" ? "Найти шаблон" : "Например, вакцинация"} className="h-8 bg-background pl-8 text-xs" />
               </div>
               <div className="mt-2 flex flex-wrap gap-1">
                 {(["all", "standard", "clinic", "doctor"] as const).map((item) => (
@@ -758,7 +826,7 @@ export function ClinicalFormBuilder({
               </div>
             </div>
 
-            <TabsContent value="templates" className="m-0 p-2.5">
+            <TabsContent value="templates" className="m-0 min-h-0 overflow-y-auto overscroll-y-contain p-2.5 [scrollbar-gutter:stable]">
               <div className="space-y-1">
                 {availableTemplates.map((template) => (
                   <div key={template.id} className="group flex items-center gap-1 rounded-lg px-2 py-2 hover:bg-background focus-within:bg-background">
@@ -776,19 +844,23 @@ export function ClinicalFormBuilder({
 
             </TabsContent>
 
-            <TabsContent value="fields" className="m-0 p-2.5">
+            <TabsContent value="fields" className="m-0 min-h-0 flex-col overflow-hidden data-[state=active]:flex">
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-2.5 [scrollbar-gutter:stable]" tabIndex={0} role="region" aria-label="Список клинических пунктов">
               {!normalizedQuery && frequentFields.length ? (
                 <div className="mb-3">
                   <p className="px-2 pb-1.5 text-[10px] font-semibold text-muted-foreground">Часто используемые</p>
-                  {frequentFields.map((field) => <FieldLibraryRow key={field.id} field={field} onAdd={() => addField(field)} onDelete={field.scope && field.scope !== "standard" ? () => void deleteCustomCatalogItem(field.id, field.label) : undefined} />)}
+                  {frequentFields.map((field) => <FieldLibraryRow key={field.id} field={field} added={isFieldAdded(field)} disabled={disabled && !isFieldAdded(field)} onAdd={() => addField(field)} onDelete={editingStructure && !disabled && field.scope && field.scope !== "standard" ? () => void deleteCustomCatalogItem(field.id, field.label) : undefined} />)}
                 </div>
               ) : null}
               <div>
                 <p className="px-2 pb-1.5 text-[10px] font-semibold text-muted-foreground">{normalizedQuery ? "Результаты" : "Все пункты"}</p>
-                {availableFields.map((field) => <FieldLibraryRow key={field.id} field={field} onAdd={() => addField(field)} onDelete={field.scope && field.scope !== "standard" ? () => void deleteCustomCatalogItem(field.id, field.label) : undefined} />)}
+                {availableFields.map((field) => <FieldLibraryRow key={field.id} field={field} added={isFieldAdded(field)} disabled={disabled && !isFieldAdded(field)} onAdd={() => addField(field)} onDelete={editingStructure && !disabled && field.scope && field.scope !== "standard" ? () => void deleteCustomCatalogItem(field.id, field.label) : undefined} />)}
                 {!availableFields.length ? <p className="px-3 py-8 text-center text-xs text-muted-foreground">Пункты не найдены.</p> : null}
               </div>
-              <Button type="button" variant="outline" size="sm" className="mt-3 w-full" onClick={() => openItemDialog("field")}><CirclePlus className="h-3.5 w-3.5" />Создать свой пункт</Button>
+              </div>
+              <div className="shrink-0 border-t p-2.5">
+                <Button type="button" variant="outline" size="sm" className="w-full" disabled={disabled} onClick={() => openItemDialog("field")}><CirclePlus className="h-3.5 w-3.5" />Создать свой пункт</Button>
+              </div>
             </TabsContent>
           </Tabs>
         </aside>
@@ -832,11 +904,11 @@ export function ClinicalFormBuilder({
   );
 }
 
-function FieldLibraryRow({ field, onAdd, onDelete }: { field: ClinicalField; onAdd: () => void; onDelete?: () => void }) {
+function FieldLibraryRow({ field, added, disabled, onAdd, onDelete }: { field: ClinicalField; added: boolean; disabled?: boolean; onAdd: () => void; onDelete?: () => void }) {
   return (
     <div className="group flex items-center rounded-lg transition-colors hover:bg-background focus-within:bg-background">
-      <button type="button" onClick={onAdd} className="flex min-h-9 min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/45">
-        <Plus className="h-3.5 w-3.5 shrink-0 text-primary" />
+      <button type="button" disabled={disabled} aria-label={`${added ? "Перейти к пункту" : "Добавить пункт"} «${field.label}»`} onClick={onAdd} className="flex min-h-9 min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/45">
+        {added ? <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> : <Plus className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
         <span className="min-w-0 flex-1 truncate text-xs font-medium">{field.label}</span>
         <span className="text-[9px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">{FIELD_TYPE_LABELS[field.type]}</span>
       </button>
