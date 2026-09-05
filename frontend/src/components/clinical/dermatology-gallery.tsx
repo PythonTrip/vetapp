@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { BODY_REGIONS } from "@/lib/anamnesis-schema";
+import { BODY_REGIONS } from "@/lib/body-regions";
 import { attachmentsApi, type AttachmentRecord, type EncounterRecord } from "@/lib/api-client";
 import { SPECIALTY_LABELS, formatDateTime } from "@/lib/clinical-labels";
 import {

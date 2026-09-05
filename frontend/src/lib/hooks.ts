@@ -9,6 +9,7 @@ import {
   attachmentsApi,
   clientsApi,
   communicationsApi,
+  clinicalCatalogApi,
   encounterTemplatesApi,
   dietPlansApi,
   encountersApi,
@@ -20,6 +21,7 @@ import {
   type AttachmentPatch,
   type ClientWrite,
   type CommunicationWrite,
+  type ClinicalCatalogItemWrite,
   type AssessmentAnimal,
   type AssessmentRecord,
   type AssessmentRequestPayload,
@@ -482,6 +484,45 @@ export function useDeleteEncounterTemplate() {
     mutationFn: (id: string) => encounterTemplatesApi.delete(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["encounter-templates"] });
+    },
+  });
+}
+
+export function useClinicalCatalogQuery(doctorName?: string) {
+  return useQuery({
+    queryKey: ["clinical-catalog", doctorName?.trim() ?? ""],
+    queryFn: () => clinicalCatalogApi.list(doctorName),
+    retry: retryUnlessClientError,
+  });
+}
+
+export function useCreateClinicalCatalogItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: ClinicalCatalogItemWrite) => clinicalCatalogApi.create(body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["clinical-catalog"] });
+    },
+  });
+}
+
+export function useUpdateClinicalCatalogItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: Partial<ClinicalCatalogItemWrite> }) =>
+      clinicalCatalogApi.update(id, body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["clinical-catalog"] });
+    },
+  });
+}
+
+export function useDeleteClinicalCatalogItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => clinicalCatalogApi.delete(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["clinical-catalog"] });
     },
   });
 }

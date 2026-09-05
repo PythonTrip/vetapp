@@ -45,7 +45,23 @@ export class ApiConnectionError extends Error {
 
 type JsonRequestInit = Omit<RequestInit, "body"> & {
   body?: unknown;
+  authRecovery?: boolean;
 };
+
+interface AuthRecoveryHandlers {
+  recover: () => Promise<boolean>;
+  onUnauthenticated: () => void;
+}
+
+let authRecoveryHandlers: AuthRecoveryHandlers | null = null;
+let recoveryFlight: Promise<boolean> | null = null;
+
+export function registerAuthRecovery(handlers: AuthRecoveryHandlers): () => void {
+  authRecoveryHandlers = handlers;
+  return () => {
+    if (authRecoveryHandlers === handlers) authRecoveryHandlers = null;
+  };
+}
 
 function resolveUrl(input: string): string {
   if (input.startsWith("http://") || input.startsWith("https://")) return input;
@@ -79,41 +95,82 @@ async function readPayload(response: Response): Promise<unknown> {
   return text || undefined;
 }
 
+function authenticatedHeaders(headers?: HeadersInit): Headers {
+  const requestHeaders = new Headers(headers);
+  const token = getInstanceToken();
+  if (token) requestHeaders.set("Authorization", `Bearer ${token}`);
+  return requestHeaders;
+}
+
+async function fetchResponse(input: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(resolveUrl(input), init);
+  } catch {
+    throw new ApiConnectionError("API unavailable");
+  }
+}
+
+async function recoverSession(): Promise<boolean> {
+  if (!authRecoveryHandlers) {
+    clearInstanceToken();
+    return false;
+  }
+  if (!recoveryFlight) {
+    const handlers = authRecoveryHandlers;
+    recoveryFlight = handlers.recover()
+      .catch(() => false)
+      .then((recovered) => {
+        if (!recovered) handlers.onUnauthenticated();
+        return recovered;
+      })
+      .finally(() => {
+        recoveryFlight = null;
+      });
+  }
+  return recoveryFlight;
+}
+
+async function fetchWithAuthRecovery(
+  input: string,
+  init: RequestInit,
+  allowRecovery: boolean,
+): Promise<Response> {
+  const execute = () => fetchResponse(input, {
+    ...init,
+    headers: authenticatedHeaders(init.headers),
+  });
+  const response = await execute();
+  if (response.status !== 401 || !allowRecovery) return response;
+  return await recoverSession() ? execute() : response;
+}
+
+function apiError(response: Response, payload: unknown, fallbackMessage: string): ApiError {
+  const record = payload && typeof payload === "object" ? payload as ApiErrorPayload : undefined;
+  return new ApiError(
+    messageFromPayload(payload, fallbackMessage),
+    response.status,
+    record?.details ?? (record?.detail && typeof record.detail === "object" ? record.detail : undefined),
+  );
+}
+
 export async function apiRequest<T>(
   input: string,
-  { body, headers, ...init }: JsonRequestInit = {},
+  { body, headers, authRecovery = true, ...init }: JsonRequestInit = {},
   fallbackMessage = "Request failed",
 ): Promise<T> {
-  const token = getInstanceToken();
   const requestHeaders = new Headers(headers);
   if (body !== undefined && !requestHeaders.has("Content-Type")) {
     requestHeaders.set("Content-Type", "application/json");
   }
-  if (token) {
-    requestHeaders.set("Authorization", `Bearer ${token}`);
-  }
-
-  let response: Response;
-  try {
-    response = await fetch(resolveUrl(input), {
-      ...init,
-      headers: requestHeaders,
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-  } catch {
-    throw new ApiConnectionError("API unavailable");
-  }
+  const response = await fetchWithAuthRecovery(input, {
+    ...init,
+    headers: requestHeaders,
+    body: body === undefined ? undefined : JSON.stringify(body),
+  }, authRecovery);
 
   const payload = await readPayload(response);
 
-  if (!response.ok) {
-    const record = payload && typeof payload === "object" ? payload as ApiErrorPayload : undefined;
-    throw new ApiError(
-      messageFromPayload(payload, fallbackMessage),
-      response.status,
-      record?.details ?? (record?.detail && typeof record.detail === "object" ? record.detail : undefined),
-    );
-  }
+  if (!response.ok) throw apiError(response, payload, fallbackMessage);
 
   return payload as T;
 }
@@ -123,52 +180,19 @@ export async function apiUpload<T>(
   body: FormData,
   fallbackMessage = "Request failed",
 ): Promise<T> {
-  const token = getInstanceToken();
-  const requestHeaders = new Headers();
-  if (token) {
-    requestHeaders.set("Authorization", `Bearer ${token}`);
-  }
-
-  let response: Response;
-  try {
-    response = await fetch(resolveUrl(input), {
-      method: "POST",
-      headers: requestHeaders,
-      body,
-    });
-  } catch {
-    throw new ApiConnectionError("API unavailable");
-  }
+  const response = await fetchWithAuthRecovery(input, { method: "POST", body }, true);
 
   const payload = await readPayload(response);
-  if (!response.ok) {
-    const record = payload && typeof payload === "object" ? payload as ApiErrorPayload : undefined;
-    throw new ApiError(
-      messageFromPayload(payload, fallbackMessage),
-      response.status,
-      record?.details ?? (record?.detail && typeof record.detail === "object" ? record.detail : undefined),
-    );
-  }
+  if (!response.ok) throw apiError(response, payload, fallbackMessage);
   return payload as T;
 }
 
 export async function apiBlob(input: string, fallbackMessage = "Request failed"): Promise<Blob> {
-  const token = getInstanceToken();
-  const requestHeaders = new Headers();
-  if (token) {
-    requestHeaders.set("Authorization", `Bearer ${token}`);
-  }
-
-  let response: Response;
-  try {
-    response = await fetch(resolveUrl(input), { headers: requestHeaders });
-  } catch {
-    throw new ApiConnectionError("API unavailable");
-  }
+  const response = await fetchWithAuthRecovery(input, {}, true);
 
   if (!response.ok) {
     const payload = await readPayload(response);
-    throw new ApiError(messageFromPayload(payload, fallbackMessage), response.status);
+    throw apiError(response, payload, fallbackMessage);
   }
   return response.blob();
 }
@@ -720,6 +744,8 @@ export type CommunicationChannel = "phone" | "email" | "text" | "video" | "in_pe
 export type CommunicationDirection = "inbound" | "outbound";
 export type EncounterTemplateScope = "standard" | "clinic" | "doctor";
 export type EncounterTemplateSection = "anamnesis" | "exam" | "plan";
+export type ClinicalCatalogKind = "field" | "section";
+export type ClinicalCatalogScope = "clinic" | "doctor";
 
 export interface PrescriptionItem {
   name: string;
@@ -731,8 +757,10 @@ export interface PrescriptionItem {
 
 export interface AnamnesisData {
   specialty: EncounterSpecialty;
-  answers: Record<string, string | string[]>;
+  version?: number;
+  answers: Record<string, unknown>;
   free_text?: string | null;
+  documents?: Record<string, unknown> | null;
 }
 
 export interface EncounterRecord {
@@ -845,6 +873,7 @@ export interface EncounterTemplateRecord {
   specialty: EncounterSpecialty;
   title: string;
   body: string;
+  definition: Record<string, unknown> | null;
   doctor_name: string | null;
   created_at: string;
   updated_at: string;
@@ -856,6 +885,30 @@ export interface EncounterTemplateWrite {
   specialty: EncounterSpecialty;
   title: string;
   body: string;
+  definition?: Record<string, unknown> | null;
+  doctor_name?: string | null;
+}
+
+export interface ClinicalCatalogItemRecord {
+  uuid: string;
+  kind: ClinicalCatalogKind;
+  scope: ClinicalCatalogScope;
+  specialty: EncounterSpecialty | null;
+  key: string;
+  label: string;
+  definition: Record<string, unknown>;
+  doctor_name: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClinicalCatalogItemWrite {
+  kind: ClinicalCatalogKind;
+  scope: ClinicalCatalogScope;
+  specialty?: EncounterSpecialty | null;
+  key: string;
+  label: string;
+  definition: Record<string, unknown>;
   doctor_name?: string | null;
 }
 
@@ -888,6 +941,26 @@ export const encounterTemplatesApi = {
   ) => api.patch<EncounterTemplateRecord>(`/encounter-templates/${id}`, body, fallbackMessage),
   delete: (id: string, fallbackMessage = "Не удалось удалить шаблон") =>
     api.delete(`/encounter-templates/${id}`, fallbackMessage),
+};
+
+function clinicalCatalogListUrl(doctorName?: string): string {
+  if (!doctorName?.trim()) return "/clinical-catalog";
+  const params = new URLSearchParams({ doctorName: doctorName.trim() });
+  return `/clinical-catalog?${params.toString()}`;
+}
+
+export const clinicalCatalogApi = {
+  list: (doctorName?: string, fallbackMessage = "Не удалось загрузить клинические пункты") =>
+    api.get<ClinicalCatalogItemRecord[]>(clinicalCatalogListUrl(doctorName), fallbackMessage),
+  create: (body: ClinicalCatalogItemWrite, fallbackMessage = "Не удалось создать клинический пункт") =>
+    api.post<ClinicalCatalogItemRecord>("/clinical-catalog", body, fallbackMessage),
+  update: (
+    id: string,
+    body: Partial<ClinicalCatalogItemWrite>,
+    fallbackMessage = "Не удалось сохранить клинический пункт",
+  ) => api.patch<ClinicalCatalogItemRecord>(`/clinical-catalog/${id}`, body, fallbackMessage),
+  delete: (id: string, fallbackMessage = "Не удалось удалить клинический пункт") =>
+    api.delete(`/clinical-catalog/${id}`, fallbackMessage),
 };
 
 export const attachmentsApi = {

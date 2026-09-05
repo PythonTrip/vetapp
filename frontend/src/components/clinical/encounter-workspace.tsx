@@ -5,21 +5,14 @@ import Link from "next/link";
 import {
   CalendarCheck,
   Check,
-  ChevronRight,
-  ClipboardList,
-  FilePlus2,
   Loader2,
-  Pencil,
-  Plus,
-  Save,
-  Search,
   Stethoscope,
-  Trash2,
   UserRound,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PlanEditor } from "@/components/clinical/plan-editor";
+import { ClinicalFormBuilder } from "@/components/clinical/clinical-form-builder";
 import {
   Dialog,
   DialogContent,
@@ -45,8 +38,6 @@ import type {
   EncounterRecord,
   EncounterSpecialty,
   EncounterTemplateRecord,
-  EncounterTemplateScope,
-  EncounterTemplateSection,
   EncounterType,
   EncounterWrite,
 } from "@/lib/api-client";
@@ -60,6 +51,7 @@ import {
 } from "@/lib/clinical-labels";
 import {
   useAppointmentsQuery,
+  useClinicalCatalogQuery,
   useCreateEncounter,
   useCreateEncounterTemplate,
   useDebouncedValue,
@@ -71,43 +63,19 @@ import {
   useUpdateEncounter,
   useUpdateEncounterTemplate,
 } from "@/lib/hooks";
+import {
+  adaptClinicalDocument,
+  catalogFromRecords,
+  createClinicalDocument,
+  defaultTemplate,
+  structuredTemplatesFromRecords,
+  SYSTEM_CLINICAL_CATALOG,
+  type ClinicalDocument,
+} from "@/lib/clinical-builder";
 import { apiErrorMessage, speciesLabel } from "@/lib/patient-form";
 import { cn } from "@/lib/utils";
 
 const DOCTOR_NAME_KEY = "vetdietderm.doctor_name";
-
-const SCOPE_LABELS: Record<EncounterTemplateScope, string> = {
-  standard: "Стандарт",
-  clinic: "Клиника",
-  doctor: "Врач",
-};
-
-const SECTION_META: Record<
-  EncounterTemplateSection,
-  { title: string; genitive: string; description: string; placeholder: string; icon: React.ElementType }
-> = {
-  anamnesis: {
-    title: "Анамнез",
-    genitive: "анамнеза",
-    description: "История жалоб, динамика, прежнее лечение и важные сведения владельца.",
-    placeholder: "Введите анамнез или примените шаблон справа…",
-    icon: ClipboardList,
-  },
-  exam: {
-    title: "Осмотр",
-    genitive: "осмотра",
-    description: "Объективные данные клинического осмотра и выполненных исследований.",
-    placeholder: "Опишите результаты осмотра…",
-    icon: Stethoscope,
-  },
-  plan: {
-    title: "План",
-    genitive: "плана",
-    description: "Диагностика, назначения, рекомендации владельцу и контроль.",
-    placeholder: "Сформируйте план диагностики и лечения…",
-    icon: CalendarCheck,
-  },
-};
 
 function appointmentLabel(appointment: AppointmentRecord): string {
   return `${formatDateTime(appointment.starts_at)} · ${appointment.patient.name} · ${VISIT_TYPE_LABELS[appointment.visit_type]}`;
@@ -119,169 +87,12 @@ function emptyForm() {
     type: "appointment" as EncounterType,
     occurredAt: toDateTimeLocal(new Date().toISOString()),
     chiefComplaint: "",
-    anamnesis: "",
-    exam: "",
+    anamnesisDoc: createClinicalDocument(defaultTemplate("general", "anamnesis")),
+    examDoc: createClinicalDocument(defaultTemplate("general", "exam")),
     plan: "",
     diagnoses: "",
     vasScore: null as number | null,
   };
-}
-
-type SectionEditorProps = {
-  section: EncounterTemplateSection;
-  value: string;
-  templates: EncounterTemplateRecord[];
-  pending?: boolean;
-  onChange: (value: string) => void;
-  onCreate: (section: EncounterTemplateSection, body: string) => void;
-  onEdit: (template: EncounterTemplateRecord) => void;
-  onDelete: (template: EncounterTemplateRecord) => void;
-};
-
-function SectionEditor({
-  section,
-  value,
-  templates,
-  pending,
-  onChange,
-  onCreate,
-  onEdit,
-  onDelete,
-}: SectionEditorProps) {
-  const meta = SECTION_META[section];
-  const Icon = meta.icon;
-  const [query, setQuery] = React.useState("");
-  const [scope, setScope] = React.useState<EncounterTemplateScope | "all">("all");
-  const normalizedQuery = query.trim().toLocaleLowerCase("ru");
-  const filtered = templates.filter((template) => {
-    if (scope !== "all" && template.scope !== scope) return false;
-    if (!normalizedQuery) return true;
-    return `${template.title} ${template.body}`.toLocaleLowerCase("ru").includes(normalizedQuery);
-  });
-
-  function applyTemplate(template: EncounterTemplateRecord) {
-    onChange(value.trim() ? `${value.trim()}\n\n${template.body}` : template.body);
-    toast.success(`Шаблон «${template.title}» добавлен`);
-  }
-
-  return (
-    <section className="overflow-hidden rounded-2xl border bg-card shadow-[0_12px_34px_-26px_oklch(0.25_0.04_175/0.38)]">
-      <div className="flex flex-col gap-2 border-b bg-muted/35 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-        <div className="flex min-w-0 items-start gap-3">
-          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <Icon className="h-4.5 w-4.5" />
-          </span>
-          <div>
-            <h2 className="font-semibold tracking-tight">{meta.title}</h2>
-            <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{meta.description}</p>
-          </div>
-        </div>
-        <Badge variant="outline" className="w-fit font-normal">
-          {value.trim().length} знаков
-        </Badge>
-      </div>
-
-      <div className="grid min-h-[390px] xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="flex min-h-[390px] flex-col p-3 sm:p-5 xl:border-r">
-          <Label htmlFor={`encounter-${section}`} className="sr-only">
-            {meta.title}
-          </Label>
-          <Textarea
-            id={`encounter-${section}`}
-            value={value}
-            disabled={pending}
-            onChange={(event) => onChange(event.target.value)}
-            placeholder={meta.placeholder}
-            className="min-h-[340px] flex-1 resize-y border-0 bg-transparent p-2 text-[15px] leading-7 shadow-none focus-visible:ring-0 sm:min-h-[360px]"
-          />
-        </div>
-
-        <aside className="flex min-h-[390px] flex-col bg-muted/20">
-          <div className="space-y-3 border-b p-3 sm:p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h3 className="text-sm font-semibold">Шаблоны {meta.genitive}</h3>
-                <p className="text-xs text-muted-foreground">Нажмите, чтобы добавить в текст</p>
-              </div>
-              <Button type="button" size="sm" variant="outline" onClick={() => onCreate(section, value)}>
-                <Plus className="h-3.5 w-3.5" />
-                Создать
-              </Button>
-            </div>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Поиск шаблона"
-                className="bg-background pl-9"
-                aria-label={`Поиск шаблонов раздела ${meta.title}`}
-              />
-            </div>
-            <div className="flex flex-wrap gap-1" aria-label="Фильтр шаблонов">
-              {(["all", "standard", "clinic", "doctor"] as const).map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => setScope(item)}
-                  aria-pressed={scope === item}
-                  className={cn(
-                    "min-h-8 rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    scope === item ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {item === "all" ? "Все" : SCOPE_LABELS[item]}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="max-h-[360px] flex-1 space-y-2 overflow-y-auto p-3 scrollbar-thin sm:p-4 xl:max-h-none">
-            {filtered.map((template) => (
-              <div
-                key={template.uuid}
-                className="group rounded-xl bg-background p-3 shadow-[0_5px_18px_-16px_oklch(0.25_0.04_175/0.45)] ring-1 ring-border/70 transition-shadow hover:shadow-[0_9px_24px_-17px_oklch(0.25_0.04_175/0.55)]"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <button type="button" className="min-w-0 flex-1 text-left" onClick={() => applyTemplate(template)}>
-                    <span className="flex items-center gap-2">
-                      <strong className="truncate text-xs font-semibold">{template.title}</strong>
-                      <Badge variant="secondary" className="h-5 px-1.5 text-[9px] font-medium">
-                        {SCOPE_LABELS[template.scope]}
-                      </Badge>
-                    </span>
-                    <span className="mt-1.5 line-clamp-3 block text-xs leading-5 text-muted-foreground">
-                      {template.body}
-                    </span>
-                    <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-primary">
-                      Использовать <ChevronRight className="h-3 w-3" />
-                    </span>
-                  </button>
-                  {template.scope !== "standard" ? (
-                    <div className="flex shrink-0 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
-                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(template)} aria-label={`Изменить шаблон ${template.title}`}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => onDelete(template)} aria-label={`Удалить шаблон ${template.title}`}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            ))}
-            {!filtered.length ? (
-              <div className="px-3 py-10 text-center">
-                <FilePlus2 className="mx-auto h-6 w-6 text-muted-foreground/60" />
-                <p className="mt-2 text-xs font-medium">Шаблоны не найдены</p>
-                <p className="mt-1 text-xs text-muted-foreground">Измените поиск или создайте свой шаблон.</p>
-              </div>
-            ) : null}
-          </div>
-        </aside>
-      </div>
-    </section>
-  );
 }
 
 type Props = {
@@ -299,14 +110,16 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
   const [form, setForm] = React.useState(emptyForm);
   const [templateDialogOpen, setTemplateDialogOpen] = React.useState(false);
   const [editingTemplate, setEditingTemplate] = React.useState<EncounterTemplateRecord | null>(null);
-  const [templateSection, setTemplateSection] = React.useState<EncounterTemplateSection>("anamnesis");
   const [templateScope, setTemplateScope] = React.useState<"clinic" | "doctor">("doctor");
   const [templateTitle, setTemplateTitle] = React.useState("");
   const [templateBody, setTemplateBody] = React.useState("");
   const [formError, setFormError] = React.useState<string | null>(null);
   const [contextQuery, setContextQuery] = React.useState("");
-  const [pendingAction, setPendingAction] = React.useState<"draft" | "complete" | null>(null);
+  const [pendingAction, setPendingAction] = React.useState<"complete" | null>(null);
+  const [saveState, setSaveState] = React.useState<"idle" | "dirty" | "saving" | "saved" | "error">("idle");
   const loadedContext = React.useRef("");
+  const lastPersistedForm = React.useRef("");
+  const autosaveCallback = React.useRef<(() => Promise<void>) | null>(null);
 
   const appointments = useAppointmentsQuery();
   const patients = usePatientsQuery("");
@@ -316,9 +129,24 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
   const updateAppointment = useUpdateAppointment();
   const debouncedDoctorName = useDebouncedValue(doctorName, 250);
   const templateQuery = useEncounterTemplatesQuery(debouncedDoctorName);
+  const clinicalCatalogQuery = useClinicalCatalogQuery(debouncedDoctorName);
   const createTemplate = useCreateEncounterTemplate();
   const updateTemplate = useUpdateEncounterTemplate();
   const deleteTemplate = useDeleteEncounterTemplate();
+
+  const clinicalCatalog = React.useMemo(() => {
+    const custom = catalogFromRecords((clinicalCatalogQuery.data ?? []).filter(
+      (item) => item.specialty == null || item.specialty === form.specialty,
+    ));
+    return {
+      fields: [...SYSTEM_CLINICAL_CATALOG.fields, ...custom.fields],
+      sections: [...SYSTEM_CLINICAL_CATALOG.sections, ...custom.sections],
+      templates: [
+        ...SYSTEM_CLINICAL_CATALOG.templates,
+        ...structuredTemplatesFromRecords(templateQuery.data ?? []),
+      ],
+    };
+  }, [clinicalCatalogQuery.data, form.specialty, templateQuery.data]);
 
   const selectedAppointment = (appointments.data ?? []).find((item) => item.uuid === appointmentId) ?? null;
   const selectedPatient = (patients.data ?? []).find((item) => item.uuid === patientId) ?? selectedAppointment?.patient ?? null;
@@ -336,18 +164,31 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
   });
 
   const loadEncounter = React.useCallback((encounter: EncounterRecord) => {
-    setEditingEncounterId(encounter.uuid);
-    setForm({
+    const nextForm = {
       specialty: encounter.specialty,
       type: encounter.type,
       occurredAt: toDateTimeLocal(encounter.occurred_at),
       chiefComplaint: encounter.chief_complaint ?? "",
-      anamnesis: encounter.anamnesis ?? encounter.anamnesis_data?.free_text ?? "",
-      exam: encounter.exam ?? "",
+      anamnesisDoc: adaptClinicalDocument(
+        encounter.anamnesis_data?.documents?.anamnesis,
+        "anamnesis",
+        encounter.specialty,
+        encounter.anamnesis ?? encounter.anamnesis_data?.free_text ?? "",
+      ),
+      examDoc: adaptClinicalDocument(
+        encounter.anamnesis_data?.documents?.exam,
+        "exam",
+        encounter.specialty,
+        encounter.exam ?? "",
+      ),
       plan: encounter.plan ?? "",
       diagnoses: encounter.diagnoses.join(", "),
       vasScore: encounter.vas_score,
-    });
+    };
+    setEditingEncounterId(encounter.uuid);
+    setForm(nextForm);
+    lastPersistedForm.current = JSON.stringify(nextForm);
+    setSaveState("saved");
   }, []);
 
   React.useEffect(() => {
@@ -374,12 +215,15 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
       return;
     }
     setEditingEncounterId("");
-    setForm({
+    const nextForm = {
       ...emptyForm(),
-      type: "appointment",
+      type: "appointment" as EncounterType,
       occurredAt: toDateTimeLocal(selectedAppointment.starts_at),
       chiefComplaint: selectedAppointment.notes ?? "",
-    });
+    };
+    setForm(nextForm);
+    lastPersistedForm.current = JSON.stringify(nextForm);
+    setSaveState("idle");
   }, [loadEncounter, selectedAppointment, patientEncounters.data, patientEncounters.isPending]);
 
   React.useEffect(() => {
@@ -396,7 +240,10 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
     setContextQuery("");
     loadedContext.current = "";
     setEditingEncounterId("");
-    setForm(emptyForm());
+    const nextForm = emptyForm();
+    setForm(nextForm);
+    lastPersistedForm.current = JSON.stringify(nextForm);
+    setSaveState("idle");
     setAppointmentId("");
     setPatientId("");
   }
@@ -405,10 +252,13 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
     setPatientId(nextPatientId);
     setEditingEncounterId("");
     loadedContext.current = `patient:${nextPatientId}`;
-    setForm(emptyForm());
+    const nextForm = emptyForm();
+    setForm(nextForm);
+    lastPersistedForm.current = JSON.stringify(nextForm);
+    setSaveState("idle");
   }
 
-  async function saveEncounter(finalize: boolean) {
+  async function saveEncounter(finalize: boolean, silent = false) {
     if (!patientId) {
       setFormError(byAppointment ? "Выберите запись" : "Выберите пациента");
       return;
@@ -418,19 +268,25 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
       return;
     }
     setFormError(null);
-    setPendingAction(finalize ? "complete" : "draft");
+    if (finalize) setPendingAction("complete");
+    if (!finalize) setSaveState("saving");
     const payload: EncounterWrite = {
       specialty: form.specialty,
       type: form.type,
       status: finalize || editingRecord?.status === "completed" ? "completed" : "draft",
       chief_complaint: form.chiefComplaint.trim() || null,
-      anamnesis: form.anamnesis.trim() || null,
+      anamnesis: form.anamnesisDoc.finalText.trim() || null,
       anamnesis_data: {
+        version: 1,
         specialty: form.specialty,
         answers: editingRecord?.anamnesis_data?.answers ?? {},
-        free_text: form.anamnesis.trim() || null,
+        free_text: form.anamnesisDoc.finalText.trim() || null,
+        documents: {
+          anamnesis: form.anamnesisDoc,
+          exam: form.examDoc,
+        },
       },
-      exam: form.exam.trim() || null,
+      exam: form.examDoc.finalText.trim() || null,
       plan: form.plan.trim() || null,
       diagnoses: form.diagnoses.split(",").map((item) => item.trim()).filter(Boolean),
       vas_score: form.vasScore,
@@ -443,7 +299,13 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
         : await createEncounter.mutateAsync(payload);
       setEditingEncounterId(saved.uuid);
       loadedContext.current = `encounter:${saved.uuid}`;
-      if (byAppointment && appointmentId) {
+      lastPersistedForm.current = JSON.stringify(form);
+      setSaveState("saved");
+      const appointmentNeedsUpdate = byAppointment
+        && appointmentId
+        && (selectedAppointment?.encounter_uuid !== saved.uuid
+          || (finalize && selectedAppointment?.status !== "completed"));
+      if (appointmentNeedsUpdate) {
         await updateAppointment.mutateAsync({
           id: appointmentId,
           body: {
@@ -452,29 +314,47 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
           },
         });
       }
-      toast.success(
-        finalize
-          ? byAppointment
-            ? "Приём завершён и связан с записью"
-            : "Приём завершён"
-          : "Черновик приёма сохранён",
-      );
+      if (!silent) {
+        toast.success(
+          finalize
+            ? byAppointment
+              ? "Приём завершён и связан с записью"
+              : "Приём завершён"
+            : "Черновик приёма сохранён",
+        );
+      }
     } catch (cause) {
       setFormError(apiErrorMessage(cause));
+      setSaveState("error");
     } finally {
-      setPendingAction(null);
+      if (finalize) setPendingAction(null);
     }
   }
 
   const templates = (templateQuery.data ?? []).filter((template) => template.specialty === form.specialty);
-  const busy = createEncounter.isPending || updateEncounter.isPending || updateAppointment.isPending;
+  const saveInFlight = createEncounter.isPending || updateEncounter.isPending || updateAppointment.isPending;
   const saveContext = byAppointment && selectedAppointment
     ? `${selectedPatient?.name ?? "Пациент"} · ${formatDateTime(selectedAppointment.starts_at)}`
     : `${selectedPatient?.name ?? "Пациент"} · без записи`;
+  const formFingerprint = React.useMemo(() => JSON.stringify(form), [form]);
 
-  function openTemplateCreate(section: EncounterTemplateSection, body: string) {
+  React.useEffect(() => {
+    autosaveCallback.current = async () => saveEncounter(false, true);
+  });
+
+  React.useEffect(() => {
+    if (!patientId || (byAppointment && !appointmentId)) return;
+    if (formFingerprint === lastPersistedForm.current) return;
+    setSaveState("dirty");
+    if (saveInFlight) return;
+    const handle = window.setTimeout(() => {
+      void autosaveCallback.current?.();
+    }, 1100);
+    return () => window.clearTimeout(handle);
+  }, [appointmentId, byAppointment, formFingerprint, patientId, saveInFlight]);
+
+  function openTemplateCreate(body: string) {
     setEditingTemplate(null);
-    setTemplateSection(section);
     setTemplateScope(doctorName.trim() ? "doctor" : "clinic");
     setTemplateTitle("");
     setTemplateBody(body);
@@ -483,7 +363,6 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
 
   function openTemplateEdit(template: EncounterTemplateRecord) {
     setEditingTemplate(template);
-    setTemplateSection(template.section);
     setTemplateScope(template.scope === "doctor" ? "doctor" : "clinic");
     setTemplateTitle(template.title);
     setTemplateBody(template.body);
@@ -501,7 +380,7 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
     }
     const body = {
       scope: templateScope,
-      section: templateSection,
+      section: "plan" as const,
       specialty: form.specialty,
       title: templateTitle.trim(),
       body: templateBody.trim(),
@@ -554,10 +433,7 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
                 </Link>
               </Button>
             ) : null}
-            <Button type="button" variant="secondary" size="sm" className="bg-white text-[oklch(0.24_0.035_175)] hover:bg-emerald-50" onClick={() => void saveEncounter(false)} disabled={busy}>
-              {pendingAction === "draft" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Сохранить черновик
-            </Button>
-            <Button type="button" size="sm" className="bg-emerald-400 text-emerald-950 hover:bg-emerald-300" onClick={() => void saveEncounter(true)} disabled={busy}>
+            <Button type="button" size="sm" className="bg-emerald-400 text-emerald-950 hover:bg-emerald-300" onClick={() => void saveEncounter(true)} disabled={saveInFlight}>
               {pendingAction === "complete" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Завершить приём
             </Button>
           </div>
@@ -624,7 +500,19 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="encounter-specialty">Специальность</Label>
-            <Select value={form.specialty} onValueChange={(value) => setForm((current) => ({ ...current, specialty: value as EncounterSpecialty }))}>
+            <Select value={form.specialty} onValueChange={(value) => setForm((current) => {
+              const specialty = value as EncounterSpecialty;
+              return {
+                ...current,
+                specialty,
+                anamnesisDoc: current.anamnesisDoc.values.length
+                  ? current.anamnesisDoc
+                  : createClinicalDocument(defaultTemplate(specialty, "anamnesis")),
+                examDoc: current.examDoc.values.length
+                  ? current.examDoc
+                  : createClinicalDocument(defaultTemplate(specialty, "exam")),
+              };
+            })}>
               <SelectTrigger id="encounter-specialty"><SelectValue /></SelectTrigger>
               <SelectContent>{Object.entries(SPECIALTY_LABELS).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
             </Select>
@@ -673,19 +561,36 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
             </div>
           </section>
 
-          {(["anamnesis", "exam", "plan"] as const).map((section) => (
-            <SectionEditor
-              key={section}
-              section={section}
-              value={form[section]}
-              templates={templates.filter((template) => template.section === section)}
-              pending={busy}
-              onChange={(value) => setForm((current) => ({ ...current, [section]: value }))}
-              onCreate={openTemplateCreate}
-              onEdit={openTemplateEdit}
-              onDelete={(template) => void removeTemplate(template)}
-            />
-          ))}
+          <ClinicalFormBuilder
+            kind="anamnesis"
+            specialty={form.specialty}
+            value={form.anamnesisDoc}
+            catalog={clinicalCatalog}
+            textTemplates={templates.filter((template) => template.section === "anamnesis" && !template.definition)}
+            doctorName={doctorName}
+            saveState={saveState}
+            onChange={(anamnesisDoc: ClinicalDocument) => setForm((current) => ({ ...current, anamnesisDoc }))}
+          />
+
+          <ClinicalFormBuilder
+            kind="exam"
+            specialty={form.specialty}
+            value={form.examDoc}
+            catalog={clinicalCatalog}
+            textTemplates={templates.filter((template) => template.section === "exam" && !template.definition)}
+            doctorName={doctorName}
+            saveState={saveState}
+            onChange={(examDoc: ClinicalDocument) => setForm((current) => ({ ...current, examDoc }))}
+          />
+
+          <PlanEditor
+            value={form.plan}
+            templates={templates.filter((template) => template.section === "plan")}
+            onChange={(plan) => setForm((current) => ({ ...current, plan }))}
+            onCreate={openTemplateCreate}
+            onEdit={openTemplateEdit}
+            onDelete={(template) => void removeTemplate(template)}
+          />
 
           <section className="rounded-2xl border bg-card p-4 sm:p-5">
             <Label htmlFor="encounter-diagnoses">Диагнозы</Label>
@@ -698,9 +603,9 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
               <span className="font-semibold text-white">{saveContext}</span>
               <span className="block">{editingEncounterId ? "Изменения будут сохранены в существующий приём" : "Будет создан новый приём"}</span>
             </p>
-            <div className="flex gap-2">
-              <Button type="button" variant="secondary" className="flex-1 sm:flex-none" onClick={() => void saveEncounter(false)} disabled={busy}>{pendingAction === "draft" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Черновик</Button>
-              <Button type="button" className="flex-1 bg-emerald-400 text-emerald-950 hover:bg-emerald-300 sm:flex-none" onClick={() => void saveEncounter(true)} disabled={busy}>{pendingAction === "complete" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Завершить</Button>
+            <div className="flex items-center gap-3">
+              <span className="hidden text-xs text-emerald-50/70 sm:inline">{saveState === "saving" ? "Сохраняем изменения…" : saveState === "error" ? "Автосохранение не удалось" : "Черновик сохраняется автоматически"}</span>
+              <Button type="button" className="flex-1 bg-emerald-400 text-emerald-950 hover:bg-emerald-300 sm:flex-none" onClick={() => void saveEncounter(true)} disabled={saveInFlight}>{pendingAction === "complete" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Завершить</Button>
             </div>
           </div>
         </>
@@ -710,7 +615,7 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>{editingTemplate ? "Изменить шаблон" : "Новый шаблон"}</DialogTitle>
-            <DialogDescription>Шаблон будет доступен в разделе «{SECTION_META[templateSection].title}» для специальности «{SPECIALTY_LABELS[form.specialty]}».</DialogDescription>
+            <DialogDescription>Шаблон будет доступен в разделе «План» для специальности «{SPECIALTY_LABELS[form.specialty]}».</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
             <div className="space-y-2">
