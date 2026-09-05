@@ -41,6 +41,9 @@ import {
 } from "@/lib/clinical-labels";
 import {
   useAppointmentsQuery,
+  useAppointmentQuery,
+  useEncounterQuery,
+  usePatientQuery,
   useClinicalCatalogQuery,
   useCreateEncounter,
   useDebouncedValue,
@@ -104,7 +107,13 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
   const autosaveCallback = React.useRef<(() => Promise<void>) | null>(null);
 
   const appointments = useAppointmentsQuery();
-  const patients = usePatientsQuery("");
+  const appointmentQuery = useAppointmentQuery(byAppointment ? appointmentId : "");
+  const debouncedContextQuery = useDebouncedValue(contextQuery, 250);
+  const patients = usePatientsQuery(byAppointment ? "" : debouncedContextQuery);
+  const patientQuery = usePatientQuery(patientId);
+  const linkedEncounterQuery = useEncounterQuery(byAppointment
+    ? appointmentQuery.data?.encounter_uuid ?? ""
+    : initialEncounterId ?? "");
   const patientEncounters = useEncountersQuery(patientId);
   const createEncounter = useCreateEncounter(patientId);
   const updateEncounter = useUpdateEncounter(patientId);
@@ -127,20 +136,24 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
     };
   }, [clinicalCatalogQuery.data, form.specialty, templateQuery.data]);
 
-  const selectedAppointment = (appointments.data ?? []).find((item) => item.uuid === appointmentId) ?? null;
-  const selectedPatient = (patients.data ?? []).find((item) => item.uuid === patientId) ?? selectedAppointment?.patient ?? null;
-  const editingRecord = patientEncounters.data?.find((item) => item.uuid === editingEncounterId) ?? null;
+  const selectedAppointment = appointmentQuery.data ?? null;
+  const selectedPatient = patientQuery.data ?? (patients.data ?? []).find((item) => item.uuid === patientId) ?? selectedAppointment?.patient ?? null;
+  const editingRecord = patientEncounters.data?.find((item) => item.uuid === editingEncounterId)
+    ?? (linkedEncounterQuery.data?.uuid === editingEncounterId ? linkedEncounterQuery.data : null);
   const normalizedContextQuery = contextQuery.trim().toLocaleLowerCase("ru");
-  const filteredAppointments = (appointments.data ?? []).filter((appointment) => {
+  const appointmentOptions = [...(selectedAppointment ? [selectedAppointment] : []),
+    ...(appointments.data ?? []).filter((item) => item.uuid !== selectedAppointment?.uuid)];
+  const filteredAppointments = appointmentOptions.filter((appointment) => {
+    if (appointment.uuid === appointmentId) return true;
     if (!normalizedContextQuery) return true;
     return appointmentLabel(appointment).toLocaleLowerCase("ru").includes(normalizedContextQuery);
   });
-  const filteredPatients = (patients.data ?? []).filter((patient) => {
-    if (!normalizedContextQuery) return true;
-    return `${patient.name} ${patient.client.name} ${patient.breed ?? ""}`
-      .toLocaleLowerCase("ru")
-      .includes(normalizedContextQuery);
-  });
+  const filteredPatients = [...(selectedPatient ? [selectedPatient] : []),
+    ...(patients.data ?? []).filter((item) => item.uuid !== selectedPatient?.uuid)];
+  const contextReady = Boolean(selectedPatient) && (!byAppointment || Boolean(selectedAppointment
+    && selectedAppointment.patient_uuid === patientId
+    && (!selectedAppointment.encounter_uuid || linkedEncounterQuery.data)))
+    && (!initialEncounterId || byAppointment || Boolean(linkedEncounterQuery.data));
 
   const loadEncounter = React.useCallback((encounter: EncounterRecord) => {
     const nextForm = {
@@ -182,12 +195,10 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
   React.useEffect(() => {
     if (!selectedAppointment) return;
     setPatientId(selectedAppointment.patient_uuid);
-    const linked = selectedAppointment.encounter_uuid
-      ? patientEncounters.data?.find((item) => item.uuid === selectedAppointment.encounter_uuid)
-      : null;
+    const linked = linkedEncounterQuery.data;
     const key = linked ? `encounter:${linked.uuid}` : `appointment:${selectedAppointment.uuid}`;
     if (loadedContext.current === key) return;
-    if (selectedAppointment.encounter_uuid && !linked && patientEncounters.isPending) return;
+    if (selectedAppointment.encounter_uuid && !linked) return;
     loadedContext.current = key;
     if (linked) {
       loadEncounter(linked);
@@ -203,15 +214,15 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
     setForm(nextForm);
     lastPersistedForm.current = JSON.stringify(nextForm);
     setSaveState("idle");
-  }, [loadEncounter, selectedAppointment, patientEncounters.data, patientEncounters.isPending]);
+  }, [loadEncounter, selectedAppointment, linkedEncounterQuery.data]);
 
   React.useEffect(() => {
-    if (byAppointment || !initialEncounterId || !patientEncounters.data) return;
-    const encounter = patientEncounters.data.find((item) => item.uuid === initialEncounterId);
+    if (byAppointment || !initialEncounterId) return;
+    const encounter = linkedEncounterQuery.data;
     if (!encounter || loadedContext.current === `encounter:${encounter.uuid}`) return;
     loadedContext.current = `encounter:${encounter.uuid}`;
     loadEncounter(encounter);
-  }, [byAppointment, initialEncounterId, loadEncounter, patientEncounters.data]);
+  }, [byAppointment, initialEncounterId, loadEncounter, linkedEncounterQuery.data]);
 
   function changeMode(next: boolean) {
     setByAppointment(next);
@@ -238,6 +249,7 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
   }
 
   async function saveEncounter(finalize: boolean, silent = false) {
+    if (!contextReady) return;
     if (!patientId) {
       setFormError(byAppointment ? "Выберите запись" : "Выберите пациента");
       return;
@@ -310,7 +322,7 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
     }
   }
 
-  const saveInFlight = createEncounter.isPending || updateEncounter.isPending || updateAppointment.isPending;
+  const saveInFlight = !contextReady || createEncounter.isPending || updateEncounter.isPending || updateAppointment.isPending;
   const saveContext = byAppointment && selectedAppointment
     ? `${selectedPatient?.name ?? "Пациент"} · ${formatDateTime(selectedAppointment.starts_at)}`
     : `${selectedPatient?.name ?? "Пациент"} · без записи`;
@@ -409,8 +421,11 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
       </header>
 
       {formError ? <p className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive" role="alert">{formError}</p> : null}
+      {[appointmentQuery, patientQuery, linkedEncounterQuery, patients].filter((query) => query.isError).map((query, index) => (
+        <p key={index} role="alert" className="text-sm text-destructive">{apiErrorMessage(query.error)}</p>
+      ))}
 
-      {selectedPatient ? (
+      {contextReady && selectedPatient ? (
         <div className="grid gap-3 rounded-2xl border bg-card p-4 sm:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr_1fr]">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><UserRound className="h-4 w-4" /></span>
@@ -450,7 +465,7 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
             <Input id="encounter-date" type="datetime-local" value={form.occurredAt} onChange={(event) => setForm((current) => ({ ...current, occurredAt: event.target.value }))} />
           </div>
         </div>
-      ) : appointments.isPending || patients.isPending ? (
+      ) : appointments.isPending || patients.isPending || appointmentQuery.isFetching || patientQuery.isFetching || linkedEncounterQuery.isFetching ? (
         <Skeleton className="h-24 w-full" />
       ) : (
         <div className="rounded-2xl border border-dashed px-5 py-10 text-center">
@@ -460,7 +475,7 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
         </div>
       )}
 
-      {selectedPatient ? (
+      {contextReady && selectedPatient ? (
         <>
           <section className="grid gap-4 rounded-2xl border bg-card p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
             <div className="space-y-2">

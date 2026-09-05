@@ -38,6 +38,8 @@ import {
   useCreateAppointment,
   useDeleteAppointment,
   usePatientsQuery,
+  usePatientQuery,
+  useDebouncedValue,
   useUpdateAppointment,
 } from "@/lib/hooks";
 import { apiErrorMessage, speciesLabel } from "@/lib/patient-form";
@@ -67,13 +69,19 @@ export function ScheduleBoard() {
     to: endOfDay(selected).toISOString(),
   };
   const query = useAppointmentsQuery(range);
-  const patients = usePatientsQuery("");
+  const [patientSearch, setPatientSearch] = React.useState("");
+  const debouncedPatientSearch = useDebouncedValue(patientSearch, 250);
+  const patients = usePatientsQuery(debouncedPatientSearch);
   const createItem = useCreateAppointment();
   const updateItem = useUpdateAppointment();
   const deleteItem = useDeleteAppointment();
   const [open, setOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<AppointmentRecord | null>(null);
   const [patientId, setPatientId] = React.useState("");
+  const selectedPatientQuery = usePatientQuery(patientId);
+  const selectedPatient = selectedPatientQuery.data ?? (editing?.patient_uuid === patientId ? editing.patient : null);
+  const patientOptions = [...(selectedPatient ? [selectedPatient] : []),
+    ...(patients.data ?? []).filter((patient) => patient.uuid !== selectedPatient?.uuid)];
   const [startsAt, setStartsAt] = React.useState("");
   const [durationMin, setDurationMin] = React.useState("30");
   const [visitType, setVisitType] = React.useState<VisitType>("consultation");
@@ -82,8 +90,9 @@ export function ScheduleBoard() {
   const [error, setError] = React.useState<string | null>(null);
 
   function openNew() {
+    setPatientSearch("");
     setEditing(null);
-    setPatientId(patients.data?.[0]?.uuid ?? "");
+    setPatientId("");
     setStartsAt(`${day}T10:00`);
     setDurationMin("30");
     setVisitType("consultation");
@@ -94,6 +103,7 @@ export function ScheduleBoard() {
   }
 
   function openExisting(item: AppointmentRecord) {
+    setPatientSearch("");
     setEditing(item);
     setPatientId(item.patient_uuid);
     setStartsAt(toDateTimeLocal(item.starts_at));
@@ -237,12 +247,16 @@ export function ScheduleBoard() {
           <div className="grid gap-3">
             <div className="space-y-2">
               <Label>Пациент</Label>
+              <Input aria-label="Поиск пациента" placeholder="Имя пациента или владельца" value={patientSearch} onChange={(event) => setPatientSearch(event.target.value)} />
+              {patients.isFetching ? <p role="status" className="text-sm text-muted-foreground">Поиск…</p> : null}
+              {patients.isError ? <p role="alert" className="text-sm text-destructive">{apiErrorMessage(patients.error)}</p> : null}
+              {!patients.isFetching && !patients.isError && !patients.data?.length ? <p role="status" className="text-sm text-muted-foreground">Пациенты не найдены. Уточните поиск.</p> : null}
               <Select value={patientId} onValueChange={setPatientId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Выберите пациента" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(patients.data ?? []).map((patient: PatientRecord) => (
+                  {patientOptions.map((patient: PatientRecord) => (
                     <SelectItem key={patient.uuid} value={patient.uuid}>
                       {patient.name} · {patient.client.name}
                     </SelectItem>

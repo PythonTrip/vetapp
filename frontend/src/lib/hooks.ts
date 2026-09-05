@@ -417,6 +417,15 @@ export function useEncountersQuery(patientId: string) {
   });
 }
 
+export function useEncounterQuery(id: string) {
+  return useQuery({
+    queryKey: ["encounter", id],
+    queryFn: () => encountersApi.get(id),
+    enabled: id.length > 0,
+    retry: retryUnlessClientError,
+  });
+}
+
 export function useCreateEncounter(patientId: string) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -574,6 +583,15 @@ export function useAppointmentsQuery(params?: { patientId?: string; from?: strin
   });
 }
 
+export function useAppointmentQuery(id: string) {
+  return useQuery({
+    queryKey: ["appointment", id],
+    queryFn: () => appointmentsApi.get(id),
+    enabled: id.length > 0,
+    retry: retryUnlessClientError,
+  });
+}
+
 export function useCreateAppointment() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -589,7 +607,8 @@ export function useUpdateAppointment() {
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: Partial<AppointmentWrite> }) =>
       appointmentsApi.update(id, body),
-    onSuccess: () => {
+    onSuccess: (appointment) => {
+      queryClient.setQueryData(["appointment", appointment.uuid], appointment);
       void queryClient.invalidateQueries({ queryKey: ["appointments"] });
     },
   });

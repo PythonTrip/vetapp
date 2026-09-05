@@ -913,6 +913,8 @@ export interface ClinicalCatalogItemWrite {
 }
 
 export const encountersApi = {
+  get: (id: string, fallbackMessage = "Не удалось загрузить приём") =>
+    api.get<EncounterRecord>(`/encounters/${id}`, fallbackMessage),
   list: (patientId: string, fallbackMessage = "Не удалось загрузить приёмы") =>
     api.get<EncounterRecord[]>(`/patients/${patientId}/encounters`, fallbackMessage),
   create: (patientId: string, body: EncounterWrite, fallbackMessage = "Не удалось создать приём") =>
@@ -986,6 +988,8 @@ function appointmentListUrl(params?: { patientId?: string; from?: string; to?: s
 }
 
 export const appointmentsApi = {
+  get: (id: string, fallbackMessage = "Не удалось загрузить запись") =>
+    api.get<AppointmentRecord>(`/appointments/${id}`, fallbackMessage),
   list: (
     params?: { patientId?: string; from?: string; to?: string },
     fallbackMessage = "Не удалось загрузить расписание",

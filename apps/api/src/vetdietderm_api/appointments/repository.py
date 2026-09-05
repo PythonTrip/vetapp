@@ -38,7 +38,12 @@ def list_appointments(
         stmt = stmt.where(Appointment.starts_at >= starts_from)
     if starts_to is not None:
         stmt = stmt.where(Appointment.starts_at <= starts_to)
-    stmt = stmt.order_by(Appointment.starts_at.asc()).limit(200)
+    ordering = (
+        Appointment.starts_at.desc()
+        if starts_from is None and starts_to is None
+        else Appointment.starts_at.asc()
+    )
+    stmt = stmt.order_by(ordering, Appointment.uuid).limit(200)
     return list(session.scalars(stmt).unique().all())
 
 
@@ -72,11 +77,10 @@ def update_appointment(session: Session, appointment_uuid: UUID, data: Appointme
     appointment = get_appointment(session, appointment_uuid)
     payload = data.model_dump(exclude_unset=True)
     if "patient_uuid" in payload:
-        patient = get_patient(session, payload["patient_uuid"])
-        appointment.patient_uuid = patient.uuid
+        get_patient(session, payload["patient_uuid"])
     patient_uuid = payload.get("patient_uuid", appointment.patient_uuid)
-    if "encounter_uuid" in payload:
-        _validate_encounter(session, patient_uuid, payload["encounter_uuid"])
+    if "patient_uuid" in payload or "encounter_uuid" in payload:
+        _validate_encounter(session, patient_uuid, payload.get("encounter_uuid", appointment.encounter_uuid))
     if "visit_type" in payload and payload["visit_type"] is not None:
         payload["visit_type"] = payload["visit_type"].value
     if "status" in payload and payload["status"] is not None:
