@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { AppShell } from "@/components/app-shell";
 import { EncounterWorkspace } from "@/components/clinical/encounter-workspace";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -23,14 +22,12 @@ export default async function EncounterPage({
   const encounterId = typeof params.encounterId === "string" ? params.encounterId : undefined;
 
   return (
-    <AppShell>
-      <Suspense fallback={<EncounterFallback />}>
-        <EncounterWorkspace
-          initialAppointmentId={appointmentId}
-          initialPatientId={patientId}
-          initialEncounterId={encounterId}
-        />
-      </Suspense>
-    </AppShell>
+    <Suspense fallback={<EncounterFallback />}>
+      <EncounterWorkspace
+        initialAppointmentId={appointmentId}
+        initialPatientId={patientId}
+        initialEncounterId={encounterId}
+      />
+    </Suspense>
   );
 }

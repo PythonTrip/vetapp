@@ -1,11 +1,9 @@
 import Link from "next/link";
 import { Calculator, CalendarDays, PawPrint, Users } from "lucide-react";
-import { AppShell } from "@/components/app-shell";
 
 export default function Home() {
   return (
-    <AppShell>
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 p-4 sm:p-6 lg:p-8">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 p-4 sm:p-6 lg:p-8">
         <div>
           <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-primary">
             <PawPrint className="h-3.5 w-3.5" />
@@ -49,7 +47,6 @@ export default function Home() {
             </p>
           </Link>
         </div>
-      </div>
-    </AppShell>
+    </div>
   );
 }

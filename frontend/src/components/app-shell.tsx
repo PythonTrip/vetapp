@@ -16,7 +16,6 @@ import {
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { InstanceLockScreen } from "@/components/instance-lock-screen";
 import { sectionFromPathname, type AppSection } from "@/lib/navigation";
 
 const NAV_ITEMS: {
@@ -86,8 +85,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const activeSection = sectionFromPathname(pathname);
 
   return (
-    <InstanceLockScreen>
-      <div className="grid h-dvh grid-rows-[1fr_auto] overflow-hidden bg-background md:grid-cols-[16rem_1fr]">
+    <div className="grid h-dvh grid-rows-[1fr_auto] overflow-hidden bg-background md:grid-cols-[16rem_1fr]">
         <aside className="hidden h-full min-h-0 w-64 shrink-0 flex-col overflow-y-auto border-r bg-sidebar row-start-1 col-start-1 md:flex">
           <Link href="/" className="flex h-16 items-center gap-2.5 border-b px-5">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-emerald-600 text-primary-foreground shadow-sm">
@@ -190,7 +188,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           <span>Расчёты носят информационный характер</span>
         </footer>
-      </div>
-    </InstanceLockScreen>
+    </div>
   );
 }
