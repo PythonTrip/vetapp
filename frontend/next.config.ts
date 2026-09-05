@@ -5,6 +5,7 @@ import path from "node:path";
 loadEnvConfig(path.join(__dirname, ".."));
 
 const nextConfig: NextConfig = {
+  output: process.env.DOCKER_BUILD === "1" ? "standalone" : undefined,
   reactStrictMode: true,
   async headers() {
     return [

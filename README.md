@@ -157,11 +157,35 @@ VetDietDerm должен стать главным рабочим окном в�
 
 ## Локальный запуск
 
+### Docker Compose с существующим PostgreSQL
+
+Compose запускает FastAPI и Next.js. PostgreSQL должен быть уже создан и доступен из контейнера API.
+
+```powershell
+Copy-Item .env.example .env
+# Заполните DATABASE_ADDRESS, DATABASE_PORT, DATABASE_NAME,
+# DATABASE_USER, DATABASE_PASSWORD и INSTANCE_PASSWORD в .env.
+docker compose up -d --build
+```
+
+Для PostgreSQL на компьютере с Docker задайте `DATABASE_ADDRESS=host.docker.internal` и опубликованный порт базы (в примере `15432`). Для удалённой базы укажите её DNS-имя/IP и порт (обычно `5432`). `127.0.0.1` внутри контейнера указывает на сам контейнер. PostgreSQL должен разрешать соединения из сети Docker.
+
+`DATABASE_SSLMODE` по умолчанию — `prefer`; для сервера, требующего TLS, задайте `require` или подходящий режим проверки сертификата. Пароль можно записать в одинарных кавычках, чтобы Compose не подставлял переменные вместо символов `$`. Спецсимволы в пароле кодировать как URL не нужно.
+
+Перед запуском API автоматически выполняется `alembic upgrade head` для указанной базы. Frontend запускается после успешной проверки API и подключения к БД. Вложения сохраняются в постоянном томе `attachments`; существующие локальные файлы из `data/attachments` в него автоматически не переносятся.
+
+Интерфейс: `http://127.0.0.1:3000`, API: `http://127.0.0.1:8000`. При доступе с другого компьютера укажите адрес сервера в `NEXT_PUBLIC_API_URL` и `FRONTEND_URL`. После изменения `NEXT_PUBLIC_API_URL` пересоберите frontend: `docker compose up -d --build frontend`.
+
+Логи: `docker compose logs -f`. Остановка: `docker compose down` (том вложений сохраняется).
+
+### Без Docker
+
 Стек: Next.js UI в `frontend/`, FastAPI в `apps/api/`, PostgreSQL на `127.0.0.1:15432`. Нужны Node.js 20+ и Python 3.13+ (`uv`).
 
 ```bash
 cp .env.example .env
-# заполните DATABASE_URL и INSTANCE_PASSWORD
+# заполните DATABASE_* и INSTANCE_PASSWORD
+# для PostgreSQL на этом компьютере: DATABASE_ADDRESS=127.0.0.1
 
 # API
 uv sync --project apps/api
@@ -174,6 +198,8 @@ npm run dev
 ```
 
 `NEXT_PUBLIC_API_URL` читается из корневого `.env` или из `frontend/.env`. UI: `http://127.0.0.1:3000`. API: `http://127.0.0.1:8000`.
+
+API также читает `apps/api/.env`, значения которого имеют приоритет над корневым `.env`. Старый `DATABASE_URL` поддерживается и имеет приоритет над отдельными `DATABASE_*`; удалите его из env при переходе на новый формат. В Docker локальные env-файлы не копируются в образы, параметры передаёт Compose.
 
 ## План развития
 

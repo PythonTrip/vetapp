@@ -1,0 +1,50 @@
+services:
+  api:
+    build:
+      context: ./apps/api
+    restart: unless-stopped
+    environment:
+      DATABASE_ADDRESS: ${DATABASE_ADDRESS:?Set DATABASE_ADDRESS in .env}
+      DATABASE_PORT: ${DATABASE_PORT:-5432}
+      DATABASE_NAME: ${DATABASE_NAME:?Set DATABASE_NAME in .env}
+      DATABASE_USER: ${DATABASE_USER:?Set DATABASE_USER in .env}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:?Set DATABASE_PASSWORD in .env}
+      DATABASE_SSLMODE: ${DATABASE_SSLMODE:-prefer}
+      INSTANCE_PASSWORD: ${INSTANCE_PASSWORD:?Set INSTANCE_PASSWORD in .env}
+      FRONTEND_URL: ${FRONTEND_URL:-http://127.0.0.1:3000}
+      ATTACHMENT_DIR: /data/attachments
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8000:8000"
+    volumes:
+      - attachments:/data/attachments
+    command:
+      - /bin/sh
+      - -c
+      - alembic upgrade head && exec uvicorn vetdietderm_api.main:app --host 0.0.0.0 --port 8000
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import os, urllib.request; urllib.request.urlopen(urllib.request.Request('http://127.0.0.1:8000/ready', headers={'Authorization': 'Bearer ' + os.environ['INSTANCE_PASSWORD']}), timeout=5)"
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://127.0.0.1:8000}
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  attachments:
