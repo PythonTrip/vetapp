@@ -4,13 +4,13 @@ prd_id: 2026-10-27-pilot-hardening
 cycle_id: 2026-10-27-pilot-hardening
 cycle_slug: pilot-hardening
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 ---
 
 # Session-Gated Ready
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 A caller who reaches `/ready` through the site must have the same clinical session as every other clinical route. Without that session the handler does not ping PostgreSQL. `/health` stays a public process check and does not touch the database.
@@ -42,10 +42,10 @@ A caller who reaches `/ready` through the site must have the same clinical sessi
 - `apps/api/src/vetdietderm_api/db.py` (read only)
 
 ## Implementation Steps
-- [ ] Step 1: Add `dependencies=auth` to the `/ready` route in `apps/api/src/vetdietderm_api/main.py`, where `auth` is the existing `[Depends(require_clinical_access)]` list. Keep `ping_database()` inside the handler.
-- [ ] Step 2: Leave the `/health` handler as a direct `StatusResponse(status="ok")` with no database call and no auth dependency.
-- [ ] Step 3: Change the unsigned `/ready` assertions in `apps/api/tests/integration/test_api_access.py` from `200` to `401` and `{"detail": "Войдите в аккаунт"}`.
-- [ ] Step 4: Run the checks in Verification.
+- [x] Step 1: Add `dependencies=auth` to the `/ready` route in `apps/api/src/vetdietderm_api/main.py`, where `auth` is the existing `[Depends(require_clinical_access)]` list. Keep `ping_database()` inside the handler.
+- [x] Step 2: Leave the `/health` handler as a direct `StatusResponse(status="ok")` with no database call and no auth dependency.
+- [x] Step 3: Change the unsigned `/ready` assertions in `apps/api/tests/integration/test_api_access.py` from `200` to `401` and `{"detail": "Войдите в аккаунт"}`.
+- [x] Step 4: Run the checks in Verification.
 
 ## Verification
 - `GET /health` with no cookie returns `200` and `{"status": "ok"}`.

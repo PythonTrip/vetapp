@@ -22,6 +22,10 @@ def test_health_ready_and_openapi_boundaries(api_client: TestClient) -> None:
     assert ready.json() == {"status": "ok"}
 
     api_client.cookies.clear()
+    unsigned_ready = api_client.get("/ready")
+    assert unsigned_ready.status_code == 401
+    assert unsigned_ready.json() == {"detail": "Войдите в аккаунт"}
+
     paths = [
         "/clients",
         f"/patients/{ZERO_UUID}/encounters",

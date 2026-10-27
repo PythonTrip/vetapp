@@ -58,7 +58,7 @@ def create_app() -> FastAPI:
     auth = [Depends(require_clinical_access)]
     application.include_router(account_router)
 
-    @application.get("/ready", response_model=StatusResponse)
+    @application.get("/ready", response_model=StatusResponse, dependencies=auth)
     def ready() -> StatusResponse:
         ping_database()
         return StatusResponse(status="ok")
