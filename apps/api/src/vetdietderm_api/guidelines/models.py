@@ -1,8 +1,10 @@
-"""Minimal persisted metadata for provider-backed nutrition standards.
+"""Leftover public metadata for provider-backed nutrition standards.
 
 Normative values and executable rules live exclusively in versioned provider
-modules. Historical SQL runtime tables are archived by Alembic revision 0019;
-their former ORM mappings remain in ``legacy_models`` for diagnostics only.
+modules. ``GuidelineStandard`` and ``GuidelineEdition`` map to the public
+``guideline_standards`` and ``guideline_editions`` tables; they are not
+consulted by assessments or ``GET /guidelines/active``. Archived SQL runtime
+tables remain in schema ``legacy_guidelines`` (Alembic revision 0019).
 """
 
 from datetime import datetime, timezone

@@ -17,7 +17,7 @@ VetDietDerm is a veterinary clinical workbench for specialists who manage patien
 - Small specialty clinics and cabinets
 - Assistants and admins who schedule visits and owner communications (later CRM depth)
 
-Core cycles #1–#6 are closed. Clinical CRM Pivot (#5) closed on the shipped workspace; signed encounters and encounter-stored calculations moved to Specialty Depth (#7). The next cycle is Platform #8 Pilot Hardening, by explicit reprioritization ahead of #7. Deployment on an existing VPS is in use and does not by itself close #8.
+Core cycles #1–#6 and Platform cycle #8 Pilot Hardening are closed. Clinical CRM Pivot (#5) closed on the shipped workspace; signed encounters and encounter-stored calculations moved to Specialty Depth (#7), which remains Planned. Deployment on an existing VPS is in use.
 
 ## Business Model
 
@@ -64,10 +64,11 @@ Supported run paths: `docker compose up` (API + frontend; Alembic on API start; 
 - Legacy Diet Plans render as stored without remap or auto-recompute (`provider_version` defaults to `legacy/sql` on read). Current-version recalc is an explicit clinician action
 - Food rows have no species compatibility; ration search does not filter cat-only commercial foods away from a dog patient
 - Canonical iodine code is `I` (migration `0020` renamed leftover `J`); selenium catalog unit is `mcg`
-- Russian UI, theme toggle (header and `/settings`), sign-in on the start screen (register, email code, password reset). Clinical routers require the HttpOnly session cookie. `/health` and `/ready` are public; `/ready` pings PostgreSQL
+- Russian UI, theme toggle (header and `/settings`), sign-in on the start screen (register, email code, password reset). Clinical routers require the HttpOnly session cookie. `/health` stays a public process check; public `/ready` requires the clinical session and then pings PostgreSQL. Compose healthcheck probes the database in-process inside the API container
+- SQL FEDIAF import and publish are not in the API process; normative values load only from the in-process FEDIAF 2025 provider. Schema `legacy_guidelines` remains
 - List windows: patients/clients 50, foods 50, diet plans 50, appointments 200
 
-Not shipped: Food `species_compatibility` (dropped from cycle #6), owner share portal, knowledge/AI handouts, drug checker, English UI, S3, dose/fluids calculators, signed encounters. Accounts and organization roles ship through module-auth. Prisma is not in the repository.
+Not shipped: Food `species_compatibility` (dropped from cycle #6), owner share portal, knowledge/AI handouts, drug checker, English UI, S3, dose/fluids calculators, signed encounters, backup/restore. Accounts and organization roles ship through module-auth. Prisma is not in the repository.
 
 ## Product Cycle Roadmap
 
@@ -80,7 +81,7 @@ Not shipped: Food `species_compatibility` (dropped from cycle #6), owner share p
 | 5 | ✅ Done | Core | Clinical CRM Pivot | Client/Patient/Encounter workspace with schedule, attachments, communications, structured form builder, encounter templates, and accounts with an optional organization. Signed encounters and encounter-stored calculations moved to #7. | — |
 | 6 | ✅ Done | Core | Nutrition Context Split | Energy formulas and nutrient profiles remain independent; the server resolves both from the animal card, adult verdicts use imported MER95/110 and MER75/100 profiles, and stale results cannot look valid. | [PRD](prd/2026-08-29_nutrition-context-split_prd.md) |
 | 7 | ⬜ Planned | Pro | Specialty Depth | Stronger derm/nutrition encounter templates, follow-up CRM, signed encounters, encounter-stored calculations, additional clinical calculators (dose, fluids), and disease-specific therapeutic nutrient profiles if still wanted. Not the next cycle. | — |
-| 8 | 🚧 In Progress | Platform | Pilot Hardening | The running API calculates nutrition only with the in-process FEDIAF provider. Public `/ready` requires the clinical session. The container still waits for PostgreSQL before the UI starts. Backup and restore stay later. | [PRD](prd/2026-10-27_pilot-hardening_prd.md) |
+| 8 | ✅ Done | Platform | Pilot Hardening | The running API calculates nutrition only with the in-process FEDIAF provider. Public `/ready` requires the clinical session. The container still waits for PostgreSQL before the UI starts. Backup and restore stay later. | [PRD](prd/2026-10-27_pilot-hardening_prd.md) |
 
 ## Product Architecture
 
@@ -98,7 +99,7 @@ Not shipped: Food `species_compatibility` (dropped from cycle #6), owner share p
 
 Operational source of truth is PostgreSQL for clinical CRM, the Food catalog, and Diet Plan snapshots. Schema is Alembic through `0022_users_organizations`. Primary keys are UUID (UUIDv6). Timestamps are `timestamptz`. Nutrient inventory and assessment honesty rules live in `docs/Nutrient.md`; this chapter is the table, relationship, and format map.
 
-FEDIAF normative values, energy formulas, applicability, and derived expressions are **not** request-path SQL. They load from `apps/api/src/vetdietderm_api/standards/fediaf/v2025/`. Alembic `0019` moved the former runtime tables into schema `legacy_guidelines`. SQL import/publish CLIs refuse to run against `public` after that revision.
+FEDIAF normative values, energy formulas, applicability, and derived expressions are **not** request-path SQL. They load from `apps/api/src/vetdietderm_api/standards/fediaf/v2025/`. Alembic `0019` moved the former runtime tables into schema `legacy_guidelines`. SQL FEDIAF import and publish are not in the API process; schema `legacy_guidelines` remains.
 
 User accounts and organization membership live in module-auth, not in this database. Migration `0022` adds nullable `tenant_id` and `created_by` on clinical tables and stores opaque browser sessions in `browser_sessions`. Assessments are not stored as rows: the engine writes one JSON snapshot onto `diet_plans` at save. Lesion binaries live on disk; PostgreSQL keeps metadata only.
 
@@ -191,7 +192,7 @@ Runtime engine reads the **active in-process provider**. Bundled snapshot: `apps
 | `Fediaf2025Provider` | `assess`, `suggest`, `estimate_energy`, `context_options` |
 | `guideline_standards` / `guideline_editions` | Leftover public metadata; not consulted by `/guidelines` or `/assessments` |
 | `legacy_guidelines.*` | Archived SQL runtime from before `0019`; diagnostics / lossless downgrade only |
-| `vetdietderm_api.guidelines.import_fediaf` / `publish_fediaf` | Legacy CLIs; raise after `0019` unless tables are moved back to `public` |
+| SQL FEDIAF import / publish | Not in the API process; schema `legacy_guidelines` remains |
 
 Adult auto-select uses imported MER concentration profiles (`dog_adult_mer95` / `mer110`, `cat_adult_mer75` / `mer100`). Table VII-11 `daily_per_metabolic_bw` profiles stay stored as reference in the provider snapshot. Growth and reproduction keep published life-stage profiles.
 
@@ -219,7 +220,7 @@ Never opened by FastAPI request handlers or Next.js. Catalog import remains the 
 | --- | --- | --- |
 | `docs/data/products_normalized.json` | JSON **array** of food objects | `foods` + `food_nutrient_values` via `vetdietderm_api.catalog.import_products`. Clinician can also create/edit Food in the UI |
 | `apps/api/src/vetdietderm_api/standards/fediaf/v2025/normative_data.json` | JSON **object** (Russian FEDIAF snapshot, edition `2025.09`) | in-process provider at import of the Python package |
-| `docs/data/fediaf_2025_veterinary_nutrition_database_ru.json` | JSON **object** | archival / documentation twin of the provider snapshot; legacy SQL importer only |
+| `docs/data/fediaf_2025_veterinary_nutrition_database_ru.json` | JSON **object** | archival / documentation twin of the provider snapshot; not loaded by the API |
 | `docs/data/fediaf_2025_veterinary_nutrition_schema.json` | JSON Schema 2020-12 | validates the FEDIAF snapshot |
 | `docs/data/fediaf_2025_vii11_golden.json` | JSON fixture | Table VII-11 checks |
 | `docs/data/fediaf_2025_*.csv`, `docs/data/fediaf_2025_veterinary_nutrition_ru.xlsx` | CSV / XLSX | **archival only**; not runtime SoT; VII-11 is not in those files |
@@ -261,7 +262,7 @@ External publication cited by provider metadata: [FEDIAF Nutritional Guidelines 
 - Full rebuild is authorized; unused prototype modules may be deleted rather than migrated.
 - No migration of existing Pet/Consultation/DietPlan/Prisma rows. Catalog is imported fresh into PostgreSQL. FEDIAF runtime moved from SQL tables to an in-process provider in `0019` without a clinician-facing import UI.
 - Split-Stack Nutrition (#3), Nutrition Workbench Polish (#4), Clinical CRM Pivot (#5), and Nutrition Context Split (#6) are closed. Cycle #5 closed on the shipped workspace; signed encounters and encounter-stored calculations moved to #7. Cycle 2 is cancelled, not deferred. Docker Compose and the Next `/api` proxy are operations that landed without closing Platform cycle #8.
-- On 2026-10-27 the next cycle is #8, ahead of Planned #7, by explicit reprioritization. #8 removes the blocked SQL FEDIAF import/publish path from the API process and requires a clinical session for public `/ready`. The container still waits for PostgreSQL on an internal probe with no user session and no new token. Public `/health` stays a process check and does not touch the database. Schema `legacy_guidelines` stays. Backup and restore are not part of #8.
+- On 2026-10-27 Platform cycle #8 Pilot Hardening closed ahead of Planned #7: SQL FEDIAF import/publish left the API process, public `/ready` requires the clinical session, and the container waits for PostgreSQL on an in-process probe with no user session and no new token. Public `/health` stays a process check. Schema `legacy_guidelines` stays. Backup and restore were not part of #8.
 - Happy path works with and without a saved Patient; a Diet Plan may be saved without a Patient. The nutrition workspace offers a searchable Patient picker (animal and owner), plus the `?patientId=` deep-link and the save dialog.
 - Selecting a Patient prefills the animal form for this sitting. Fields stay editable as session overrides. Nutrition-session overrides (including `target_body_weight_kg`) are not written back to the Patient card.
 - Client and Patient are separate; owner is not embedded on the animal row. Patient card is read-only until the clinician starts an explicit edit.
@@ -306,8 +307,9 @@ External publication cited by provider metadata: [FEDIAF Nutritional Guidelines 
 - 2026-09-01 — FEDIAF v2025 became an in-process provider; `0019` archived SQL guideline runtime tables to `legacy_guidelines`. `0020` canonicalized iodine (`I`) and mineral units.
 - 2026-09-02 — Patients became a split-pane workspace with read-only card and tab routing.
 - 2026-09-05 — Clinical form builder shipped (`0021`, `/clinical-catalog`, structured anamnesis/exam documents). Docker Compose for API + frontend and Next `/api` proxy landed as the VPS run path. Appointment-by-id load, newest-first unfiltered appointment list, same-patient revalidation on appointment PATCH, and server-side patient search in the encounter picker addressed AUD-001–003. Cycle #5 stays In Progress.
-- 2026-10-27 — Accounts and an optional organization ship through module-auth and migration `0022`. The personal workspace is the default. Prototype Prisma scripts (SQLite-to-Neon copy, Prisma catalog import, Pet/Consultation seed, TypeScript FEDIAF codegen) are removed. SQL guideline import/publish and schema `legacy_guidelines` stay.
+- 2026-10-27 — Accounts and an optional organization ship through module-auth and migration `0022`. The personal workspace is the default. Prototype Prisma scripts (SQLite-to-Neon copy, Prisma catalog import, Pet/Consultation seed, TypeScript FEDIAF codegen) are removed. Schema `legacy_guidelines` stays.
 - 2026-10-27 — Product discovery closed #5 on the shipped CRM workspace and moved signed encounters plus encounter-stored calculations to #7. Drafted Platform cycle #8 Pilot Hardening as the next cycle, ahead of #7: one in-process FEDIAF engine, session-gated public `/ready`, internal container probe that still waits for PostgreSQL. Backup and restore are out of #8 because no working restore exists.
+- 2026-10-27 — Cycle #8 **Pilot Hardening** closed as ✅ Done. SQL FEDIAF import/publish left the API process; public `/ready` requires the clinical session; Compose probes PostgreSQL in-process inside the API container. Schema `legacy_guidelines` and leftover `guideline_standards` / `guideline_editions` remain.
 
 ## Open Product Questions
 

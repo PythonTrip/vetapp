@@ -4,13 +4,13 @@ prd_id: 2026-10-27-pilot-hardening
 cycle_id: 2026-10-27-pilot-hardening
 cycle_slug: pilot-hardening
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 ---
 
 # SQL Guideline Runtime Removal
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 The blocked SQL FEDIAF import and publish commands leave the API process. Clinician calculations stay on the in-process FEDIAF 2025 provider. Archived tables and leftover public guideline metadata stay in PostgreSQL. Saved plans, encounter text, ownerless rows, the food catalog, and gallery files keep their current read behavior.
@@ -53,12 +53,12 @@ The blocked SQL FEDIAF import and publish commands leave the API process. Clinic
 - `docs/PROJECT.md`
 
 ## Implementation Steps
-- [ ] Step 1: Delete the five legacy guideline modules listed in Requirements.
-- [ ] Step 2: Edit the `models.py` docstring so the remaining classes are described as leftover public metadata, not as a pair to `legacy_models`.
-- [ ] Step 3: Delete `test_legacy_sql_commands_fail_clearly_after_archive` and its `legacy_guard` imports. Keep the metadata disjoint/subset test.
-- [ ] Step 4: Replace the SQL import/publish operator instructions in `docs/Nutrient.md` and the matching CLI row in `docs/PROJECT.md`.
-- [ ] Step 5: Search `apps/api` and `docs` for `import_fediaf`, `publish_fediaf`, `legacy_guard`, `legacy_repository`, and `legacy_models`. Update or remove each remaining operator instruction. Leave Alembic revision files that only record history.
-- [ ] Step 6: Run the checks in Verification.
+- [x] Step 1: Delete the five legacy guideline modules listed in Requirements.
+- [x] Step 2: Edit the `models.py` docstring so the remaining classes are described as leftover public metadata, not as a pair to `legacy_models`.
+- [x] Step 3: Delete `test_legacy_sql_commands_fail_clearly_after_archive` and its `legacy_guard` imports. Keep the metadata disjoint/subset test.
+- [x] Step 4: Replace the SQL import/publish operator instructions in `docs/Nutrient.md` and the matching CLI row in `docs/PROJECT.md`.
+- [x] Step 5: Search `apps/api` and `docs` for `import_fediaf`, `publish_fediaf`, `legacy_guard`, `legacy_repository`, and `legacy_models`. Update or remove each remaining operator instruction. Leave Alembic revision files that only record history.
+- [x] Step 6: Run the checks in Verification.
 
 ## Verification
 - `uv run --project apps/api python -c "import vetdietderm_api.guidelines.import_fediaf"` exits non-zero.

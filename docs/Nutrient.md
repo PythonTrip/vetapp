@@ -1,7 +1,7 @@
 ---
 title: Nutrient
 module: nutrition
-updated: 2026-08-31
+updated: 2026-10-27
 scope: nutrition-nutrient-inventory
 related: docs/PROJECT.md
 ---
@@ -29,15 +29,16 @@ Clinical posture: outputs are informational recommendations for complete/complem
 
 | Role | Source | Runtime use |
 | --- | --- | --- |
-| Operational source of truth | PostgreSQL (`nutrients`, `foods`, `food_nutrient_values`, guideline tables, `diet_plans`) | Catalog, assessment, saved plans |
-| Guidelines import artifact | `docs/data/fediaf_2025_veterinary_nutrition_database_ru.json` (+ schema) | Operator CLI only → versioned guideline rows; never opened by FastAPI request path or Next.js |
+| Operational source of truth | PostgreSQL (`nutrients`, `foods`, `food_nutrient_values`, `diet_plans`; leftover `guideline_standards` / `guideline_editions`) | Catalog, saved plans; leftover guideline metadata is not read by assessments |
+| Normative FEDIAF provider | `vetdietderm_api.standards.fediaf.v2025` (bundled `normative_data.json`) | In-process only; `GET /guidelines/active` and assessments |
+| FEDIAF archive twin | `docs/data/fediaf_2025_veterinary_nutrition_database_ru.json` (+ schema) | Archive / documentation; the API does not import or publish SQL guideline rows |
 | External publication | [FEDIAF Nutritional Guidelines for Complete and Complementary Pet Food for Cats and Dogs](https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf) (edition from `database_meta`, currently `2025.09`) | Cited in `GET /guidelines/active` and Diet Plan snapshot |
 | Product catalog import | `docs/data/products_normalized.json` | Operator CLI `vetdietderm_api.catalog.import_products`; clinician can also create/edit Food in the UI |
 | Patient context | `Patient` (+ `Client`) and/or manual profile in the workspace | Prefill via Patient picker or `?patientId=`; session fields stay editable and are not written back |
 | Saved assessments | `DietPlan.assessment_snapshot_json` | Persistence; reopen shows the stored snapshot, not a live recompute |
 | Archival only (not runtime SoT) | `docs/data/fediaf_2025_*.csv`, `docs/data/fediaf_2025_veterinary_nutrition_ru.xlsx` | Historical conversion artifacts |
 
-Pipeline: JSON snapshot → `uv run --project apps/api python -m vetdietderm_api.guidelines.import_fediaf` → validate → CLI publish. The running engine (`nutrition-engine/2.0.0`) loads only the **published** FEDIAF edition from PostgreSQL. NRC 2006, CSV-based FEDIAF generation, and TypeScript `fediaf-data.ts` are not in runtime.
+Normative values load from `vetdietderm_api.standards.fediaf.v2025`. The JSON under `docs/data/` is an archive twin of that provider snapshot. The API process does not import or publish SQL guideline rows; schema `legacy_guidelines` remains for diagnostics only. NRC 2006, CSV-based FEDIAF generation, and TypeScript `fediaf-data.ts` are not in runtime.
 
 Auto-selected adult, growth, and reproduction profiles use `published_per_1000_kcal`; daily requirements are derived with `target × working_energy_kcal / 1000`. Table VII-11 `daily_per_metabolic_bw` profiles remain stored as reference data. Null / not-established values mean “not set in the source table,” not zero.
 
