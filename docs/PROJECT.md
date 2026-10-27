@@ -17,7 +17,7 @@ VetDietDerm is a veterinary clinical workbench for specialists who manage patien
 - Small specialty clinics and cabinets
 - Assistants and admins who schedule visits and owner communications (later CRM depth)
 
-Primary remaining Core work is Clinical CRM Pivot (#5). The nutrition workbench is closed through cycle #6. Deployment on an existing VPS (Docker Compose for API and UI, already-provisioned PostgreSQL) is in use and does not close Platform cycle #8.
+Core cycles #1–#6 are closed. Clinical CRM Pivot (#5) closed on the shipped workspace; signed encounters and encounter-stored calculations moved to Specialty Depth (#7). The next cycle is Platform #8 Pilot Hardening, by explicit reprioritization ahead of #7. Deployment on an existing VPS is in use and does not by itself close #8.
 
 ## Business Model
 
@@ -77,10 +77,10 @@ Not shipped: Food `species_compatibility` (dropped from cycle #6), owner share p
 | 2 | ❌ Cancelled | Core | FEDIAF Relational Assessment | Trustworthy Postgres-backed ration analysis on the Next/Prisma prototype. Cancelled: same clinical outcome is delivered on a new stack in cycle 3; in-place Prisma refactor was rejected. | Historical PRD cleaned 2026-08-31 |
 | 3 | ✅ Done | Core | Split-Stack Nutrition | Nutritionist uses a rebuilt workbench (Next.js UI + one FastAPI process + existing PostgreSQL): Client/Patient, Food catalog, ration, honest FEDIAF 2025 assessment, reproducible saved plan. Legacy prototype modules left runtime. Therapeutic-goal gate from this cycle was later removed in #4. | [PRD](prd/2026-08-28_split-stack-nutrition_prd.md) |
 | 4 | ✅ Done | Core | Nutrition Workbench Polish | Nutritionist picks a Patient on `/nutrition`, browses Foods as a category-filtered nutrient table, and always gets a FEDIAF comparison after confirm — no therapeutic-goal switch. Confirmed profile and MER formula were strictly paired until #6. | [PRD](prd/2026-08-29_nutrition-workbench-polish_prd.md) |
-| 5 | 🚧 In Progress | Core | Clinical CRM Pivot | Client/Patient/Encounter workspace with schedule, attachments, communications, structured form builder, and encounter templates on the split stack. Accounts and an optional organization are in use via module-auth. Encounter-stored calculations and signed encounters are still later. | — |
+| 5 | ✅ Done | Core | Clinical CRM Pivot | Client/Patient/Encounter workspace with schedule, attachments, communications, structured form builder, encounter templates, and accounts with an optional organization. Signed encounters and encounter-stored calculations moved to #7. | — |
 | 6 | ✅ Done | Core | Nutrition Context Split | Energy formulas and nutrient profiles remain independent; the server resolves both from the animal card, adult verdicts use imported MER95/110 and MER75/100 profiles, and stale results cannot look valid. | [PRD](prd/2026-08-29_nutrition-context-split_prd.md) |
-| 7 | ⬜ Planned | Pro | Specialty Depth | Stronger derm/nutrition encounter templates, follow-up CRM, additional clinical calculators (dose, fluids), and disease-specific therapeutic nutrient profiles if still wanted | — |
-| 8 | ⬜ Planned | Platform | Pilot Hardening | Audit, backups depth, medical-data protections, and multi-user clinic readiness on VPS | — |
+| 7 | ⬜ Planned | Pro | Specialty Depth | Stronger derm/nutrition encounter templates, follow-up CRM, signed encounters, encounter-stored calculations, additional clinical calculators (dose, fluids), and disease-specific therapeutic nutrient profiles if still wanted. Not the next cycle. | — |
+| 8 | ⬜ Planned | Platform | Pilot Hardening | The running API calculates nutrition only with the in-process FEDIAF provider. Public `/ready` requires the clinical session. The container still waits for PostgreSQL before the UI starts. Backup and restore stay later. | [PRD](prd/2026-10-27_pilot-hardening_prd.md) |
 
 ## Product Architecture
 
@@ -260,7 +260,8 @@ External publication cited by provider metadata: [FEDIAF Nutritional Guidelines 
 
 - Full rebuild is authorized; unused prototype modules may be deleted rather than migrated.
 - No migration of existing Pet/Consultation/DietPlan/Prisma rows. Catalog is imported fresh into PostgreSQL. FEDIAF runtime moved from SQL tables to an in-process provider in `0019` without a clinician-facing import UI.
-- Split-Stack Nutrition (#3), Nutrition Workbench Polish (#4), and Nutrition Context Split (#6) are closed. Clinical CRM Pivot (#5) remains In Progress and is the remaining Core cycle. Cycle 2 is cancelled, not deferred. Docker Compose and the Next `/api` proxy are operations that landed without closing Platform cycle #8.
+- Split-Stack Nutrition (#3), Nutrition Workbench Polish (#4), Clinical CRM Pivot (#5), and Nutrition Context Split (#6) are closed. Cycle #5 closed on the shipped workspace; signed encounters and encounter-stored calculations moved to #7. Cycle 2 is cancelled, not deferred. Docker Compose and the Next `/api` proxy are operations that landed without closing Platform cycle #8.
+- On 2026-10-27 the next cycle is #8, ahead of Planned #7, by explicit reprioritization. #8 removes the blocked SQL FEDIAF import/publish path from the API process and requires a clinical session for public `/ready`. The container still waits for PostgreSQL on an internal probe with no user session and no new token. Public `/health` stays a process check and does not touch the database. Schema `legacy_guidelines` stays. Backup and restore are not part of #8.
 - Happy path works with and without a saved Patient; a Diet Plan may be saved without a Patient. The nutrition workspace offers a searchable Patient picker (animal and owner), plus the `?patientId=` deep-link and the save dialog.
 - Selecting a Patient prefills the animal form for this sitting. Fields stay editable as session overrides. Nutrition-session overrides (including `target_body_weight_kg`) are not written back to the Patient card.
 - Client and Patient are separate; owner is not embedded on the animal row. Patient card is read-only until the clinician starts an explicit edit.
@@ -283,7 +284,7 @@ External publication cited by provider metadata: [FEDIAF Nutritional Guidelines 
 - Food `species_compatibility`, species-filtered search, and ration-level mismatch confirmation are **out of cycle #6**. Catalog and ration Add remain name/category search without a species gate.
 - Encounter anamnesis and exam are structured documents generated from a field catalog, not a free-text SOAP block as the primary capture. Plan stays free text. System templates ship in the UI; clinic/doctor catalog items persist in PostgreSQL.
 - The doctor label on personal templates comes from the signed-in profile. Authentication is the module-auth session, not that label.
-- Breed notes, complementary-only analysis branch, NRC/AAFCO, knowledge/AI, share portal, drug checker, English UI, and Vercel/Neon remain later. Accounts and organization roles are in use. Encounters, templates, derm gallery, schedule, and communications sit on the split stack (roadmap #5 in progress) without Prisma.
+- Breed notes, complementary-only analysis branch, NRC/AAFCO, knowledge/AI, share portal, drug checker, English UI, and Vercel/Neon remain later. Accounts and organization roles are in use. Encounters, templates, derm gallery, schedule, and communications sit on the split stack without Prisma.
 - Lesion originals live on disk (`ATTACHMENT_DIR`); PostgreSQL stores attachment metadata only. No base64 in the primary tables. Compose named volume does not auto-import an existing `data/attachments` tree.
 - Multiple API processes are deferred; keep extractable modules in one process.
 - Next Route Handler must stay the public `/api` path. Direct FastAPI publish is loopback-only.
@@ -306,6 +307,7 @@ External publication cited by provider metadata: [FEDIAF Nutritional Guidelines 
 - 2026-09-02 — Patients became a split-pane workspace with read-only card and tab routing.
 - 2026-09-05 — Clinical form builder shipped (`0021`, `/clinical-catalog`, structured anamnesis/exam documents). Docker Compose for API + frontend and Next `/api` proxy landed as the VPS run path. Appointment-by-id load, newest-first unfiltered appointment list, same-patient revalidation on appointment PATCH, and server-side patient search in the encounter picker addressed AUD-001–003. Cycle #5 stays In Progress.
 - 2026-10-27 — Accounts and an optional organization ship through module-auth and migration `0022`. The personal workspace is the default. Prototype Prisma scripts (SQLite-to-Neon copy, Prisma catalog import, Pet/Consultation seed, TypeScript FEDIAF codegen) are removed. SQL guideline import/publish and schema `legacy_guidelines` stay.
+- 2026-10-27 — Product discovery closed #5 on the shipped CRM workspace and moved signed encounters plus encounter-stored calculations to #7. Drafted Platform cycle #8 Pilot Hardening as the next cycle, ahead of #7: one in-process FEDIAF engine, session-gated public `/ready`, internal container probe that still waits for PostgreSQL. Backup and restore are out of #8 because no working restore exists.
 
 ## Open Product Questions
 
@@ -321,5 +323,5 @@ External publication cited by provider metadata: [FEDIAF Nutritional Guidelines 
 - Whether to restore a standalone Nutrient SPEC document; current inventory lives in `docs/Nutrient.md` and migration `0003_food_catalog`
 - Whether a later cycle adds Food `species_compatibility` and species-filtered ration search
 - Whether archival adult density standards (`dog_adult_density_95/110`, `cat_adult_density_75/100`) later get a clinician cross-check surface, or stay data-only
-- What remaining CRM work still gates cycle #5 (accounts and organization roles are in use; form builder is already in Current Functionality; signed encounters and encounter-stored calculations are still open)
+- When backup and restore of the clinical database and gallery files become their own cycle. They are not part of #8.
 - Whether `/settings` later hosts clinic/doctor catalog editing, or that stays inside the encounter workspace
