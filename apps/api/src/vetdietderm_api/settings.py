@@ -23,7 +23,8 @@ class Settings(BaseSettings):
     DATABASE_USER: str | None = None
     DATABASE_PASSWORD: str | None = Field(default=None, repr=False)
     DATABASE_SSLMODE: str = "prefer"
-    INSTANCE_PASSWORD: str = Field(min_length=1)
+    MODULE_AUTH_URL: str = "http://127.0.0.1:8321"
+    AUTH_COOKIE_SECURE: bool = False
     FRONTEND_URL: str = "http://127.0.0.1:3000"
     ATTACHMENT_DIR: Path = _REPO_ROOT / "data" / "attachments"
 

@@ -7,6 +7,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from vetdietderm_api.db import Base
+from vetdietderm_api.tenancy import TenantOwned
 from vetdietderm_api.ids import uuid6
 
 
@@ -14,7 +15,7 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-class ClinicalCatalogItem(Base):
+class ClinicalCatalogItem(TenantOwned, Base):
     __tablename__ = "clinical_catalog_items"
     __table_args__ = (
         Index("ix_clinical_catalog_lookup", "kind", "scope", "specialty"),

@@ -4,6 +4,7 @@ import { Check, MonitorCog, Moon, Settings, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { OrganizationSettings } from "@/components/organization-settings";
 import { cn } from "@/lib/utils";
 
 export function SettingsModule() {
@@ -21,6 +22,8 @@ export function SettingsModule() {
           Оформление интерфейса. Предпочтение сохраняется на этом устройстве.
         </p>
       </div>
+
+      <OrganizationSettings />
 
       <Card>
         <CardHeader>

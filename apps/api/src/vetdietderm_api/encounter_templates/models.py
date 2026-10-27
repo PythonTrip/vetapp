@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from vetdietderm_api.db import Base
+from vetdietderm_api.tenancy import TenantOwned
 from vetdietderm_api.ids import uuid6
 
 
@@ -13,7 +14,7 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-class EncounterTemplate(Base):
+class EncounterTemplate(TenantOwned, Base):
     __tablename__ = "encounter_templates"
     __table_args__ = (
         Index("ix_encounter_templates_lookup", "section", "specialty", "scope"),

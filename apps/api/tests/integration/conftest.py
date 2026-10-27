@@ -53,7 +53,7 @@ def api_app(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[FastAPI
         "DATABASE_URL",
         _scoped_database_url(source_settings.DATABASE_URL, schema),
     )
-    monkeypatch.setenv("INSTANCE_PASSWORD", TEST_TOKEN)
+
     monkeypatch.setenv("ATTACHMENT_DIR", str(tmp_path / "attachments"))
 
     from vetdietderm_api.db import Base, get_engine, get_session_factory
@@ -67,9 +67,28 @@ def api_app(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[FastAPI
 
     engine = get_engine()
     application = create_app()
+    # Clinical workflow tests authenticate through the BFF against a stub authority.
+    # Real auth HTTP contract and rotation are covered separately.
+    import httpx
+    from vetdietderm_api import auth
+    monkeypatch.setattr(auth, "upstream", lambda method, path, body=None, token=None:
+        httpx.Response(200, json={
+            "user_id": "00000000-0000-0000-0000-000000000001",
+            "email": "test@example.com", "email_verified": True,
+            "account_status": "active", "role": "super_admin",
+            "organization": {"org_id": "00000000-0000-0000-0000-000000000002",
+                             "name": "Test clinic", "status": "active", "org_role": "owner"},
+        }))
 
     try:
         Base.metadata.create_all(engine)
+        import hashlib
+        import time
+        with get_session_factory()() as db:
+            db.add(auth.BrowserSession(key_hash=hashlib.sha256(TEST_TOKEN.encode()).hexdigest(),
+                access_token="test-access", refresh_token="test-refresh",
+                access_expires=time.time() + 3600, expires=time.time() + 7200))
+            db.commit()
         expected_tables = set(Base.metadata.tables)
         actual_tables = set(inspect(engine).get_table_names(schema=schema))
         assert expected_tables <= actual_tables
@@ -109,7 +128,8 @@ def api_app(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[FastAPI
 def api_client(api_app: FastAPI) -> Iterator[TestClient]:
     with TestClient(
         api_app,
-        headers={"Authorization": f"Bearer {TEST_TOKEN}"},
+        headers={"X-Vetapp-CSRF": "1", "X-Vetapp-Workspace": "organization"},
+        cookies={"vetapp_session": TEST_TOKEN},
     ) as client:
         yield client
 

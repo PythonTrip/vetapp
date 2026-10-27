@@ -21,9 +21,8 @@ def test_health_ready_and_openapi_boundaries(api_client: TestClient) -> None:
     assert ready.status_code == 200
     assert ready.json() == {"status": "ok"}
 
-    api_client.headers.pop("Authorization")
+    api_client.cookies.clear()
     paths = [
-        "/ready",
         "/clients",
         f"/patients/{ZERO_UUID}/encounters",
         "/encounter-templates",
@@ -38,8 +37,7 @@ def test_health_ready_and_openapi_boundaries(api_client: TestClient) -> None:
         response = api_client.get(path)
 
         assert response.status_code == 401, path
-        assert response.json() == {"detail": "Неверный пароль"}, path
-        assert response.headers["www-authenticate"] == "Bearer", path
+        assert response.json() == {"detail": "Войдите в аккаунт"}, path
 
     wrong_token = api_client.get(
         "/clients",
@@ -47,5 +45,4 @@ def test_health_ready_and_openapi_boundaries(api_client: TestClient) -> None:
     )
 
     assert wrong_token.status_code == 401
-    assert wrong_token.json() == {"detail": "Неверный пароль"}
-    assert wrong_token.headers["www-authenticate"] == "Bearer"
+    assert wrong_token.json() == {"detail": "Войдите в аккаунт"}

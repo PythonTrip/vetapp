@@ -32,6 +32,11 @@ async function proxy(
   request: NextRequest,
   context: { params: Promise<{ path: string[] }> },
 ): Promise<NextResponse> {
+  if (!["GET", "HEAD", "OPTIONS"].includes(request.method)) {
+    const origin = request.headers.get("origin");
+    if (!origin || origin !== new URL(process.env.FRONTEND_URL ?? request.url).origin || request.headers.get("X-Vetapp-CSRF") !== "1")
+      return NextResponse.json({ detail: "Недопустимый источник запроса" }, { status: 403 });
+  }
   const { path } = await context.params;
   const target = new URL(`${apiOrigin()}/${path.map(encodeURIComponent).join("/")}`);
   target.search = request.nextUrl.search;
@@ -40,6 +45,7 @@ async function proxy(
     method: request.method,
     headers: filterHeaders(request.headers),
     redirect: "manual",
+    cache: "no-store",
   };
 
   if (request.method !== "GET" && request.method !== "HEAD") {
@@ -52,7 +58,7 @@ async function proxy(
     return new NextResponse(upstream.body, {
       status: upstream.status,
       statusText: upstream.statusText,
-      headers: filterHeaders(upstream.headers),
+      headers: (() => { const headers = filterHeaders(upstream.headers); headers.set("Cache-Control", "no-store"); return headers; })(),
     });
   } catch {
     return NextResponse.json({ detail: "API unavailable" }, { status: 502 });

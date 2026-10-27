@@ -14,7 +14,9 @@ def _not_found() -> HTTPException:
 
 def list_items(session: Session, doctor_name: str | None) -> list[ClinicalCatalogItem]:
     stmt = select(ClinicalCatalogItem)
-    if doctor_name:
+    if session.info.get("user_id"):
+        pass  # TenantSession filters personal rows by immutable user ID.
+    elif doctor_name:
         stmt = stmt.where(
             or_(
                 ClinicalCatalogItem.scope == "clinic",

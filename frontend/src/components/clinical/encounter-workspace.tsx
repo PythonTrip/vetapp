@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useAuth } from "@/components/auth-provider";
 import Link from "next/link";
 import {
   CalendarCheck,
@@ -65,7 +66,6 @@ import {
 import { apiErrorMessage, speciesLabel } from "@/lib/patient-form";
 import { cn } from "@/lib/utils";
 
-const DOCTOR_NAME_KEY = "vetdietderm.doctor_name";
 
 function appointmentLabel(appointment: AppointmentRecord): string {
   return `${formatDateTime(appointment.starts_at)} · ${appointment.patient.name} · ${VISIT_TYPE_LABELS[appointment.visit_type]}`;
@@ -95,7 +95,8 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
   const [byAppointment, setByAppointment] = React.useState(Boolean(initialAppointmentId));
   const [appointmentId, setAppointmentId] = React.useState(initialAppointmentId ?? "");
   const [patientId, setPatientId] = React.useState(initialPatientId ?? "");
-  const [doctorName, setDoctorName] = React.useState("");
+  const { user } = useAuth();
+  const doctorName = user?.display_name || user?.email || "";
   const [editingEncounterId, setEditingEncounterId] = React.useState(initialEncounterId ?? "");
   const [form, setForm] = React.useState(emptyForm);
   const [formError, setFormError] = React.useState<string | null>(null);
@@ -182,15 +183,6 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
     lastPersistedForm.current = JSON.stringify(nextForm);
     setSaveState("saved");
   }, []);
-
-  React.useEffect(() => {
-    setDoctorName(window.localStorage.getItem(DOCTOR_NAME_KEY) ?? "");
-  }, []);
-
-  React.useEffect(() => {
-    if (doctorName.trim()) window.localStorage.setItem(DOCTOR_NAME_KEY, doctorName.trim());
-    else window.localStorage.removeItem(DOCTOR_NAME_KEY);
-  }, [doctorName]);
 
   React.useEffect(() => {
     if (!selectedAppointment) return;
@@ -415,7 +407,7 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
           </div>
           <div className="flex items-center gap-2 p-3">
             <UserRound className="h-4 w-4 shrink-0 text-emerald-200" />
-            <Input value={doctorName} onChange={(event) => setDoctorName(event.target.value)} placeholder="Имя врача для личных шаблонов" className="border-white/15 bg-white/10 text-white placeholder:text-white/45" aria-label="Имя врача" />
+            <Input value={doctorName} readOnly placeholder="Имя врача для личных шаблонов" className="border-white/15 bg-white/10 text-white placeholder:text-white/45" aria-label="Имя врача" />
           </div>
         </div>
       </header>

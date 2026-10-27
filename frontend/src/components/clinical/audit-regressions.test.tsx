@@ -6,6 +6,7 @@ import { appointmentsApi, patientsApi, encountersApi, clinicalCatalogApi, encoun
 import { EncounterWorkspace } from "./encounter-workspace";
 import { ScheduleBoard } from "./schedule-board";
 
+vi.mock("@/components/auth-provider", () => ({ useAuth: () => ({ user: { user_id: "doctor-1", display_name: "Врач" } }) }));
 vi.mock("./clinical-form-builder", () => ({ ClinicalFormBuilder: () => null }));
 vi.mock("./plan-editor", () => ({ PlanEditor: () => null }));
 afterEach(() => vi.restoreAllMocks());

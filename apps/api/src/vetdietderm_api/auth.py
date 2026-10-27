@@ -1,31 +1,202 @@
-import hmac
+"""module-auth BFF: opaque cookies and database-serialized refresh rotation."""
+import hashlib
+import re
+import secrets
+import time
 from typing import Annotated
+from uuid import uuid4
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from sqlalchemy import Float, String, Text, select
+from sqlalchemy.orm import Mapped, mapped_column
 
+from vetdietderm_api.db import Base, get_session_factory
 from vetdietderm_api.settings import get_settings
 
-_bearer = HTTPBearer(auto_error=False)
+COOKIE = "vetapp_session"
+router = APIRouter(prefix="/auth-service", tags=["account"])
 
 
-def require_instance_password(
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
-) -> None:
-    settings = get_settings()
-    if (
-        credentials is None
-        or credentials.scheme.lower() != "bearer"
-        or not credentials.credentials
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Неверный пароль",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    if not hmac.compare_digest(credentials.credentials, settings.INSTANCE_PASSWORD):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Неверный пароль",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+class BrowserSession(Base):
+    __tablename__ = "browser_sessions"
+    key_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    access_token: Mapped[str] = mapped_column(Text)
+    refresh_token: Mapped[str] = mapped_column(Text)
+    access_expires: Mapped[float] = mapped_column(Float)
+    expires: Mapped[float] = mapped_column(Float, index=True)
+
+
+def csrf(request: Request) -> None:
+    if request.method in {"GET", "HEAD", "OPTIONS"}:
+        return
+    if request.headers.get("X-Vetapp-CSRF") != "1":
+        raise HTTPException(403, "Отсутствует защита запроса")
+    origin = request.headers.get("origin")
+    allowed = {get_settings().FRONTEND_URL.rstrip("/"), "http://localhost:3000", "http://127.0.0.1:3000"}
+    if origin and origin.rstrip("/") not in allowed:
+        raise HTTPException(403, "Недопустимый источник запроса")
+
+
+def upstream(method: str, path: str, body=None, token: str | None = None) -> httpx.Response:
+    headers = {"X-Request-ID": str(uuid4())}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    try:
+        return httpx.request(method, get_settings().MODULE_AUTH_URL.rstrip("/") + path,
+                             json=body, headers=headers, timeout=12, follow_redirects=False)
+    except httpx.HTTPError as exc:
+        raise HTTPException(503, "Сервис пользователей временно недоступен") from exc
+
+
+def checked(response: httpx.Response):
+    if response.status_code >= 400:
+        try:
+            detail = response.json().get("detail", "Ошибка сервиса пользователей")
+        except ValueError:
+            detail = "Ошибка сервиса пользователей"
+        raise HTTPException(response.status_code, detail)
+    return response.json() if response.content else None
+
+
+def store_pair(row: BrowserSession, pair: dict) -> None:
+    row.access_token = pair["access_token"]
+    row.refresh_token = pair["refresh_token"]
+    row.access_expires = time.time() + pair["expires_in"]
+    row.expires = time.time() + pair["refresh_token_expires_in"]
+
+
+def session_hash(request: Request) -> str:
+    key = request.cookies.get(COOKIE)
+    if not key:
+        raise HTTPException(401, "Войдите в аккаунт")
+    return hashlib.sha256(key.encode()).hexdigest()
+
+
+def authenticated_call(request: Request, method: str, path: str, body=None,
+                       force_refresh: bool = False):
+    # Canonical AuthClient lifecycle, adapted to a cross-process PostgreSQL lock.
+    with get_session_factory()() as db:
+        row = db.scalar(select(BrowserSession).where(
+            BrowserSession.key_hash == session_hash(request)).with_for_update())
+        if row is None or row.expires <= time.time():
+            raise HTTPException(401, "Сессия истекла. Войдите снова")
+
+        def refresh():
+            try:
+                result = upstream("POST", "/auth/refresh", {"refresh_token": row.refresh_token})
+            except HTTPException:
+                # Timeout may have consumed the one-time token: never reuse it.
+                db.delete(row)
+                db.commit()
+                raise
+            if result.status_code == 401 or result.status_code >= 500:
+                db.delete(row)
+                db.commit()
+                checked(result)
+            store_pair(row, checked(result))
+
+        refreshed = force_refresh or row.access_expires <= time.time() + 30
+        if refreshed:
+            refresh()
+        try:
+            result = upstream(method, path, body, row.access_token)
+            if result.status_code == 401 and not refreshed:
+                refresh()
+                result = upstream(method, path, body, row.access_token)
+            if result.status_code == 401:
+                db.delete(row)
+        finally:
+            # Persist rotated tokens even if the subsequent protected call fails.
+            db.commit()
+        return checked(result)
+
+
+def require_user(request: Request) -> dict:
+    csrf(request)
+    # Authority validates the token and current membership. No unsigned JWT trust.
+    profile = authenticated_call(request, "GET", "/me")
+    if profile.get("account_status") != "active" or not profile.get("email_verified"):
+        raise HTTPException(401, "Войдите в активный аккаунт")
+    request.state.user = profile
+    return profile
+
+
+def require_clinical_access(request: Request, user: Annotated[dict, Depends(require_user)]) -> None:
+    workspace = request.headers.get("X-Vetapp-Workspace", "personal")
+    if workspace not in {"personal", "organization"}:
+        raise HTTPException(400, "Неизвестное рабочее место")
+    org = user.get("organization") if workspace == "organization" else None
+    if workspace == "organization" and (not org or org.get("status") != "active"):
+        raise HTTPException(403, "Организация недоступна. Выберите личное рабочее место")
+    request.state.tenant_id = org["org_id"] if org else None
+    if request.method not in {"GET", "HEAD", "OPTIONS"}:
+        calculation = request.url.path.startswith("/assessments/")
+        if org and org.get("org_role") not in {"owner", "admin", "member"} and not calculation:
+            raise HTTPException(403, "Роль наблюдателя разрешает только просмотр")
+        if request.url.path.startswith("/foods") and user.get("role") != "super_admin":
+            raise HTTPException(403, "Общий каталог изменяет только администратор сервиса")
+
+
+@router.post("/auth/login", dependencies=[Depends(csrf)])
+def login(request: Request, response: Response, body: dict):
+    pair = checked(upstream("POST", "/auth/login", body))
+    key = secrets.token_urlsafe(32)
+    with get_session_factory()() as db:
+        old = request.cookies.get(COOKIE)
+        if old:
+            previous = db.scalar(select(BrowserSession).where(
+                BrowserSession.key_hash == hashlib.sha256(old.encode()).hexdigest()).with_for_update())
+            if previous:
+                db.delete(previous)
+        row = BrowserSession(key_hash=hashlib.sha256(key.encode()).hexdigest())
+        store_pair(row, pair)
+        db.add(row)
+        db.commit()
+    response.set_cookie(COOKIE, key, httponly=True, secure=get_settings().AUTH_COOKIE_SECURE,
+                        samesite="lax", path="/", max_age=pair["refresh_token_expires_in"])
+    response.headers["Cache-Control"] = "no-store"
+    return {"ok": True}
+
+
+@router.post("/auth/logout", dependencies=[Depends(csrf)])
+def logout(request: Request, response: Response):
+    if request.cookies.get(COOKIE):
+        with get_session_factory()() as db:
+            row = db.scalar(select(BrowserSession).where(
+                BrowserSession.key_hash == session_hash(request)).with_for_update())
+            if row:
+                try:
+                    upstream("POST", "/auth/logout", {"refresh_token": row.refresh_token})
+                except HTTPException:
+                    pass
+                db.delete(row)
+                db.commit()
+    response.delete_cookie(COOKIE, path="/")
+    return {"ok": True}
+
+
+PUBLIC = {"auth/register", "auth/email/verify", "auth/email/resend-verification",
+          "auth/password/forgot", "auth/password/reset"}
+PROTECTED = re.compile(r"(?:me(?:/change-password|/sessions(?:/[\w-]+)?)?|"
+                       r"organizations(?:/[\w-]+(?:/members(?:/[\w-]+)?|/invites(?:/[\w-]+)?)?)?|"
+                       r"invites/accept)")
+
+
+@router.get("/{path:path}", operation_id="account_get", dependencies=[Depends(csrf)])
+@router.post("/{path:path}", operation_id="account_post", dependencies=[Depends(csrf)])
+@router.patch("/{path:path}", operation_id="account_patch", dependencies=[Depends(csrf)])
+@router.delete("/{path:path}", operation_id="account_delete", dependencies=[Depends(csrf)])
+def account_proxy(path: str, request: Request, response: Response, body: dict | None = None):
+    response.headers["Cache-Control"] = "no-store"
+    if path in PUBLIC and request.method == "POST":
+        return checked(upstream("POST", "/" + path, body))
+    if path == "auth/refresh" and request.method == "POST":
+        return authenticated_call(request, "GET", "/me", force_refresh=True)
+    if not PROTECTED.fullmatch(path):
+        raise HTTPException(404, "Не найдено")
+    result = authenticated_call(request, request.method, "/" + path, body)
+    if (request.method == "POST" and path in {"organizations", "invites/accept"}) or (
+        request.method in {"PATCH", "DELETE"} and "/members/" in path):
+        authenticated_call(request, "GET", "/me", force_refresh=True)
+    return result

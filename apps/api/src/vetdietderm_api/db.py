@@ -1,7 +1,7 @@
 from collections.abc import Iterator
 from functools import lru_cache
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 from loguru import logger
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
@@ -31,6 +31,7 @@ def get_engine() -> Engine:
         sqlalchemy_url(settings.DATABASE_URL),
         pool_pre_ping=True,
         pool_recycle=60,
+        connect_args={"connect_timeout": 8} if sqlalchemy_url(settings.DATABASE_URL).startswith("postgresql") else {},
     )
 
 
@@ -39,8 +40,14 @@ def get_session_factory() -> sessionmaker[Session]:
     return sessionmaker(bind=get_engine(), expire_on_commit=False, autoflush=False)
 
 
-def get_session() -> Iterator[Session]:
-    session = get_session_factory()()
+def get_session(request: Request) -> Iterator[Session]:
+    from vetdietderm_api.tenancy import TenantSession
+
+    user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(401, "Войдите в аккаунт")
+    session = TenantSession(bind=get_engine(), expire_on_commit=False, autoflush=False)
+    session.info.update(tenant_id=getattr(request.state, "tenant_id", None), user_id=user["user_id"])
     try:
         yield session
     except Exception:

@@ -1,22 +1,10 @@
-const TOKEN_KEY = "vetdietderm.instance_bearer";
-
 export function getApiBaseUrl(): string {
-  const raw = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
-  return raw.replace(/\/$/, "");
+  return "/api";
 }
 
-export function getInstanceToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return sessionStorage.getItem(TOKEN_KEY);
-}
-
-export function setInstanceToken(token: string): void {
-  sessionStorage.setItem(TOKEN_KEY, token);
-}
-
-export function clearInstanceToken(): void {
-  sessionStorage.removeItem(TOKEN_KEY);
-}
+export type Workspace = "personal" | "organization";
+let workspace: Workspace = "personal";
+export function setApiWorkspace(value: Workspace): void { workspace = value; }
 
 export interface ApiErrorPayload {
   error?: string;
@@ -64,7 +52,7 @@ export function registerAuthRecovery(handlers: AuthRecoveryHandlers): () => void
 }
 
 function resolveUrl(input: string): string {
-  if (input.startsWith("http://") || input.startsWith("https://")) return input;
+  if (/^https?:/.test(input) || input.startsWith("//")) throw new Error("Only relative API paths are supported");
   const path = input.startsWith("/") ? input : `/${input}`;
   return `${getApiBaseUrl()}${path}`;
 }
@@ -72,6 +60,10 @@ function resolveUrl(input: string): string {
 function messageFromPayload(payload: unknown, fallback: string): string {
   if (payload && typeof payload === "object") {
     const record = payload as ApiErrorPayload;
+    if (Array.isArray(record.detail)) {
+      const messages = record.detail.map((item) => item && typeof item.msg === "string" ? item.msg : "").filter(Boolean);
+      if (messages.length) return messages.join(". ");
+    }
     if (typeof record.detail === "string" && record.detail.trim()) return record.detail;
     if (
       record.detail
@@ -97,14 +89,14 @@ async function readPayload(response: Response): Promise<unknown> {
 
 function authenticatedHeaders(headers?: HeadersInit): Headers {
   const requestHeaders = new Headers(headers);
-  const token = getInstanceToken();
-  if (token) requestHeaders.set("Authorization", `Bearer ${token}`);
+  requestHeaders.set("X-Vetapp-CSRF", "1");
+  requestHeaders.set("X-Vetapp-Workspace", workspace);
   return requestHeaders;
 }
 
 async function fetchResponse(input: string, init: RequestInit): Promise<Response> {
   try {
-    return await fetch(resolveUrl(input), init);
+    return await fetch(resolveUrl(input), { ...init, credentials: "same-origin", cache: "no-store" });
   } catch {
     throw new ApiConnectionError("API unavailable");
   }
@@ -112,7 +104,6 @@ async function fetchResponse(input: string, init: RequestInit): Promise<Response
 
 async function recoverSession(): Promise<boolean> {
   if (!authRecoveryHandlers) {
-    clearInstanceToken();
     return false;
   }
   if (!recoveryFlight) {

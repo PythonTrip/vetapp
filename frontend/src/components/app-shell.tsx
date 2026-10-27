@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useAuth } from "@/components/auth-provider";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -81,6 +82,8 @@ function ThemeToggle() {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const { user, workspace } = useAuth();
+  const workspaceLabel = workspace === "organization" ? user?.organization?.name : "Личное рабочее место";
   const pathname = usePathname();
   const activeSection = sectionFromPathname(pathname);
 
@@ -94,7 +97,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="flex flex-col leading-none">
               <span className="font-bold text-[15px] tracking-tight">VetDietDerm</span>
               <span className="text-[10px] font-medium text-muted-foreground">
-                Клиническое рабочее место
+                {workspaceLabel}
               </span>
             </div>
           </Link>

@@ -5,6 +5,7 @@ from sqlalchemy import DateTime, ForeignKey, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from vetdietderm_api.db import Base
+from vetdietderm_api.tenancy import TenantOwned
 from vetdietderm_api.ids import uuid6
 from vetdietderm_api.patients.models import Client, Patient
 
@@ -13,7 +14,7 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-class Communication(Base):
+class Communication(TenantOwned, Base):
     __tablename__ = "communications"
 
     uuid: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid6)

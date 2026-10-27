@@ -1,161 +1,43 @@
 import * as React from "react";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/components/auth-provider";
-import { ApiError, api, setInstanceToken } from "@/lib/api-client";
-
-function jsonResponse(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
+import { api } from "@/lib/api-client";
+const profile = { user_id: "a", email: "a@example.com", organization: { org_id: "org-a", org_role: "member" } };
+const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+function State() { const { status } = useAuth(); return <span data-testid="status">{status}</span>; }
+function mount(client = new QueryClient()) {
+  render(<React.StrictMode><QueryClientProvider client={client}><AuthProvider><State /></AuthProvider></QueryClientProvider></React.StrictMode>);
+  return client;
 }
-
-function AuthStatus({ route = "patients" }: { route?: string }) {
-  const { status } = useAuth();
-  return (
-    <div>
-      <span data-testid="auth-status">{status}</span>
-      <span data-testid="route">{route}</span>
-    </div>
-  );
-}
-
-describe("AuthProvider", () => {
-  beforeEach(() => {
-    vi.stubGlobal("fetch", vi.fn());
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it("bootstraps an existing authenticated session exactly once", async () => {
-    setInstanceToken("valid-token");
-    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { status: "ok" }));
-
-    render(
-      <React.StrictMode>
-        <AuthProvider>
-          <AuthStatus />
-        </AuthProvider>
-      </React.StrictMode>,
-    );
-
-    expect(screen.getByTestId("auth-status")).toHaveTextContent("checking");
-    await waitFor(() => expect(screen.getByTestId("auth-status")).toHaveTextContent("authenticated"));
+describe("BFF session provider", () => {
+  beforeEach(() => vi.stubGlobal("fetch", vi.fn()));
+  afterEach(() => vi.unstubAllGlobals());
+  it("bootstraps once with a same-origin cookie and no browser tokens", async () => {
+    vi.mocked(fetch).mockResolvedValue(json(200, profile));
+    mount();
+    await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("authenticated"));
     expect(fetch).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(fetch).mock.calls[0]?.[0]).toBe("http://127.0.0.1:8000/ready");
+    const [url, init] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toBe("/api/auth-service/me");
+    expect(init?.credentials).toBe("same-origin");
+    expect(new Headers(init?.headers).has("Authorization")).toBe(false);
   });
-
-  it("finishes bootstrap as unauthenticated without a session request when no token exists", async () => {
-    render(
-      <AuthProvider>
-        <AuthStatus />
-      </AuthProvider>,
-    );
-
-    await waitFor(() => expect(screen.getByTestId("auth-status")).toHaveTextContent("unauthenticated"));
-    expect(fetch).not.toHaveBeenCalled();
+  it("treats BFF 401 as terminal and clears cached clinical data", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(json(200, profile));
+    const client = mount();
+    await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("authenticated"));
+    client.setQueryData(["patients"], ["private"]);
+    vi.mocked(fetch).mockResolvedValue(json(401, { detail: "expired" }));
+    await act(async () => { await expect(api.get("/patients")).rejects.toThrow("expired"); });
+    expect(screen.getByTestId("status")).toHaveTextContent("unauthenticated");
+    expect(client.getQueryData(["patients"])).toBeUndefined();
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
-
-  it("does not repeat bootstrap when protected route content changes", async () => {
-    setInstanceToken("valid-token");
-    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { status: "ok" }));
-
-    const view = render(
-      <AuthProvider>
-        <AuthStatus route="patients" />
-      </AuthProvider>,
-    );
-    await waitFor(() => expect(screen.getByTestId("auth-status")).toHaveTextContent("authenticated"));
-
-    view.rerender(
-      <AuthProvider>
-        <AuthStatus route="nutrition" />
-      </AuthProvider>,
-    );
-
-    expect(screen.getByTestId("route")).toHaveTextContent("nutrition");
-    expect(fetch).toHaveBeenCalledTimes(1);
-  });
-
-  it("recovers after 401 and retries the original request once", async () => {
-    setInstanceToken("valid-token");
-    vi.mocked(fetch).mockImplementation(async (input) => {
-      const url = String(input);
-      const callsForUrl = vi.mocked(fetch).mock.calls.filter(([candidate]) => String(candidate) === url).length;
-      if (url.endsWith("/ready")) return jsonResponse(200, { status: "ok" });
-      if (url.endsWith("/patients") && callsForUrl === 1) {
-        return jsonResponse(401, { detail: "Неверный пароль" });
-      }
-      return jsonResponse(200, []);
-    });
-
-    render(
-      <AuthProvider>
-        <AuthStatus />
-      </AuthProvider>,
-    );
-    await waitFor(() => expect(screen.getByTestId("auth-status")).toHaveTextContent("authenticated"));
-
-    await expect(api.get("/patients")).resolves.toEqual([]);
-    expect(vi.mocked(fetch).mock.calls.filter(([input]) => String(input).endsWith("/ready"))).toHaveLength(2);
-    expect(vi.mocked(fetch).mock.calls.filter(([input]) => String(input).endsWith("/patients"))).toHaveLength(2);
-    expect(screen.getByTestId("auth-status")).toHaveTextContent("authenticated");
-  });
-
-  it("ends the session when recovery after 401 fails", async () => {
-    setInstanceToken("expired-token");
-    let readyCalls = 0;
-    vi.mocked(fetch).mockImplementation(async (input) => {
-      if (String(input).endsWith("/ready")) {
-        readyCalls += 1;
-        return readyCalls === 1
-          ? jsonResponse(200, { status: "ok" })
-          : jsonResponse(401, { detail: "Неверный пароль" });
-      }
-      return jsonResponse(401, { detail: "Неверный пароль" });
-    });
-
-    render(
-      <AuthProvider>
-        <AuthStatus />
-      </AuthProvider>,
-    );
-    await waitFor(() => expect(screen.getByTestId("auth-status")).toHaveTextContent("authenticated"));
-
-    await expect(api.get("/patients")).rejects.toMatchObject({ status: 401 } satisfies Partial<ApiError>);
-    await waitFor(() => expect(screen.getByTestId("auth-status")).toHaveTextContent("unauthenticated"));
-    expect(sessionStorage.getItem("vetdietderm.instance_bearer")).toBeNull();
-  });
-
-  it("uses one single-flight recovery request for parallel 401 responses", async () => {
-    setInstanceToken("valid-token");
-    const endpointCalls = new Map<string, number>();
-    vi.mocked(fetch).mockImplementation(async (input) => {
-      const url = String(input);
-      if (url.endsWith("/ready")) return jsonResponse(200, { status: "ok" });
-      const count = (endpointCalls.get(url) ?? 0) + 1;
-      endpointCalls.set(url, count);
-      return count === 1
-        ? jsonResponse(401, { detail: "Неверный пароль" })
-        : jsonResponse(200, { url });
-    });
-
-    render(
-      <AuthProvider>
-        <AuthStatus />
-      </AuthProvider>,
-    );
-    await waitFor(() => expect(screen.getByTestId("auth-status")).toHaveTextContent("authenticated"));
-
-    await act(async () => {
-      await Promise.all([api.get("/patients"), api.get("/appointments")]);
-    });
-
-    expect(vi.mocked(fetch).mock.calls.filter(([input]) => String(input).endsWith("/ready"))).toHaveLength(2);
-    expect(endpointCalls.get("http://127.0.0.1:8000/patients")).toBe(2);
-    expect(endpointCalls.get("http://127.0.0.1:8000/appointments")).toBe(2);
+  it("does not authenticate an expired cookie", async () => {
+    vi.mocked(fetch).mockResolvedValue(json(401, { detail: "expired" }));
+    mount();
+    await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("unauthenticated"));
   });
 });

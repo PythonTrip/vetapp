@@ -18,7 +18,9 @@ def _protected() -> HTTPException:
 
 def list_templates(session: Session, doctor_name: str | None) -> list[EncounterTemplate]:
     stmt = select(EncounterTemplate)
-    if doctor_name:
+    if session.info.get("user_id"):
+        pass  # TenantSession filters personal rows by immutable user ID.
+    elif doctor_name:
         stmt = stmt.where(
             or_(
                 EncounterTemplate.scope.in_(("standard", "clinic")),

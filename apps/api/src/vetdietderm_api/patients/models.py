@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from vetdietderm_api.db import Base
+from vetdietderm_api.tenancy import TenantOwned
 from vetdietderm_api.ids import uuid6
 
 
@@ -13,7 +14,7 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-class Client(Base):
+class Client(TenantOwned, Base):
     __tablename__ = "clients"
 
     uuid: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid6)
@@ -30,7 +31,7 @@ class Client(Base):
     patients: Mapped[list["Patient"]] = relationship(back_populates="client")
 
 
-class Patient(Base):
+class Patient(TenantOwned, Base):
     __tablename__ = "patients"
 
     uuid: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid6)

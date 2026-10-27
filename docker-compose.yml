@@ -13,7 +13,8 @@ services:
       DATABASE_PASSWORD: ${DATABASE_PASSWORD:?Set DATABASE_PASSWORD in .env}
       DATABASE_SSLMODE: ${DATABASE_SSLMODE:-prefer}
 
-      INSTANCE_PASSWORD: ${INSTANCE_PASSWORD:?Set INSTANCE_PASSWORD in .env}
+      MODULE_AUTH_URL: ${MODULE_AUTH_URL:?Set MODULE_AUTH_URL reachable from the API container}
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-true}
       FRONTEND_URL: ${FRONTEND_URL:-https://vetapp.syndex-ai.ru}
       ATTACHMENT_DIR: /data/attachments
 
@@ -39,7 +40,7 @@ services:
         - CMD
         - python
         - -c
-        - "import os, urllib.request; urllib.request.urlopen(urllib.request.Request('http://127.0.0.1:8000/ready', headers={'Authorization': 'Bearer ' + os.environ['INSTANCE_PASSWORD']}), timeout=5)"
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=5)"
       interval: 15s
       timeout: 10s
       retries: 5
@@ -56,6 +57,7 @@ services:
     restart: unless-stopped
 
     environment:
+      FRONTEND_URL: ${FRONTEND_URL:-https://vetapp.syndex-ai.ru}
       API_INTERNAL_URL: ${API_INTERNAL_URL:-http://vetapp-api:8000}
 
     networks:
