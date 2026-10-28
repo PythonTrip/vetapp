@@ -6,10 +6,14 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from vetdietderm_api.attachments import repository as attachment_repo
+from vetdietderm_api.attachments.schemas import OwnerFileRead
+from vetdietderm_api.attachments.storage import extension_for, resolve_file
 from vetdietderm_api.auth import csrf, require_clinical_access, require_user
 from vetdietderm_api.db import get_session_factory
 from vetdietderm_api.owners import repository as repo
@@ -144,6 +148,25 @@ def update_me(body: OwnerProfileWrite, owner: Owner, db: DB):
         db.rollback()
         raise HTTPException(409, repo.TAKEN_EMAIL) from exc
     return repo.owner_read(db, owner)
+
+
+@router.get("/owner/animals/{animal_id}/files", response_model=list[OwnerFileRead])
+def animal_files(animal_id: UUID, owner: Owner, db: DB):
+    return attachment_repo.list_owner_files(db, owner, animal_id)
+
+
+@router.get("/owner/files/{attachment_id}")
+def download_owner_file(attachment_id: UUID, owner: Owner, db: DB):
+    attachment = attachment_repo.get_owner_file(db, owner, attachment_id)
+    try:
+        path = resolve_file(attachment.storage_key)
+    except FileNotFoundError:
+        raise HTTPException(404, "Файл не найден") from None
+    try:
+        suffix = extension_for(attachment.content_type)
+    except KeyError:
+        suffix = ""
+    return FileResponse(path, media_type=attachment.content_type, filename=f"file{suffix}")
 
 
 @router.get("/owner/animals", response_model=list[AnimalRead])

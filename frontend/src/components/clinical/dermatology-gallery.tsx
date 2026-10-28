@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Loader2, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/components/auth-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -18,12 +20,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { BODY_REGIONS } from "@/lib/body-regions";
-import { attachmentsApi, type AttachmentRecord, type EncounterRecord } from "@/lib/api-client";
+import { ApiError, attachmentsApi, type AttachmentRecord, type EncounterRecord } from "@/lib/api-client";
 import { SPECIALTY_LABELS, formatDateTime } from "@/lib/clinical-labels";
 import {
   useAttachmentsQuery,
   useDeleteAttachment,
   useEncountersQuery,
+  useUpdateAttachment,
   useUploadAttachment,
 } from "@/lib/hooks";
 import { apiErrorMessage } from "@/lib/patient-form";
@@ -71,10 +74,14 @@ function AttachmentThumb({ attachment }: { attachment: AttachmentRecord }) {
 }
 
 export function DermatologyGallery({ patientId }: { patientId: string }) {
+  const { user, workspace } = useAuth();
+  const canShare = workspace === "personal" || ["owner", "admin", "member"].includes(user?.organization?.org_role ?? "");
   const attachments = useAttachmentsQuery(patientId);
   const encounters = useEncountersQuery(patientId);
   const upload = useUploadAttachment(patientId);
+  const share = useUpdateAttachment(patientId);
   const remove = useDeleteAttachment(patientId);
+  const [sharingId, setSharingId] = React.useState<string | null>(null);
   const fileRef = React.useRef<HTMLInputElement>(null);
   const [caption, setCaption] = React.useState("");
   const [bodyRegion, setBodyRegion] = React.useState("");
@@ -100,6 +107,19 @@ export function DermatologyGallery({ patientId }: { patientId: string }) {
       setCaption("");
     } catch (cause) {
       setError(apiErrorMessage(cause));
+    }
+  }
+
+  async function onShare(item: AttachmentRecord, visible: boolean) {
+    setSharingId(item.uuid);
+    try {
+      await share.mutateAsync({ id: item.uuid, body: { owner_visible: visible } });
+      toast.success(visible ? "Файл показан владельцу" : "Файл скрыт от владельца");
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.status === 403) return;
+      toast.error(apiErrorMessage(cause));
+    } finally {
+      setSharingId(null);
     }
   }
 
@@ -197,6 +217,16 @@ export function DermatologyGallery({ patientId }: { patientId: string }) {
                       {item.body_region ? <Badge variant="outline">{item.body_region}</Badge> : null}
                       {item.vas_score != null ? <Badge>VAS {item.vas_score}</Badge> : null}
                       {linked ? <Badge variant="secondary">{SPECIALTY_LABELS[linked.specialty]}</Badge> : null}
+                      {item.uploaded_by_owner ? <Badge variant="secondary">От владельца</Badge> : null}
+                    </div>
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <Label htmlFor={`share-${item.uuid}`} className="text-xs">Показывать владельцу</Label>
+                      <Switch
+                        id={`share-${item.uuid}`}
+                        checked={item.owner_visible}
+                        disabled={!canShare || sharingId === item.uuid}
+                        onCheckedChange={(checked) => void onShare(item, checked)}
+                      />
                     </div>
                   </div>
                   <Button type="button" variant="ghost" size="icon" onClick={() => void onDelete(item)}>

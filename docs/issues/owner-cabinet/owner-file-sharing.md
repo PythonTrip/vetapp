@@ -4,13 +4,13 @@ prd_id: 2026-10-27-owner-cabinet
 cycle_id: 2026-10-27-owner-cabinet
 cycle_slug: owner-cabinet
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 ---
 
 # Owner File Sharing
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 The owner can download a gallery file only after the clinician marks it visible, and the clinician can hide it again. Files already in the gallery stay clinician-only. Linking an old client card does not open its old files. Owner uploads on a future visit request will use the same flags; this issue does not add that upload screen.
@@ -59,13 +59,13 @@ The owner can download a gallery file only after the clinician marks it visible,
 - `docs/PROJECT.md`
 
 ## Implementation Steps
-- [ ] Add the next Alembic revision after the current head (`0025_registration_acceptance` unless a newer revision is already head). Add `attachments.owner_visible` and `attachments.uploaded_by_owner`, both boolean, not null, server default false.
-- [ ] Add both fields to `Attachment`, `AttachmentRead`, and `AttachmentUpdate` (`owner_visible` optional on update). Extend `create_attachment` with the two flags, default false. `update_attachment` persists `owner_visible` when it is present and does not let a clinician PATCH clear `uploaded_by_owner`.
-- [ ] Add `GET /owner/animals/{animal_id}/files` and `GET /owner/files/{attachment_id}` on the owner session. The list and the download succeed only when the animal id is a patient of the owner's linked client and, for the download, `owner_visible` is true. Otherwise return 404 `Файл не найден`. The download uses `resolve_file` and the stored content type. Do not add an owner delete route.
-- [ ] In `dermatology-gallery.tsx`, add the visibility switch and the «От владельца» badge on each card. Hide the switch action's success path for a 403 from an observer; the existing clinical guard already rejects the PATCH.
-- [ ] In each cabinet animal card, show the waiting copy when the owner has no linked client. After the link, show the shared-file list, the empty copy, a download action, and a load error with `ownerError`. Do not add an upload or delete button. Keep one column at 390px.
-- [ ] Note in `docs/PROJECT.md` that a gallery file is hidden from the owner until the clinician marks it visible, and that linking a client does not share the old gallery.
-- [ ] Run the verification checks below.
+- [x] Add the next Alembic revision after the current head (`0025_registration_acceptance` unless a newer revision is already head). Add `attachments.owner_visible` and `attachments.uploaded_by_owner`, both boolean, not null, server default false.
+- [x] Add both fields to `Attachment`, `AttachmentRead`, and `AttachmentUpdate` (`owner_visible` optional on update). Extend `create_attachment` with the two flags, default false. `update_attachment` persists `owner_visible` when it is present and does not let a clinician PATCH clear `uploaded_by_owner`.
+- [x] Add `GET /owner/animals/{animal_id}/files` and `GET /owner/files/{attachment_id}` on the owner session. The list and the download succeed only when the animal id is a patient of the owner's linked client and, for the download, `owner_visible` is true. Otherwise return 404 `Файл не найден`. The download uses `resolve_file` and the stored content type. Do not add an owner delete route.
+- [x] In `dermatology-gallery.tsx`, add the visibility switch and the «От владельца» badge on each card. Hide the switch action's success path for a 403 from an observer; the existing clinical guard already rejects the PATCH.
+- [x] In each cabinet animal card, show the waiting copy when the owner has no linked client. After the link, show the shared-file list, the empty copy, a download action, and a load error with `ownerError`. Do not add an upload or delete button. Keep one column at 390px.
+- [x] Note in `docs/PROJECT.md` that a gallery file is hidden from the owner until the clinician marks it visible, and that linking a client does not share the old gallery.
+- [x] Run the verification checks below.
 
 ## Verification
 - Upload a JPEG under 8 MiB as the clinician. Confirm the owner list omits it and `GET /owner/files/{id}` returns 404. Turn the switch on, download as the owner, and confirm the body matches the stored file. Turn the switch off and confirm the owner list no longer contains it while the gallery still does.
@@ -75,3 +75,10 @@ The owner can download a gallery file only after the clinician marks it visible,
 - As an organization observer, PATCH `owner_visible` and confirm 403 with the flag unchanged.
 - Confirm `GET /attachments/{id}/file` with only the owner cookie does not return the file.
 - From `frontend/`, run `npm run check`. From `apps/api/`, run `uv run python -c "from vetdietderm_api.main import app"`.
+
+## Implementation Evidence
+- Added migration `0027_owner_file_visibility` after the single head `0026_animal_chat`. Both new booleans are not null with server default false, so existing gallery rows stay clinician-only and linking a client does not publish them.
+- Owner list and download require a patient on the linked client and `owner_visible`. Hidden, foreign, and unknown ids return 404 `Файл не найден`. There is no owner delete route. Clinician download and delete are unchanged. `create_attachment` records both flags and defaults them to false. A clinician PATCH cannot clear `uploaded_by_owner`.
+- PASS: isolated API walkthrough (upload stays hidden, owner bytes and content type match, hide keeps the clinician row, link preserves false, observer PATCH 403 leaves the flag false, other-owner 404, owner cookie cannot read `GET /attachments/{id}/file`, staff cookie cannot read `GET /owner/files/{id}`, clinician delete then owner 404). `npm run check`. `uv run python -c "from vetdietderm_api.main import app"`. `alembic heads` is only `0027_owner_file_visibility`. Offline upgrade SQL adds both columns `BOOLEAN DEFAULT false NOT NULL`. Existing `tests/test_owner_cabinet.py`: 11 passed.
+- SKIP live PostgreSQL upgrade and browser walkthrough of the switch, waiting copy, and 390px column: no dev server was started, and the migration was not applied to the configured database. Downgrade drops the two flags and keeps the stored bytes.
+- Owner Cabinet stays In Progress. Visit requests and questionnaire authoring from the PRD are not implemented.

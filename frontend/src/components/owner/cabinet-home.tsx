@@ -40,7 +40,7 @@ export function CabinetHome() {
   return <>
     <header className="space-y-2"><h1 className="text-2xl font-semibold">{owner ? "Мой кабинет" : "Войти в кабинет"}</h1><p className="text-sm text-muted-foreground">Кабинет владельца животного</p></header>
     {owner && <DoctorBlock doctor={owner} />}
-    {owner && <AnimalList key={owner.uuid} />}
+    {owner && <AnimalList key={owner.uuid} linked={owner.linked} />}
     <section className="space-y-4">
       {owner && <h2 className="text-lg font-semibold">Мой профиль</h2>}
       <form key={owner?.uuid ?? "login"} onSubmit={submit} className="space-y-4">

@@ -54,6 +54,7 @@ class OwnerRead(DoctorPreview):
     name: str
     email: str
     phone: str
+    linked: bool
 
 
 class AnimalCreate(BaseModel):

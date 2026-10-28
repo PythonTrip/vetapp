@@ -65,8 +65,10 @@ def code_by_value(db: Session, code: str) -> JoinCode:
 
 def owner_read(db: Session, owner: OwnerAccount) -> dict:
     code = db.get(JoinCode, owner.join_code_uuid)
+    registration = db.scalar(select(OwnerRegistration).where(OwnerRegistration.owner_account_uuid == owner.uuid))
     return dict(uuid=owner.uuid, name=owner.name, email=owner.email, phone=owner.phone,
-                doctor_name=code.doctor_label, organization_name=code.organization_name)
+                doctor_name=code.doctor_label, organization_name=code.organization_name,
+                linked=bool(registration and registration.client_uuid))
 
 
 def registration_for_owner(db: Session, owner: OwnerAccount, *, lock: bool = False) -> OwnerRegistration:

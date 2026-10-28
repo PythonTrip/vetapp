@@ -178,8 +178,12 @@ export async function apiUpload<T>(
   return payload as T;
 }
 
-export async function apiBlob(input: string, fallbackMessage = "Request failed"): Promise<Blob> {
-  const response = await fetchWithAuthRecovery(input, {}, true);
+export async function apiBlob(
+  input: string,
+  fallbackMessage = "Request failed",
+  authRecovery = true,
+): Promise<Blob> {
+  const response = await fetchWithAuthRecovery(input, {}, authRecovery);
 
   if (!response.ok) {
     const payload = await readPayload(response);
@@ -802,6 +806,8 @@ export interface AttachmentRecord {
   vas_score: number | null;
   content_type: string;
   byte_size: number;
+  owner_visible: boolean;
+  uploaded_by_owner: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -812,6 +818,7 @@ export interface AttachmentPatch {
   caption?: string | null;
   body_region?: string | null;
   vas_score?: number | null;
+  owner_visible?: boolean;
 }
 
 export interface AppointmentRecord {

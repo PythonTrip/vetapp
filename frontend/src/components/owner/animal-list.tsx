@@ -6,8 +6,9 @@ import { ownerError, ownerRequest, type AnimalPassport } from "@/lib/owner-api";
 import { sexLabel, speciesLabel } from "@/lib/patient-form";
 import { AnimalForm } from "./animal-form";
 import { AnimalChat } from "./animal-chat";
+import { AnimalFiles } from "./animal-files";
 
-export function AnimalList() {
+export function AnimalList({ linked }: { linked: boolean }) {
   const [animals, setAnimals] = React.useState<AnimalPassport[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
@@ -35,6 +36,7 @@ export function AnimalList() {
       </dl>
       <Button variant="outline" disabled={editing !== null} onClick={() => { setEditing(animal); setNotice(""); }}>Редактировать паспорт</Button>
       <AnimalChat key={animal.uuid} path={`/owner/animals/${animal.uuid}/chat`} ownerView />
+      <AnimalFiles animalId={animal.uuid} linked={linked} />
     </li>)}</ul>
     {editing ? <AnimalForm key={editing === "new" ? "new" : editing.uuid} animal={editing === "new" ? undefined : editing} onCancel={() => setEditing(null)} onSaved={saved => {
       setAnimals(current => current.some(animal => animal.uuid === saved.uuid) ? current.map(animal => animal.uuid === saved.uuid ? saved : animal) : [...current, saved]);
