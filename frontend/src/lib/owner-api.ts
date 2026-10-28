@@ -61,6 +61,31 @@ export interface OwnerVisit {
   files: VisitFile[];
   created_at: string;
 }
+export interface StaffVisit extends OwnerVisit {
+  registration_uuid: string;
+  registration_status: "pending" | "accepted";
+  owner_name: string;
+  animal_name: string;
+  can_write: boolean;
+}
+export interface VisitConfirm {
+  starts_at: string;
+  duration_min: number;
+  registration?: RegistrationAccept;
+}
+export const visitRequestsApi = {
+  list: () => apiRequest<StaffVisit[]>("/visit-requests?status=requested"),
+  confirm: (id: string, body: VisitConfirm) => apiRequest<OwnerVisit>(`/visit-requests/${id}/confirm`, { method: "POST", body }),
+  reject: (id: string, reason: string) => apiRequest<OwnerVisit>(`/visit-requests/${id}/reject`, { method: "POST", body: { reason: reason.trim() || null } }),
+  download: (id: string, fileId: string) => apiBlob(`/visit-requests/${id}/files/${fileId}`, "Не удалось скачать файл"),
+};
+
+export function visitAnswerLabel(answer: OwnerVisit["answers"][number]): string {
+  if (answer.kind === "binary") return answer.value === "yes" ? "Да" : "Нет";
+  if (answer.kind === "date" && typeof answer.value === "string") return answer.value.split("-").reverse().join(".");
+  const values = Array.isArray(answer.value) ? answer.value : [answer.value];
+  return values.map(value => answer.options.find(option => option.value === value)?.label ?? String(value)).join(", ");
+}
 export const ownerVisits = {
   questions: (type: BookableVisitType) => ownerRequest<VisitQuestion[]>(`/visit-questions/${type}`),
   list: (animalId: string) => ownerRequest<OwnerVisit[]>(`/animals/${animalId}/visits`),

@@ -7,6 +7,7 @@ import { Loader2, PanelLeft, Plus, Search, UserPlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { PatientDetail, type PatientTab } from "@/components/modules/patient-detail";
 import { RegistrationQueue } from "@/components/owner/registration-queue";
+import { VisitRequestQueue } from "@/components/owner/visit-request-queue";
 import { ClientContactFields, PatientFormFields } from "@/components/patients/form-fields";
 import { Button } from "@/components/ui/button";
 import {
@@ -233,6 +234,7 @@ function PatientSidebar({
       </div>
 
       <RegistrationQueue />
+      <VisitRequestQueue />
       <ScrollArea className="min-h-0 flex-1">
         {isPending ? (
           <div className="space-y-2 p-3" aria-busy="true">

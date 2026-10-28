@@ -4,13 +4,13 @@ prd_id: 2026-10-27-owner-cabinet
 cycle_id: 2026-10-27-owner-cabinet
 cycle_slug: owner-cabinet
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 ---
 
 # Clinician Pending List
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 The patient workspace already has a queue of owner registrations. This issue makes that same area the pending list for visit requests as well. Each requested visit shows the proposed time, the questionnaire snapshot, and the attached files. Organization observers can read the area and cannot accept, confirm, or reject.
@@ -46,12 +46,12 @@ The patient workspace already has a queue of owner registrations. This issue mak
 - `docs/PROJECT.md`
 
 ## Implementation Steps
-- [ ] Add a staff client for `GET /visit-requests?status=requested`, confirm, reject, and request-file download. Map the four bookable types and the snapshot values to Russian labels. Render `binary` as «Да» or «Нет», `multi_select` as the selected labels, and `date` as `ДД.ММ.ГГГГ`.
-- [ ] Add `visit-request-queue.tsx` and render it on `/patients` directly under the existing registration queue, outside the patient search results. Poll on the same 30 second interval the registration queue already uses.
-- [ ] Implement Confirm and Reject when the visit row's `can_write` is true. Include the registration create-or-link controls in Confirm only when `registration_status` is `pending`. Hide Confirm and Reject when `can_write` is false. Keep hiding Accept on a registration row when that row's `can_accept` is false.
-- [ ] After a successful confirm, refresh the visit queue, the registration queue, and the patient search. Leave the row and show the error text when the call fails.
-- [ ] Note in `docs/PROJECT.md` that `/patients` has a pending area for registrations and unconfirmed visit requests, and that observers can read it without accepting or confirming.
-- [ ] Run the verification checks below.
+- [x] Add a staff client for `GET /visit-requests?status=requested`, confirm, reject, and request-file download. Map the four bookable types and the snapshot values to Russian labels. Render `binary` as «Да» or «Нет», `multi_select` as the selected labels, and `date` as `ДД.ММ.ГГГГ`.
+- [x] Add `visit-request-queue.tsx` and render it on `/patients` directly under the existing registration queue, outside the patient search results. Poll on the same 30 second interval the registration queue already uses.
+- [x] Implement Confirm and Reject when the visit row's `can_write` is true. Include the registration create-or-link controls in Confirm only when `registration_status` is `pending`. Hide Confirm and Reject when `can_write` is false. Keep hiding Accept on a registration row when that row's `can_accept` is false.
+- [x] After a successful confirm, refresh the visit queue, the registration queue, and the patient search. Leave the row and show the error text when the call fails.
+- [x] Note in `docs/PROJECT.md` that `/patients` has a pending area for registrations and unconfirmed visit requests, and that observers can read it without accepting or confirming.
+- [x] Run the verification checks below.
 
 ## Verification
 - As an editor, open `/patients` and confirm the new request shows the proposed time, both answers, and the file download, while `/schedule` for that day does not list it.
@@ -61,3 +61,10 @@ The patient workspace already has a queue of owner registrations. This issue mak
 - As an organization observer, confirm both groups are visible, the file downloads, and Accept, Confirm, and Reject are absent.
 - Withdraw a request as the owner and confirm the visit group no longer contains it.
 - From `frontend/`, run `npm run check`.
+## Verification Evidence (2026-10-28)
+- Implemented `visit-request-queue.tsx` under the existing registration queue, outside patient search. Staff API calls preserve the existing confirmation/rejection/download contracts; the queue requests `status=requested` and also filters out other statuses before rendering.
+- `npm exec vitest run src/components/owner/visit-request-queue.test.tsx src/components/owner/registration-queue.test.tsx src/components/owner/visit-request-form.test.tsx`: PASS, 12 tests. New coverage checks observer read/download and hidden write actions in both groups; binary/multi-select/date snapshot labels; all non-requested statuses hidden; pending create/link acceptance with every animal and unique matches; accepted confirmation without a registration payload; dependent query invalidation; reject with reason; API errors retain rows.
+- `uv run pytest tests/test_visit_requests.py tests/test_owner_cabinet.py -q`: PASS, 24 tests on isolated persistence. Existing scenarios verify requested visits stay off the schedule; confirmation accepts and creates the entered appointment; accepted owners are not accepted twice; rejection reason is owner-visible and creates no appointment; observer confirm/reject/accept denial and file access; owner withdrawal removes the pending request.
+- `npm run check`: PASS (TypeScript and ESLint). `git diff --check`: PASS.
+- SKIP all six authenticated browser walkthroughs listed above (editor/schedule, pending confirmation and patient search, accepted-owner client count, rejection in the cabinet, observer controls/download, owner withdrawal). No live database-backed API or authenticated editor/owner/observer browser sessions were provisioned. Component interactions and isolated API persistence checks cover these behaviors separately; an integrated browser walkthrough, including narrow-screen rendering, remains to be run against a migrated PostgreSQL environment.
+- All eight Owner Cabinet issue files now have status Done. Cycle #7 remains In Progress: the linked PRD's integrated browser acceptance and live PostgreSQL migration/concurrency evidence are still missing; issue statuses alone do not satisfy the cycle completion gate.

@@ -43,7 +43,7 @@ function RegistrationRow({ row }: { row: PendingRegistration }) {
     mutationFn: () => registrationsApi.accept(row.uuid, { mode, client_uuid: mode === "link" ? clientId : null,
       matches: row.animals.map(animal => ({ owner_animal_id: animal.uuid, patient_uuid: mode === "link" ? matches[animal.uuid] || null : null })) }),
     onSuccess: async () => {
-      await Promise.all(["owner-registrations", "patients", "patient", "clients", "registration-patients"].map(key => queryClient.invalidateQueries({ queryKey: [key] })));
+      await Promise.all(["owner-registrations", "visit-requests", "patients", "patient", "clients", "registration-patients"].map(key => queryClient.invalidateQueries({ queryKey: [key] })));
     },
   });
   return <form className="space-y-4 py-5 first:pt-0" onSubmit={event => { event.preventDefault(); accept.mutate(); }}>
