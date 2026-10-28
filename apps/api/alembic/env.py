@@ -15,6 +15,7 @@ from vetdietderm_api.guidelines import models as guideline_models  # noqa: F401
 from vetdietderm_api.patients import models as patient_models  # noqa: F401
 from vetdietderm_api.auth import BrowserSession  # noqa: F401
 from vetdietderm_api.owners import models as owner_models  # noqa: F401
+from vetdietderm_api.chat import models as chat_models  # noqa: F401
 from vetdietderm_api.settings import get_settings
 
 config = context.config

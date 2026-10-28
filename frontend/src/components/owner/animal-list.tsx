@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ownerError, ownerRequest, type AnimalPassport } from "@/lib/owner-api";
 import { sexLabel, speciesLabel } from "@/lib/patient-form";
 import { AnimalForm } from "./animal-form";
+import { AnimalChat } from "./animal-chat";
 
 export function AnimalList() {
   const [animals, setAnimals] = React.useState<AnimalPassport[]>([]);
@@ -33,6 +34,7 @@ export function AnimalList() {
         <dt className="text-muted-foreground">Дата рождения</dt><dd>{animal.birth_date ? animal.birth_date.split("-").reverse().join(".") : "Не указана"}</dd>
       </dl>
       <Button variant="outline" disabled={editing !== null} onClick={() => { setEditing(animal); setNotice(""); }}>Редактировать паспорт</Button>
+      <AnimalChat key={animal.uuid} path={`/owner/animals/${animal.uuid}/chat`} ownerView />
     </li>)}</ul>
     {editing ? <AnimalForm key={editing === "new" ? "new" : editing.uuid} animal={editing === "new" ? undefined : editing} onCancel={() => setEditing(null)} onSaved={saved => {
       setAnimals(current => current.some(animal => animal.uuid === saved.uuid) ? current.map(animal => animal.uuid === saved.uuid ? saved : animal) : [...current, saved]);

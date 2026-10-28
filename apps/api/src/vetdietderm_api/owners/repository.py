@@ -220,6 +220,8 @@ def accept_registration(session: Session, registration_id: UUID, payload: Regist
         patient.updated_at = utc_now()
         session.flush()
         animal.patient_uuid = patient.uuid
+        from vetdietderm_api.chat.repository import link_thread
+        link_thread(session, animal.uuid, patient.uuid)
     registration.client_uuid = client.uuid
     registration.status = "accepted"
     registration.accepted_at = utc_now()

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { CommunicationLog } from "@/components/clinical/communication-log";
+import { PatientChat } from "@/components/owner/patient-chat";
 import { DermatologyGallery } from "@/components/clinical/dermatology-gallery";
 import { EncounterPanel } from "@/components/clinical/encounter-panel";
 import { ClientContactFields, PatientFormFields } from "@/components/patients/form-fields";
@@ -222,7 +223,10 @@ export function PatientDetail({ patientId, activeTab, onTabChange, onOpenPatient
         </TabsContent>
 
         <TabsContent value="comms" className="mt-0 min-h-0 overflow-y-auto p-4 sm:p-6">
-          <div className="mx-auto w-full max-w-6xl"><CommunicationLog patientId={patient.uuid} /></div>
+          <div className="mx-auto grid w-full max-w-6xl items-start gap-4 xl:grid-cols-2">
+            <div className="min-w-0"><CommunicationLog patientId={patient.uuid} /></div>
+            <PatientChat patientId={patient.uuid} />
+          </div>
         </TabsContent>
 
         <TabsContent value="nutrition" className="mt-0 min-h-0 overflow-y-auto p-4 sm:p-6">

@@ -5,6 +5,11 @@ export interface DoctorPreview { doctor_name: string; organization_name: string 
 export interface OwnerProfile extends DoctorPreview { uuid: string; name: string; email: string; phone: string }
 export interface OwnerContact { name: string; email: string; phone: string }
 export interface AnimalPassport { uuid: string; name: string; species: Species; breed: string; sex: Sex; birth_date: string | null }
+export interface ChatMessage { uuid: string; author_kind: "owner" | "staff"; author_label: string; body: string; created_at: string }
+export const chatApi = {
+  list: (path: string, ownerView: boolean) => apiRequest<ChatMessage[]>(path, { authRecovery: !ownerView }),
+  send: (path: string, ownerView: boolean, body: string) => apiRequest<ChatMessage>(path, { method: "POST", body: { body }, authRecovery: !ownerView }),
+};
 export interface PendingRegistration extends OwnerContact, DoctorPreview {
   uuid: string;
   can_accept: boolean;
