@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -83,3 +84,31 @@ class AnimalUpdate(BaseModel):
 class AnimalRead(AnimalCreate):
     model_config = ConfigDict(from_attributes=True)
     uuid: UUID
+
+
+class AnimalMatch(BaseModel):
+    owner_animal_id: UUID
+    patient_uuid: UUID | None = None
+
+
+class RegistrationAccept(BaseModel):
+    mode: Literal["create", "link"]
+    client_uuid: UUID | None = None
+    matches: list[AnimalMatch] = Field(default_factory=list)
+
+
+class RegistrationRead(BaseModel):
+    uuid: UUID
+    name: str
+    email: str
+    phone: str
+    doctor_name: str
+    organization_name: str | None
+    can_accept: bool
+    animals: list[AnimalRead]
+
+
+class RegistrationAccepted(BaseModel):
+    uuid: UUID
+    client_uuid: UUID
+    status: Literal["accepted"]

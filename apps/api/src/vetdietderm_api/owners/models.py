@@ -65,6 +65,8 @@ class OwnerRegistration(Base):
     uuid: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid6)
     owner_account_uuid: Mapped[UUID] = mapped_column(ForeignKey("owner_accounts.uuid"), unique=True)
     status: Mapped[str] = mapped_column(String(16), default="pending", server_default="pending")
+    client_uuid: Mapped[UUID | None] = mapped_column(ForeignKey("clients.uuid", ondelete="RESTRICT"), nullable=True)
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
 
@@ -72,6 +74,7 @@ class OwnerAnimal(Base):
     __tablename__ = "owner_animals"
     uuid: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid6)
     registration_uuid: Mapped[UUID] = mapped_column(ForeignKey("owner_registrations.uuid"), index=True)
+    patient_uuid: Mapped[UUID | None] = mapped_column(ForeignKey("patients.uuid", ondelete="SET NULL"), nullable=True)
     name: Mapped[str] = mapped_column(String(255))
     species: Mapped[str] = mapped_column(String(16))
     breed: Mapped[str] = mapped_column(String(255), default="", server_default="")

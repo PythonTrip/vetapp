@@ -171,3 +171,145 @@ def test_clinician_sex_and_clinical_fields_still_persist(cabinet):
     assert reloaded["sex"] == "female" and reloaded["body_weight_kg"] == 4.5
     assert reloaded["feeding_notes"] == "новый корм" and reloaded["allergies"] == ["курица"]
     assert reloaded["chronic_conditions"] == ["диабет"]
+
+
+def pending_registration(staff, owner, workspace="personal"):
+    code = staff.get("/join-codes/current", headers={"X-Vetapp-Workspace": workspace}).json()["code"]
+    assert register(owner, code).status_code == 201
+    animals = [owner.post("/owner/animals", json=dict(name=name, species="cat", sex="female")).json()
+               for name in ("Мурка", "Муся")]
+    queue = staff.get("/owner-registrations", headers={"X-Vetapp-Workspace": workspace}).json()
+    assert len(queue) == 1 and queue[0]["can_accept"]
+    assert queue[0]["email"] == "owner@example.com" and len(queue[0]["animals"]) == 2
+    assert staff.get("/patients", params={"q": "Мурка"}).json() == []
+    assert staff.get("/patients", params={"q": "Владелец"}).json() == []
+    assert staff.get("/clients").json() == []
+    return queue[0]["uuid"], animals
+
+
+@pytest.mark.parametrize("workspace", ["personal", "organization"])
+def test_accept_new_invitation_workspace_and_owner_contact(cabinet, workspace):
+    staff, owner, factory, user = cabinet
+    registration, animals = pending_registration(staff, owner, workspace)
+    profile = dict(name="Имя перед принятием", email="new@example.com", phone="123")
+    assert owner.patch("/owner/me", json=profile).status_code == 200
+    with factory() as db:
+        assert db.scalar(select(func.count()).select_from(Client)) == 0
+    # The selected header must not change the invitation's destination or permissions.
+    result = staff.post(f"/owner-registrations/{registration}/accept", json={"mode": "create"},
+                        headers={"X-Vetapp-Workspace": "organization" if workspace == "personal" else "personal"})
+    assert result.status_code == 200, result.text
+    client_id = UUID(result.json()["client_uuid"])
+    assert staff.post(f"/owner-registrations/{registration}/accept", json={"mode": "create"}).status_code == 409
+    with factory() as db:
+        client = db.get(Client, client_id)
+        assert (client.name, client.email, client.phone) == tuple(profile.values())
+        assert client.created_by == UUID(user["user_id"])
+        assert client.tenant_id == (UUID(user["organization"]["org_id"]) if workspace == "organization" else None)
+        registration_row = db.get(OwnerRegistration, UUID(registration))
+        assert registration_row.status == "accepted" and registration_row.accepted_at
+        assert len(list(db.scalars(select(Patient)))) == 2
+        from vetdietderm_api.owners.models import OwnerAnimal
+        assert all(row.patient_uuid for row in db.scalars(select(OwnerAnimal)))
+    headers = {"X-Vetapp-Workspace": workspace}
+    assert len(staff.get("/patients", params={"q": profile["name"]}, headers=headers).json()) == 2
+    assert staff.get("/patients", params={"q": "Мурка"}, headers=headers).json()[0]["body_weight_kg"] is None
+    assert staff.get("/owner-registrations", headers=headers).json() == []
+    assert owner.patch("/owner/me", json={**profile, "phone": "456"}).status_code == 200
+    assert staff.get(f"/clients/{client_id}", headers=headers).json()["phone"] == "456"
+    added = owner.post("/owner/animals", json=dict(name="Новый", species="dog"))
+    assert added.status_code == 201
+    assert len(staff.get("/patients", params={"q": "Новый"}, headers=headers).json()) == 1
+    owner.post("/owner/logout")
+    code = staff.get("/join-codes/current", headers=headers).json()["code"]
+    assert register(owner, code, "second@example.com").status_code == 201
+    owner.post("/owner/animals", json=dict(name="Ожидающий", species="dog"))
+    assert staff.get("/patients", params={"q": "Ожидающий"}, headers=headers).json() == []
+
+
+def test_link_matches_preserve_clinical_data_and_expose_all_passports(cabinet):
+    staff, owner, factory, _ = cabinet
+    registration, animals = pending_registration(staff, owner)
+    client = staff.post("/clients", json=dict(name="Существующий")).json()
+    existing = [staff.post("/patients", json=dict(client_uuid=client["uuid"], name=name, species="dog",
+        body_weight_kg=12, allergies=["рыба"], chronic_conditions=["астма"], feeding_notes="Корм")).json()
+        for name in ("Сопоставляемый", "Ранее созданный")]
+    body = dict(mode="link", client_uuid=client["uuid"], matches=[
+        dict(owner_animal_id=animal["uuid"], patient_uuid=existing[0]["uuid"]) for animal in animals])
+    assert staff.post(f"/owner-registrations/{registration}/accept", json=body).status_code == 422
+    with factory() as db:
+        assert db.get(OwnerRegistration, UUID(registration)).status == "pending"
+        assert db.scalar(select(func.count()).select_from(Patient)) == 2
+    body["matches"][1]["patient_uuid"] = None
+    result = staff.post(f"/owner-registrations/{registration}/accept", json=body)
+    assert result.status_code == 200, result.text
+    passports = owner.get("/owner/animals").json()
+    assert len(passports) == 3 and any(row["name"] == "Ранее созданный" for row in passports)
+    assert all(set(row) == {"uuid", "name", "species", "breed", "sex", "birth_date"} for row in passports)
+    assert owner.patch(f"/owner/animals/{existing[0]['uuid']}", json=dict(sex="male", body_weight_kg=99, feeding_notes="changed")).status_code == 200
+    patient = staff.get(f"/patients/{existing[0]['uuid']}").json()
+    assert patient["name"] == animals[0]["name"] and patient["sex"] == "male"
+    assert patient["body_weight_kg"] == 12 and patient["feeding_notes"] == "Корм"
+    assert patient["allergies"] == ["рыба"] and patient["chronic_conditions"] == ["астма"]
+    assert len(staff.get("/patients").json()) == 3
+    assert owner.patch(f"/owner/animals/{animals[0]['uuid']}", json={"sex": "male"}).status_code == 404
+    other = staff.post("/clients", json=dict(name="Другой клиент")).json()
+    other_patient = staff.post("/patients", json=dict(client_uuid=other["uuid"], name="Чужой", species="cat")).json()
+    assert owner.patch(f"/owner/animals/{other_patient['uuid']}", json={"sex": "male"}).status_code == 404
+
+
+def test_registration_permissions_and_cross_workspace_matches(cabinet):
+    staff, owner, factory, user = cabinet
+    registration, animals = pending_registration(staff, owner, "organization")
+    headers = {"X-Vetapp-Workspace": "organization"}
+    personal_client = staff.post("/clients", json=dict(name="Личный клиент")).json()
+    org_client = staff.post("/clients", json=dict(name="Клиент организации"), headers=headers).json()
+    user["organization"]["org_role"] = "observer"
+    queue = staff.get("/owner-registrations", headers=headers).json()
+    assert len(queue) == 1 and not queue[0]["can_accept"]
+    for chosen_workspace in ("personal", "organization"):
+        assert staff.post(f"/owner-registrations/{registration}/accept", json={"mode": "create"},
+            headers={"X-Vetapp-Workspace": chosen_workspace}).status_code == 403
+    user["organization"]["org_role"] = "member"
+    assert staff.post(f"/owner-registrations/{registration}/accept", json=dict(mode="link", client_uuid=personal_client["uuid"])).status_code == 404
+    with factory() as db:
+        assert db.get(OwnerRegistration, UUID(registration)).status == "pending"
+    # An organization peer can accept another doctor's organization invitation.
+    user["user_id"] = str(uuid4())
+    assert staff.post(f"/owner-registrations/{registration}/accept", json=dict(mode="link", client_uuid=org_client["uuid"])).status_code == 200
+
+
+def test_other_doctor_cannot_read_or_accept_personal_registration(cabinet):
+    staff, owner, factory, user = cabinet
+    registration, _ = pending_registration(staff, owner)
+    user["user_id"] = str(uuid4())
+    assert staff.get("/owner-registrations").json() == []
+    assert staff.post(f"/owner-registrations/{registration}/accept", json={"mode": "create"}).status_code == 403
+    with factory() as db:
+        assert db.get(OwnerRegistration, UUID(registration)).status == "pending"
+
+
+def test_invalid_animal_matches_never_partially_accept(cabinet):
+    staff, owner, factory, _ = cabinet
+    registration, animals = pending_registration(staff, owner)
+    client = staff.post("/clients", json=dict(name="Выбранный")).json()
+    other_client = staff.post("/clients", json=dict(name="Другой")).json()
+    foreign_patient = staff.post("/patients", json=dict(client_uuid=other_client["uuid"], name="Чужой", species="cat")).json()
+    payloads = [
+        dict(mode="link"),
+        dict(mode="create", client_uuid=client["uuid"]),
+        dict(mode="link", client_uuid=client["uuid"], matches=[dict(owner_animal_id=str(uuid4()))]),
+        dict(mode="link", client_uuid=client["uuid"], matches=[dict(owner_animal_id=animals[0]["uuid"])] * 2),
+        dict(mode="link", client_uuid=client["uuid"], matches=[dict(owner_animal_id=animals[0]["uuid"], patient_uuid=foreign_patient["uuid"])]),
+    ]
+    for payload in payloads:
+        result = staff.post(f"/owner-registrations/{registration}/accept", json=payload)
+        assert result.status_code == 422, result.text
+        with factory() as db:
+            assert db.get(OwnerRegistration, UUID(registration)).status == "pending"
+            assert db.scalar(select(func.count()).select_from(Client)) == 2
+            assert db.scalar(select(func.count()).select_from(Patient)) == 1
+    # Matching candidates are scoped to the selected client, with no list-window truncation.
+    assert staff.get(f"/owner-registrations/{registration}/patients", params={"client_uuid": client["uuid"]}).json() == []
+    assert owner.get("/owner-registrations").status_code == 401
+    assert owner.post(f"/owner-registrations/{registration}/accept", json={"mode": "create"}).status_code == 401

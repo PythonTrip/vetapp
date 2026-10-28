@@ -4,13 +4,13 @@ prd_id: 2026-10-27-owner-cabinet
 cycle_id: 2026-10-27-owner-cabinet
 cycle_slug: owner-cabinet
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 ---
 
 # Registration Acceptance
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 A clinician accepts a pending owner registration into the workspace that issued the join code, either as a new client or linked to an existing client. Pending animals stay out of the patient list until that accept. After the link, the owner sees every animal on that client as a passport and can add another animal straight onto the list. Confirming a visit is a later issue; this issue leaves one accept function that later issue can call.
@@ -65,14 +65,14 @@ A clinician accepts a pending owner registration into the workspace that issued 
 - `docs/PROJECT.md`
 
 ## Implementation Steps
-- [ ] Add Alembic `0025_registration_acceptance` (down revision `0024_animal_sex`). Add nullable `owner_registrations.client_uuid` foreign key to `clients.uuid` `ON DELETE RESTRICT`, plus nullable `accepted_at`. Add nullable `owner_animals.patient_uuid` foreign key to `patients.uuid` `ON DELETE SET NULL`.
-- [ ] Add `GET /owner-registrations` under clinical access. Return pending registrations visible in the caller's current workspace: personal rows for the signed-in doctor, organization rows for that organization. Include owner contact, doctor label, and animal passports. Do not include visit requests.
-- [ ] Implement `accept_registration` and `POST /owner-registrations/{id}/accept` with body `{ mode: "create" | "link", client_uuid: uuid | null, matches: [{ owner_animal_id, patient_uuid | null }] }`. Enforce the caller rules, the code's workspace on inserted rows, unique patient matches, and the passport-only update when `patient_uuid` is set. Set `owner_animals.patient_uuid`, `owner_registrations.client_uuid`, `status=accepted`, and `accepted_at`. Return 409 when the registration is already accepted. Return 403 for an observer or for a doctor who does not own a personal code.
-- [ ] When the owner's registration is accepted, change `POST /owner/animals` to create a `patients` row on the linked client in the code's workspace and return that passport. Change `GET /owner/animals` to list every patient of `client_uuid` as a passport. Change `PATCH /owner/animals/{id}` so `{id}` is a patient id of that client and the write touches only name, species, breed, sex, and birth date. When the registration is still pending, keep the owner-animal behavior from the previous issue.
-- [ ] Extend `PATCH /owner/me` so that, once `client_uuid` is set, the same name, email, and phone are written to that `clients` row inside the code's workspace.
-- [ ] On `/patients`, render the registration queue apart from the searchable list. For each pending registration, let an editor choose «Новый клиент» or an existing client from that workspace, then for each animal choose an existing patient of that client or «Отдельный пациент», and submit Accept. Hide Accept for an organization observer. Do not place pending animals in the main search results.
-- [ ] Update `docs/PROJECT.md`: a registration stays off the patient list until accept; after accept the owner sees that client's animals as passports; a clinician can still create a client and patient with no owner account.
-- [ ] Run the verification checks below.
+- [x] Add Alembic `0025_registration_acceptance` (down revision `0024_animal_sex`). Add nullable `owner_registrations.client_uuid` foreign key to `clients.uuid` `ON DELETE RESTRICT`, plus nullable `accepted_at`. Add nullable `owner_animals.patient_uuid` foreign key to `patients.uuid` `ON DELETE SET NULL`.
+- [x] Add `GET /owner-registrations` under clinical access. Return pending registrations visible in the caller's current workspace: personal rows for the signed-in doctor, organization rows for that organization. Include owner contact, doctor label, and animal passports. Do not include visit requests.
+- [x] Implement `accept_registration` and `POST /owner-registrations/{id}/accept` with body `{ mode: "create" | "link", client_uuid: uuid | null, matches: [{ owner_animal_id, patient_uuid | null }] }`. Enforce the caller rules, the code's workspace on inserted rows, unique patient matches, and the passport-only update when `patient_uuid` is set. Set `owner_animals.patient_uuid`, `owner_registrations.client_uuid`, `status=accepted`, and `accepted_at`. Return 409 when the registration is already accepted. Return 403 for an observer or for a doctor who does not own a personal code.
+- [x] When the owner's registration is accepted, change `POST /owner/animals` to create a `patients` row on the linked client in the code's workspace and return that passport. Change `GET /owner/animals` to list every patient of `client_uuid` as a passport. Change `PATCH /owner/animals/{id}` so `{id}` is a patient id of that client and the write touches only name, species, breed, sex, and birth date. When the registration is still pending, keep the owner-animal behavior from the previous issue.
+- [x] Extend `PATCH /owner/me` so that, once `client_uuid` is set, the same name, email, and phone are written to that `clients` row inside the code's workspace.
+- [x] On `/patients`, render the registration queue apart from the searchable list. For each pending registration, let an editor choose «Новый клиент» or an existing client from that workspace, then for each animal choose an existing patient of that client or «Отдельный пациент», and submit Accept. Hide Accept for an organization observer. Do not place pending animals in the main search results.
+- [x] Update `docs/PROJECT.md`: a registration stays off the patient list until accept; after accept the owner sees that client's animals as passports; a clinician can still create a client and patient with no owner account.
+- [x] Run the verification checks below.
 
 ## Verification
 - Create an owner, add two animals, and confirm they show in the queue and not in patient search.
@@ -86,3 +86,12 @@ A clinician accepts a pending owner registration into the workspace that issued 
 - Create a client and patient from the existing clinician forms with no owner and confirm they save and appear on the main list.
 - Accept a personal-code registration and confirm the new client has `tenant_id` null and `created_by` equal to the inviting doctor, including when the request's workspace header is `organization`.
 - From `frontend/`, run `npm run check`. From `apps/api/`, run `uv run python -c "from vetdietderm_api.main import app"`.
+## Verification Results — 2026-10-28
+
+- PASS: `uv run python -m pytest tests/test_owner_cabinet.py tests/test_multi_user_auth.py -q -p no:cacheprovider` — 19 tests. The issue's behavioral verification scenarios are covered through the API: pending queue/search isolation, observer 403 without mutation, new-client acceptance, explicit existing-client matches, duplicate and foreign matches rejected atomically, all-client passport visibility, clinical fields preserved, post-accept animal creation, contact synchronization, legacy clinician forms, and invitation-workspace ownership despite a different workspace header.
+- PASS: `npm run test -- src/components/owner/registration-queue.test.tsx src/components/owner/surface-boundary.test.tsx` — 5 tests; observer queue contacts/passports with no accept action, explicit client/match payload, duplicate option disabled, and existing session-surface boundaries.
+- PASS: `npm run check` and `uv run python -c "from vetdietderm_api.main import app"`.
+- PASS: `uv run alembic upgrade 0024_animal_sex:0025_registration_acceptance --sql`; generated PostgreSQL DDL includes nullable links, accepted timestamp, RESTRICT client FK and SET NULL patient FK.
+- SKIP: live PostgreSQL migration upgrade/downgrade and database concurrency smoke. Isolated-schema verification could not connect to configured local PostgreSQL (connection timeout); no application schema was changed. Apply and verify migration 0025 when the database is reachable. Downgrade removes link mappings, so preserve those mappings before a production rollback.
+- SKIP: live browser walkthrough (desktop/mobile, actual staff identity, and clinician-form clicks); no connected API/database was available. Queue interactions were verified with rendered component tests and the equivalent record operations with API tests.
+- Cycle #7 remains In Progress: the PRD also requires chat, questionnaires, visit requests, and shared files, which are outside this issue and not implemented by the current three-issue batch.

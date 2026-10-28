@@ -5,6 +5,21 @@ export interface DoctorPreview { doctor_name: string; organization_name: string 
 export interface OwnerProfile extends DoctorPreview { uuid: string; name: string; email: string; phone: string }
 export interface OwnerContact { name: string; email: string; phone: string }
 export interface AnimalPassport { uuid: string; name: string; species: Species; breed: string; sex: Sex; birth_date: string | null }
+export interface PendingRegistration extends OwnerContact, DoctorPreview {
+  uuid: string;
+  can_accept: boolean;
+  animals: AnimalPassport[];
+}
+export interface RegistrationAccept {
+  mode: "create" | "link";
+  client_uuid: string | null;
+  matches: { owner_animal_id: string; patient_uuid: string | null }[];
+}
+export const registrationsApi = {
+  list: () => apiRequest<PendingRegistration[]>("/owner-registrations"),
+  patients: (id: string, clientId: string) => apiRequest<AnimalPassport[]>(`/owner-registrations/${id}/patients?client_uuid=${encodeURIComponent(clientId)}`),
+  accept: (id: string, body: RegistrationAccept) => apiRequest<{ uuid: string; client_uuid: string; status: "accepted" }>(`/owner-registrations/${id}/accept`, { method: "POST", body }),
+};
 
 // Owner 401s must never invoke staff recovery or clear the staff session.
 export const ownerRequest = <T,>(path: string, method = "GET", body?: unknown) =>

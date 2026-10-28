@@ -10,12 +10,14 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from vetdietderm_api.auth import csrf, require_clinical_access
+from vetdietderm_api.auth import csrf, require_clinical_access, require_user
 from vetdietderm_api.db import get_session_factory
 from vetdietderm_api.owners import repository as repo
-from vetdietderm_api.owners.models import OwnerAccount, OwnerRegistration, OwnerSession, utc_now
+from vetdietderm_api.owners.models import JoinCode, OwnerAccount, OwnerRegistration, OwnerSession, utc_now
 from vetdietderm_api.owners.schemas import CurrentJoinCode, DoctorPreview, OwnerLogin, OwnerProfileWrite, OwnerRead, OwnerRegister
 from vetdietderm_api.owners.schemas import AnimalCreate, AnimalRead, AnimalUpdate
+from vetdietderm_api.owners.schemas import RegistrationAccept, RegistrationAccepted, RegistrationRead
+from vetdietderm_api.patients.models import Patient
 from vetdietderm_api.settings import get_settings
 
 COOKIE = "vetapp_owner_session"
@@ -125,7 +127,14 @@ def me(owner: Owner, db: DB):
 
 @router.patch("/owner/me", response_model=OwnerRead)
 def update_me(body: OwnerProfileWrite, owner: Owner, db: DB):
+    registration = repo.registration_for_owner(db, owner, lock=True)
     repo.email_available(db, body.email, owner.uuid)
+    if registration.client_uuid:
+        code = db.get(JoinCode, owner.join_code_uuid)
+        client = repo.linked_client(db, registration.client_uuid, code)
+        for key, value in body.model_dump().items():
+            setattr(client, key, value)
+        client.updated_at = utc_now()
     for key, value in body.model_dump().items():
         setattr(owner, key, value)
     owner.updated_at = utc_now()
@@ -150,3 +159,28 @@ def add_animal(body: AnimalCreate, owner: Owner, db: DB):
 @router.patch("/owner/animals/{animal_id}", response_model=AnimalRead)
 def edit_animal(animal_id: UUID, body: AnimalUpdate, owner: Owner, db: DB):
     return repo.update_animal(db, owner, animal_id, body)
+
+
+@router.get("/owner-registrations", response_model=list[RegistrationRead], dependencies=[Depends(require_clinical_access)])
+def registrations(request: Request, db: DB):
+    return repo.registration_queue(db, request.state.user, request.state.tenant_id)
+
+
+@router.get("/owner-registrations/{registration_id}/patients", response_model=list[AnimalRead],
+            dependencies=[Depends(require_clinical_access)])
+def matching_patients(registration_id: UUID, client_uuid: UUID, request: Request, db: DB):
+    _, _, code = repo.registration_context(db, registration_id)
+    repo.authorize_registration(code, request.state.user)
+    repo.linked_client(db, client_uuid, code)
+    return list(db.scalars(select(Patient).where(Patient.client_uuid == client_uuid,
+        repo.workspace_filter(Patient, code)).order_by(Patient.name, Patient.uuid)))
+
+
+@router.post("/owner-registrations/{registration_id}/accept", response_model=RegistrationAccepted,
+             dependencies=[Depends(require_user)])
+def accept(registration_id: UUID, body: RegistrationAccept, request: Request, db: DB):
+    # Permission and row provenance follow the invitation, independent of the selected workspace.
+    db.info["user"] = request.state.user
+    registration = repo.accept_registration(db, registration_id, body)
+    db.commit()
+    return dict(uuid=registration.uuid, client_uuid=registration.client_uuid, status=registration.status)
