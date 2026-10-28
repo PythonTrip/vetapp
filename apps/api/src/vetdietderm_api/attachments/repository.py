@@ -56,6 +56,7 @@ def create_attachment(
     *,
     owner_visible: bool = False,
     uploaded_by_owner: bool = False,
+    commit: bool = True,
 ) -> Attachment:
     get_patient(session, patient_uuid)
     if encounter_uuid is not None:
@@ -88,8 +89,16 @@ def create_attachment(
         uploaded_by_owner=uploaded_by_owner,
     )
     session.add(attachment)
-    session.commit()
-    session.refresh(attachment)
+    try:
+        if commit:
+            session.commit()
+        else:
+            session.flush()
+    except Exception:
+        delete_file(storage_key)
+        raise
+    if commit:
+        session.refresh(attachment)
     return attachment
 
 

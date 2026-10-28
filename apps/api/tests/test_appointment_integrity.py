@@ -14,6 +14,7 @@ def test_patient_reassignment_validates_result_before_mutating(monkeypatch, link
     original_patient, new_patient, encounter_id = uuid4(), uuid4(), uuid4()
     appointment = SimpleNamespace(uuid=uuid4(), patient_uuid=original_patient, encounter_uuid=encounter_id)
     session = Mock()
+    session.scalar.return_value = None  # An ordinary appointment has no owner request.
     monkeypatch.setattr(repository, 'get_appointment', lambda *args: appointment)
     monkeypatch.setattr(repository, 'get_patient', lambda session, patient_id: SimpleNamespace(uuid=patient_id))
     replacement_id = uuid4()

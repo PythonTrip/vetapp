@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from vetdietderm_api.patients.schemas import PatientRead
+from vetdietderm_api.questionnaires.schemas import VisitType as BookableVisitType
 
 
 class AppointmentStatus(StrEnum):
@@ -15,6 +16,9 @@ class AppointmentStatus(StrEnum):
 
 
 class VisitType(StrEnum):
+    primary = "primary"
+    secondary = "secondary"
+    supervision = "supervision"
     consultation = "consultation"
     recheck = "recheck"
     procedure = "procedure"
@@ -35,7 +39,7 @@ class AppointmentWrite(BaseModel):
     encounter_uuid: UUID | None = None
     starts_at: datetime
     duration_min: int = Field(default=30, ge=5, le=480)
-    visit_type: VisitType = VisitType.consultation
+    visit_type: BookableVisitType = BookableVisitType.consultation
     status: AppointmentStatus = AppointmentStatus.scheduled
     notes: str | None = None
 

@@ -28,6 +28,7 @@ import {
 import type { AppointmentRecord, AppointmentStatus, PatientRecord, VisitType } from "@/lib/api-client";
 import {
   APPOINTMENT_STATUS_LABELS,
+  BOOKABLE_VISIT_TYPES,
   VISIT_TYPE_LABELS,
   formatDateTime,
   fromDateTimeLocal,
@@ -121,8 +122,8 @@ export function ScheduleBoard() {
       return;
     }
     const duration = Number(durationMin);
-    if (!Number.isFinite(duration) || duration < 5) {
-      setError("Длительность должна быть не меньше 5 минут");
+    if (!Number.isInteger(duration) || duration < 5 || duration > 480) {
+      setError("Длительность должна быть от 5 до 480 минут");
       return;
     }
     setError(null);
@@ -279,9 +280,9 @@ export function ScheduleBoard() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(VISIT_TYPE_LABELS).map(([value, label]) => (
+                  {[...BOOKABLE_VISIT_TYPES, ...(editing && !BOOKABLE_VISIT_TYPES.some(type => type === editing.visit_type) ? [editing.visit_type] : [])].map(value => (
                     <SelectItem key={value} value={value}>
-                      {label}
+                      {VISIT_TYPE_LABELS[value]}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -3,6 +3,24 @@ export function getApiBaseUrl(): string {
 }
 
 export type Workspace = "personal" | "organization";
+export type BookableVisitType = "primary" | "secondary" | "consultation" | "supervision";
+export type VisitQuestionKind = "binary" | "single_select" | "multi_select" | "number" | "text" | "date";
+export interface VisitQuestionWrite {
+  kind: VisitQuestionKind;
+  label: string;
+  options: { value: string; label: string }[];
+}
+export interface VisitQuestionnaire {
+  uuid: string;
+  visit_type: BookableVisitType;
+  updated_at: string;
+  questions: (VisitQuestionWrite & { uuid: string; position: number })[];
+}
+export const visitQuestionnairesApi = {
+  list: () => apiRequest<VisitQuestionnaire[]>("/visit-questionnaires"),
+  save: (type: BookableVisitType, questions: VisitQuestionWrite[]) =>
+    apiRequest<VisitQuestionnaire>(`/visit-questionnaires/${type}`, { method: "PUT", body: { questions } }),
+};
 let workspace: Workspace = "personal";
 export function setApiWorkspace(value: Workspace): void { workspace = value; }
 
@@ -170,8 +188,9 @@ export async function apiUpload<T>(
   input: string,
   body: FormData,
   fallbackMessage = "Request failed",
+  authRecovery = true,
 ): Promise<T> {
-  const response = await fetchWithAuthRecovery(input, { method: "POST", body }, true);
+  const response = await fetchWithAuthRecovery(input, { method: "POST", body }, authRecovery);
 
   const payload = await readPayload(response);
   if (!response.ok) throw apiError(response, payload, fallbackMessage);
@@ -738,7 +757,7 @@ export type EncounterType = "appointment" | "note" | "diagnostic" | "treatment";
 export type EncounterStatus = "draft" | "in_progress" | "completed";
 export type AttachmentKind = "lesion_photo" | "document";
 export type AppointmentStatus = "scheduled" | "completed" | "cancelled" | "no_show";
-export type VisitType = "consultation" | "recheck" | "procedure" | "telemedicine";
+export type VisitType = BookableVisitType | "recheck" | "procedure" | "telemedicine";
 export type CommunicationChannel = "phone" | "email" | "text" | "video" | "in_person";
 export type CommunicationDirection = "inbound" | "outbound";
 export type EncounterTemplateScope = "standard" | "clinic" | "doctor";

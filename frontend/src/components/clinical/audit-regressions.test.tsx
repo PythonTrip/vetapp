@@ -12,8 +12,8 @@ vi.mock("./plan-editor", () => ({ PlanEditor: () => null }));
 afterEach(() => vi.restoreAllMocks());
 const patient = { uuid: "older-patient", name: "Older patient", species: "dog", client: { name: "Owner" } } as PatientRecord;
 const appointment = { uuid: "recent-slot", patient_uuid: patient.uuid, patient, encounter_uuid: "linked-visit", starts_at: "2026-09-05T10:00:00Z", visit_type: "consultation", status: "scheduled", duration_min: 30 } as AppointmentRecord;
-function setup(element: React.ReactNode) {
-  vi.spyOn(appointmentsApi, "list").mockResolvedValue([]);
+function setup(element: React.ReactNode, appointments: AppointmentRecord[] = []) {
+  vi.spyOn(appointmentsApi, "list").mockResolvedValue(appointments);
   vi.spyOn(patientsApi, "list").mockImplementation(async (q) => q === "Older" ? [patient] : []);
   vi.spyOn(patientsApi, "get").mockResolvedValue(patient);
   vi.spyOn(encountersApi, "list").mockResolvedValue([]);
@@ -50,5 +50,19 @@ describe("audit clinical regressions", () => {
     fireEvent.click(screen.getByRole("button", { name: "Новая запись" }));
     fireEvent.change(screen.getByRole("textbox", { name: "Поиск пациента" }), { target: { value: "Older" } });
     await waitFor(() => expect(patientsApi.list).toHaveBeenCalledWith("Older"));
+  });
+  it("offers only bookable types for new appointments", async () => {
+    setup(<ScheduleBoard />);
+    fireEvent.click(screen.getByRole("button", { name: "Новая запись" }));
+    const typeControl = screen.getByText("Консультация", { selector: "span" }).closest("button")!;
+    fireEvent.click(typeControl);
+    expect(screen.getAllByRole("option").map(option => option.textContent)).toEqual(["Первичный", "Повторный", "Консультация", "Курирование"]);
+  });
+  it("keeps a legacy appointment type selectable while rescheduling", async () => {
+    setup(<ScheduleBoard />, [{ ...appointment, visit_type: "recheck" }]);
+    fireEvent.click(await screen.findByText("Повторный осмотр"));
+    const typeControl = screen.getByText("Повторный осмотр", { selector: '[data-slot="select-value"]' }).closest("button")!;
+    fireEvent.click(typeControl);
+    expect(screen.getAllByRole("option").map(option => option.textContent)).toEqual(["Первичный", "Повторный", "Консультация", "Курирование", "Повторный осмотр"]);
   });
 });
