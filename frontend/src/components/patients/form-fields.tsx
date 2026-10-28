@@ -14,6 +14,7 @@ import {
   ACTIVITY_OPTIONS,
   LIFE_STAGE_OPTIONS,
   SPECIES_OPTIONS,
+  SEX_OPTIONS,
   type PatientFormValues,
 } from "@/lib/patient-form";
 
@@ -64,6 +65,13 @@ export function PatientFormFields({ idPrefix, values, disabled, onChange }: Prop
           onChange={(event) => onChange({ breed: event.target.value })}
           disabled={disabled}
         />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}-sex`}>Пол</Label>
+        <Select value={values.sex} onValueChange={value => onChange({ sex: value as PatientFormValues["sex"] })} disabled={disabled}>
+          <SelectTrigger id={`${idPrefix}-sex`}><SelectValue /></SelectTrigger>
+          <SelectContent>{SEX_OPTIONS.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
+        </Select>
       </div>
       <div className="space-y-2">
         <Label htmlFor={`${idPrefix}-weight`}>Вес, кг</Label>

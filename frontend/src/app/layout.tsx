@@ -5,9 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { QueryProvider } from "@/components/query-provider";
-import { AuthProvider } from "@/components/auth-provider";
-import { InstanceLockScreen } from "@/components/instance-lock-screen";
-import { AppShell } from "@/components/app-shell";
+import { SurfaceBoundary } from "@/components/surface-boundary";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,13 +41,9 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <QueryProvider>
-            <AuthProvider>
-              <InstanceLockScreen>
-                <AppShell>{children}</AppShell>
-              </InstanceLockScreen>
-              <Toaster />
-              <SonnerToaster richColors position="bottom-right" />
-            </AuthProvider>
+            <SurfaceBoundary>{children}</SurfaceBoundary>
+            <Toaster />
+            <SonnerToaster richColors position="bottom-right" />
           </QueryProvider>
         </ThemeProvider>
       </body>

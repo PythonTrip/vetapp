@@ -1,4 +1,14 @@
-import { ApiConnectionError, ApiError, type PatientRecord, type PatientWrite, type Species } from "@/lib/api-client";
+import { ApiConnectionError, ApiError, type PatientRecord, type PatientWrite, type Sex, type Species } from "@/lib/api-client";
+
+export const SEX_OPTIONS: { value: Sex; label: string }[] = [
+  { value: "unspecified", label: "Не указан" },
+  { value: "male", label: "Самец" },
+  { value: "female", label: "Самка" },
+];
+
+export function sexLabel(sex: Sex): string {
+  return SEX_OPTIONS.find(option => option.value === sex)?.label ?? "Не указан";
+}
 
 export const SPECIES_OPTIONS: { value: Species; label: string }[] = [
   { value: "dog", label: "Собака" },
@@ -34,6 +44,7 @@ export type PatientFormValues = {
   name: string;
   species: Species;
   breed: string;
+  sex: Sex;
   body_weight_kg: string;
   expected_adult_weight_kg: string;
   birth_date: string;
@@ -54,6 +65,7 @@ export const emptyPatientForm = (): PatientFormValues => ({
   name: "",
   species: "dog",
   breed: "",
+  sex: "unspecified",
   body_weight_kg: "",
   expected_adult_weight_kg: "",
   birth_date: "",
@@ -75,6 +87,7 @@ export function patientToForm(patient: PatientRecord): PatientFormValues {
     name: patient.name,
     species: patient.species,
     breed: patient.breed,
+    sex: patient.sex ?? "unspecified",
     body_weight_kg: patient.body_weight_kg == null ? "" : String(patient.body_weight_kg),
     expected_adult_weight_kg:
       patient.expected_adult_weight_kg == null ? "" : String(patient.expected_adult_weight_kg),
@@ -128,6 +141,7 @@ export function formToPatientPayload(values: PatientFormValues): Omit<PatientWri
     name,
     species: values.species,
     breed: values.breed.trim(),
+    sex: values.sex,
     body_weight_kg: optionalNumber(values.body_weight_kg, "Вес", { gt: 0 }),
     expected_adult_weight_kg: optionalNumber(values.expected_adult_weight_kg, "Ожидаемый вес взрослого", {
       gt: 0,

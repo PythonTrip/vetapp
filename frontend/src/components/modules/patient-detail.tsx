@@ -37,6 +37,7 @@ import {
   LIFE_STAGE_OPTIONS,
   patientToForm,
   speciesLabel,
+  sexLabel,
   type ClientFormValues,
   type PatientFormValues,
 } from "@/lib/patient-form";
@@ -341,6 +342,7 @@ function PatientOverview({
               <Fact label="Кличка" value={patient.name} />
               <Fact label="Вид" value={speciesLabel(patient.species)} />
               <Fact label="Порода" value={patient.breed || "—"} />
+              <Fact label="Пол" value={sexLabel(patient.sex)} />
               <Fact label="Дата рождения" value={formatBirthDate(patient.birth_date)} />
               <Fact label="Возраст" value={formatAge(patient.birth_date)} />
               <Fact label="Вес" value={formatWeightKg(patient.body_weight_kg)} />

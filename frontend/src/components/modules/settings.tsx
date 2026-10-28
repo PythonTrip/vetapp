@@ -5,6 +5,7 @@ import { useTheme } from "next-themes";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { OrganizationSettings } from "@/components/organization-settings";
+import { JoinCodeSettings } from "@/components/owner/join-code-settings";
 import { cn } from "@/lib/utils";
 
 export function SettingsModule() {
@@ -24,6 +25,7 @@ export function SettingsModule() {
       </div>
 
       <OrganizationSettings />
+      <JoinCodeSettings />
 
       <Card>
         <CardHeader>

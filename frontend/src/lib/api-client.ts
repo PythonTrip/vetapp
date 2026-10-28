@@ -308,6 +308,8 @@ export interface ClientRecord {
   updated_at: string;
 }
 
+export type Sex = "male" | "female" | "unspecified";
+
 export interface PatientRecord {
   uuid: string;
   client_uuid: string;
@@ -315,6 +317,7 @@ export interface PatientRecord {
   name: string;
   species: Species;
   breed: string;
+  sex: Sex;
   body_weight_kg: number | null;
   expected_adult_weight_kg: number | null;
   birth_date: string | null;
@@ -344,6 +347,7 @@ export interface PatientWrite {
   name: string;
   species: Species;
   breed?: string;
+  sex?: Sex;
   body_weight_kg?: number | null;
   expected_adult_weight_kg?: number | null;
   birth_date?: string | null;
