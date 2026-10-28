@@ -12,6 +12,12 @@ class Species(StrEnum):
     other = "other"
 
 
+class Sex(StrEnum):
+    male = "male"
+    female = "female"
+    unspecified = "unspecified"
+
+
 def _blank_to_none(value: str | None) -> str | None:
     if value is None:
         return None
@@ -73,6 +79,7 @@ class PatientBase(BaseModel):
     name: str = Field(min_length=1)
     species: Species
     breed: str = ""
+    sex: Sex = Sex.unspecified
     body_weight_kg: float | None = Field(default=None, gt=0)
     expected_adult_weight_kg: float | None = None
     birth_date: date | None = None
@@ -110,6 +117,7 @@ class PatientUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1)
     species: Species | None = None
     breed: str | None = None
+    sex: Sex | None = None
     body_weight_kg: float | None = Field(default=None, gt=0)
     expected_adult_weight_kg: float | None = None
     birth_date: date | None = None
@@ -124,6 +132,13 @@ class PatientUpdate(BaseModel):
     allergies: list[str] | None = None
     chronic_conditions: list[str] | None = None
     feeding_notes: str | None = None
+
+    @field_validator("sex", mode="before")
+    @classmethod
+    def sex_not_null(cls, value):
+        if value is None:
+            raise ValueError("Укажите пол или выберите «Не указан»")
+        return value
 
     @field_validator("life_stage", "activity", "feeding_notes", mode="before")
     @classmethod
@@ -147,6 +162,7 @@ class PatientRead(BaseModel):
     name: str
     species: Species
     breed: str
+    sex: Sex
     body_weight_kg: float | None
     expected_adult_weight_kg: float | None
     birth_date: date | None

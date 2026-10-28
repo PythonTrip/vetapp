@@ -1,0 +1,152 @@
+import hashlib
+import secrets
+import time
+from collections.abc import Iterator
+from typing import Annotated
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from vetdietderm_api.auth import csrf, require_clinical_access
+from vetdietderm_api.db import get_session_factory
+from vetdietderm_api.owners import repository as repo
+from vetdietderm_api.owners.models import OwnerAccount, OwnerRegistration, OwnerSession, utc_now
+from vetdietderm_api.owners.schemas import CurrentJoinCode, DoctorPreview, OwnerLogin, OwnerProfileWrite, OwnerRead, OwnerRegister
+from vetdietderm_api.owners.schemas import AnimalCreate, AnimalRead, AnimalUpdate
+from vetdietderm_api.settings import get_settings
+
+COOKIE = "vetapp_owner_session"
+SESSION_SECONDS = 30 * 24 * 3600
+router = APIRouter(tags=["owners"], dependencies=[Depends(csrf)])
+
+
+def owner_db(response: Response) -> Iterator[Session]:
+    response.headers["Cache-Control"] = "no-store"
+    with get_session_factory()() as db:
+        yield db
+
+
+DB = Annotated[Session, Depends(owner_db)]
+
+
+def session_digest(key: str) -> str:
+    return hashlib.sha256(key.encode()).hexdigest()
+
+
+def require_owner(request: Request, db: DB) -> OwnerAccount:
+    row = db.get(OwnerSession, session_digest(request.cookies.get(COOKIE, "")))
+    if row is None or row.expires <= time.time():
+        raise HTTPException(401, "Войдите в кабинет владельца")
+    owner = db.get(OwnerAccount, row.owner_account_uuid)
+    if owner is None:
+        raise HTTPException(401, "Войдите в кабинет владельца")
+    return owner
+
+
+Owner = Annotated[OwnerAccount, Depends(require_owner)]
+
+
+def create_session(db: Session, request: Request, response: Response, owner: OwnerAccount) -> None:
+    old = db.get(OwnerSession, session_digest(request.cookies.get(COOKIE, "")))
+    if old:
+        db.delete(old)
+    key = secrets.token_urlsafe(32)
+    db.add(OwnerSession(key_hash=session_digest(key), owner_account_uuid=owner.uuid,
+                        expires=time.time() + SESSION_SECONDS))
+    db.commit()
+    response.set_cookie(COOKIE, key, httponly=True, secure=get_settings().AUTH_COOKIE_SECURE,
+                        samesite="lax", path="/", max_age=SESSION_SECONDS)
+
+
+@router.get("/join-codes/current", response_model=CurrentJoinCode, dependencies=[Depends(require_clinical_access)])
+def join_code(request: Request, db: DB):
+    row = repo.current_code(db, request.state.user, request.headers.get("X-Vetapp-Workspace", "personal"))
+    return dict(code=row.code, link=f"{get_settings().FRONTEND_URL.rstrip('/')}/join/{row.code}",
+                doctor_name=row.doctor_label, organization_name=row.organization_name)
+
+
+@router.get("/owner/join/{code}", response_model=DoctorPreview)
+def preview(code: str, db: DB):
+    row = repo.code_by_value(db, code)
+    return dict(doctor_name=row.doctor_label, organization_name=row.organization_name)
+
+
+@router.post("/owner/register", response_model=OwnerRead, status_code=201)
+def register(body: OwnerRegister, request: Request, response: Response, db: DB):
+    code = repo.code_by_value(db, body.code)
+    existing = db.get(OwnerSession, session_digest(request.cookies.get(COOKIE, "")))
+    if existing and existing.expires > time.time():
+        raise HTTPException(409, "Аккаунт уже привязан к врачу. Повторное присоединение недоступно")
+    repo.email_available(db, body.email)
+    salt = secrets.token_hex(16)
+    owner = OwnerAccount(name=body.name, email=body.email, phone=body.phone,
+                         password_salt=salt, password_hash=repo.password_hash(body.password, salt),
+                         doctor_user_id=code.doctor_user_id, join_code_uuid=code.uuid,
+                         workspace=code.workspace, tenant_id=code.tenant_id)
+    db.add(owner)
+    try:
+        db.flush()
+        db.add(OwnerRegistration(owner_account_uuid=owner.uuid))
+        create_session(db, request, response, owner)
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(409, repo.TAKEN_EMAIL) from exc
+    return repo.owner_read(db, owner)
+
+
+@router.post("/owner/login", response_model=OwnerRead)
+def login(body: OwnerLogin, request: Request, response: Response, db: DB):
+    owner = db.scalar(select(OwnerAccount).where(OwnerAccount.email == repo.normalize_email(body.email)))
+    # Equal expensive work for unknown emails and incorrect passwords.
+    candidate = repo.password_hash(body.password, owner.password_salt if owner else "00" * 16)
+    if owner is None or not secrets.compare_digest(candidate, owner.password_hash):
+        raise HTTPException(401, "Неверная почта или пароль")
+    create_session(db, request, response, owner)
+    return repo.owner_read(db, owner)
+
+
+@router.post("/owner/logout")
+def logout(request: Request, response: Response, db: DB):
+    row = db.get(OwnerSession, session_digest(request.cookies.get(COOKIE, "")))
+    if row:
+        db.delete(row)
+        db.commit()
+    response.delete_cookie(COOKIE, path="/")
+    return {"ok": True}
+
+
+@router.get("/owner/me", response_model=OwnerRead)
+def me(owner: Owner, db: DB):
+    return repo.owner_read(db, owner)
+
+
+@router.patch("/owner/me", response_model=OwnerRead)
+def update_me(body: OwnerProfileWrite, owner: Owner, db: DB):
+    repo.email_available(db, body.email, owner.uuid)
+    for key, value in body.model_dump().items():
+        setattr(owner, key, value)
+    owner.updated_at = utc_now()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(409, repo.TAKEN_EMAIL) from exc
+    return repo.owner_read(db, owner)
+
+
+@router.get("/owner/animals", response_model=list[AnimalRead])
+def animals(owner: Owner, db: DB):
+    return repo.list_animals(db, owner)
+
+
+@router.post("/owner/animals", response_model=AnimalRead, status_code=201)
+def add_animal(body: AnimalCreate, owner: Owner, db: DB):
+    return repo.create_animal(db, owner, body)
+
+
+@router.patch("/owner/animals/{animal_id}", response_model=AnimalRead)
+def edit_animal(animal_id: UUID, body: AnimalUpdate, owner: Owner, db: DB):
+    return repo.update_animal(db, owner, animal_id, body)

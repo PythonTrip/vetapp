@@ -18,6 +18,7 @@ from vetdietderm_api.encounters import router as encounters_router
 from vetdietderm_api.encounter_templates import router as encounter_templates_router
 from vetdietderm_api.guidelines import router as guidelines_router
 from vetdietderm_api.patients import router as patients_router
+from vetdietderm_api.owners.router import router as owners_router
 from vetdietderm_api.settings import get_settings
 
 NEXT_ORIGIN = "http://127.0.0.1:3000"
@@ -57,6 +58,7 @@ def create_app() -> FastAPI:
 
     auth = [Depends(require_clinical_access)]
     application.include_router(account_router)
+    application.include_router(owners_router)
 
     @application.get("/ready", response_model=StatusResponse, dependencies=auth)
     def ready() -> StatusResponse:
