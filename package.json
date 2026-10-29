@@ -1,0 +1,25 @@
+{
+  "name": "vetdietderm",
+  "private": true,
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "api:generate": "pnpm --filter @vetdietderm/api-contract generate",
+    "api:check": "pnpm --filter @vetdietderm/api-contract check:generated",
+    "dev": "pnpm --filter vetdietderm-web dev",
+    "dev:api": "uv run --directory apps/api --cache-dir .tmp/uv-cache python -m vetdietderm_api.main",
+    "build": "pnpm -r build",
+    "start": "pnpm --filter vetdietderm-web start",
+    "test": "pnpm test:web && pnpm test:api",
+    "test:web": "pnpm -r test",
+    "test:api": "uv run --directory apps/api --cache-dir .tmp/uv-cache pytest",
+    "check": "pnpm -r check",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "db:migrate": "uv run --directory apps/api --cache-dir .tmp/uv-cache alembic upgrade head",
+    "compose": "docker compose --project-name vetapp --env-file infra/.env -f infra/compose.yml",
+    "test:db": "docker compose -f infra/compose.test.yml"
+  }
+}

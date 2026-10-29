@@ -21,7 +21,7 @@
 
 ## Стек
 
-- Next.js и TypeScript в `frontend/` — только интерфейс. Браузер ходит в `/api`, Route Handler проксирует запросы в FastAPI.
+- Next.js и TypeScript в `apps/clinic-web/` — только интерфейс. Браузер ходит в `/api`, Route Handler проксирует запросы в FastAPI.
 - FastAPI и Pydantic в `apps/api/`. Клинические расчёты живут на сервере.
 - PostgreSQL, схема через Alembic. Prisma в рантайме нет.
 - Нормы FEDIAF 2025 — пакет `vetdietderm_api.standards.fediaf.v2025`, не таблицы SQL.
@@ -34,17 +34,17 @@
 Compose запускает FastAPI и Next.js. PostgreSQL должен быть уже создан и доступен из контейнера API.
 
 ```powershell
-Copy-Item .env.example .env
+Copy-Item infra/.env.example infra/.env
 # Заполните DATABASE_ADDRESS, DATABASE_PORT, DATABASE_NAME,
-# DATABASE_USER, DATABASE_PASSWORD и MODULE_AUTH_URL в .env.
-docker compose up -d --build
+# DATABASE_USER, DATABASE_PASSWORD и MODULE_AUTH_URL в infra/.env.
+pnpm compose up -d --build
 ```
 
 Для PostgreSQL на этом VPS задайте `DATABASE_ADDRESS=host.docker.internal` и опубликованный порт базы (в примере `15432`). Для удалённой базы укажите её DNS-имя/IP и порт (обычно `5432`). `127.0.0.1` внутри контейнера указывает на сам контейнер. PostgreSQL должен разрешать соединения из сети Docker.
 
 `DATABASE_SSLMODE` по умолчанию — `prefer`; для сервера, требующего TLS, задайте `require` или подходящий режим проверки сертификата. Пароль можно записать в одинарных кавычках, чтобы Compose не подставлял переменные вместо символов `$`. Спецсимволы в пароле кодировать как URL не нужно.
 
-Перед запуском API автоматически выполняется `alembic upgrade head` для указанной базы. Frontend запускается после успешной проверки API и подключения к БД. Вложения сохраняются в постоянном томе `attachments`; существующие локальные файлы из `data/attachments` в него автоматически не переносятся.
+Перед запуском API автоматически выполняется `alembic upgrade head` для указанной базы. Frontend запускается после успешной проверки API и подключения к БД. Вложения сохраняются в постоянном томе `attachments`; существующие локальные файлы из `apps/api/data/attachments` в него автоматически не переносятся.
 
 На VPS с несколькими приложениями схема такая:
 
@@ -58,7 +58,7 @@ docker compose up -d --build
 
 Порты на этом хосте (loopback): frontend `3003`, API `8001`; заняты другими стеками `3000`/`3001`/`3002`/`8000`. Имена в общей сети уникальны: `vetapp-api`, `vetapp-frontend` — не используйте короткое `api`, чтобы не пересечься с другими compose-проектами.
 
-Не проксируйте `/api` из nginx на FastAPI. После смены `NEXT_PUBLIC_API_URL` / `API_INTERNAL_URL` пересоберите: `docker compose up -d --build`.
+Не проксируйте `/api` из nginx на FastAPI. После смены `NEXT_PUBLIC_API_URL` / `API_INTERNAL_URL` пересоберите: `pnpm compose up -d --build`.
 
 Пример nginx только для UI:
 
@@ -75,30 +75,32 @@ server {
 }
 ```
 
-Логи: `docker compose logs -f`. Остановка: `docker compose down` (том вложений сохраняется).
+Логи: `pnpm compose logs -f`. Остановка: `pnpm compose down` (том вложений сохраняется).
 
 ### Без Docker
 
-Стек: Next.js UI в `frontend/`, FastAPI в `apps/api/`, PostgreSQL на `127.0.0.1:15432`. Нужны Node.js 20+ и Python 3.13+ (`uv`).
+Стек: Next.js UI в `apps/clinic-web/`, FastAPI в `apps/api/`, PostgreSQL на `127.0.0.1:15432`. Нужны Node.js 22+, pnpm 11.25.0 и Python 3.13+ (`uv`).
 
 ```bash
-cp .env.example .env
+cp apps/api/.env.example apps/api/.env
+cp apps/clinic-web/.env.example apps/clinic-web/.env.local
+corepack enable
+pnpm install --frozen-lockfile
 # заполните DATABASE_* и MODULE_AUTH_URL
 # для PostgreSQL на этом компьютере: DATABASE_ADDRESS=127.0.0.1
 
 # API
 uv sync --project apps/api
-uv run --project apps/api alembic -c apps/api/alembic.ini upgrade head
-uv run --project apps/api python -m vetdietderm_api.main
+pnpm db:migrate
+pnpm dev:api
 
 # UI (второй терминал)
-npm install --prefix frontend
-npm run dev
+pnpm dev
 ```
 
-`NEXT_PUBLIC_API_URL` (по умолчанию `/api`) и `API_INTERNAL_URL` (локально `http://127.0.0.1:8000`) читаются из корневого `.env` или из `frontend/.env`. UI: `http://127.0.0.1:3000`. API: через Route Handler `/api/*` → FastAPI.
+`NEXT_PUBLIC_API_URL` (по умолчанию `/api`) и `API_INTERNAL_URL` (локально `http://127.0.0.1:8000`) читаются из `apps/clinic-web/.env.local` (или других стандартных env-файлов Next.js в этом приложении). UI: `http://127.0.0.1:3000`. API: через Route Handler `/api/*` → FastAPI.
 
-API также читает `apps/api/.env`, значения которого имеют приоритет над корневым `.env`. Старый `DATABASE_URL` поддерживается и имеет приоритет над отдельными `DATABASE_*`; удалите его из env при переходе на новый формат. В Docker локальные env-файлы не копируются в образы, параметры передаёт Compose.
+API читает `apps/api/.env`; переменные процесса имеют приоритет. Compose использует отдельный `infra/.env`. Старый `DATABASE_URL` поддерживается и имеет приоритет над отдельными `DATABASE_*`; удалите его из env при переходе на новый формат. В Docker локальные env-файлы не копируются в образы, параметры передаёт Compose.
 
 ## Пользователи и организации (module-auth)
 
@@ -139,3 +141,31 @@ API также читает `apps/api/.env`, значения которого �
 одноразовый refresh-токен. Истёкшие строки `browser_sessions` можно периодически удалять по `expires`.
 Проверка пользователя и текущей организации идёт через авторитетный `/me` на каждый запрос;
 при недоступности module-auth клинический доступ закрывается с 503. Отсутствие организации не блокирует аккаунт.
+
+## Структура и команды монорепозитория
+
+- `apps/api/` — независимый uv-проект: исходники, Alembic, тесты, фикстуры, операторские скрипты и локальные данные.
+- `apps/clinic-web/` — существующее Next.js приложение, включая текущие экраны владельца.
+- `infra/` — Dockerfile, Compose и параметры deployment. Имя Compose-проекта `vetapp`, сервисы, DNS-алиасы и том `vetapp_attachments` сохранены.
+- `packages/api-contract` — типы, генерируемые из FastAPI OpenAPI; `packages/api-client` — общий HTTP-клиент для web и будущего mobile. Генерация: `pnpm api:generate`, проверка актуальности: `pnpm api:check`. [Контракт и настройка платформ](docs/api-contract.md).
+- `apps/owner-web` и `apps/mobile` пока не создаются. Python не входит в pnpm workspace.
+
+Из корня: `pnpm dev`, `pnpm dev:api`, `pnpm db:migrate`, `pnpm check`, `pnpm build`, `pnpm test`.
+`pnpm test` запускает все web- и Python-тесты, включая PostgreSQL integration; нужна доступная тестовая БД с правом CREATE SCHEMA.
+Только модульные Python-тесты: `uv run --directory apps/api pytest --ignore=tests/integration`.
+Операторский сбор каталога: `uv sync --directory apps/api --group tools`, затем
+`uv run --directory apps/api --group tools python scripts/fetch_products.py`.
+Каталог сохраняется в `apps/api/data/products_normalized.json`.
+
+У каждого приложения свои env-файлы, тесты и `.tmp/` (pytest/Vitest/TypeScript cache).
+Локальные вложения находятся в `apps/api/data/attachments`; относительный явно заданный `ATTACHMENT_DIR` по-прежнему разрешается от корня репозитория.
+Старый корневой `.env` при миграции перенесён в `infra/.env`; настройки API перенесены в `apps/api/.env` с сохранением приоритета существующих значений приложения.
+Параметры web из старого корневого env перенесены в `apps/clinic-web/.env.local`, если такого файла ещё не было.
+Для других checkout перенесите значения вручную; старый корневой env больше не загружается.
+При ручном вызове Docker: `docker compose --project-name vetapp --env-file infra/.env -f infra/compose.yml up -d --build`.
+CI проверяет frozen lockfiles, web-тесты, типы/lint, standalone-сборку, весь pytest на PostgreSQL и оба Docker-образа.
+
+Для изолированных PostgreSQL-тестов локально: `pnpm test:db up -d --wait`, затем
+задайте `DATABASE_URL=postgresql+psycopg://vetapp:test-only@127.0.0.1:15433/vetapp_test`
+в окружении терминала и выполните `pnpm test`. После проверки: `pnpm test:db down`.
+Тестовая БД живёт в tmpfs и не использует deployment-сеть или постоянные тома.

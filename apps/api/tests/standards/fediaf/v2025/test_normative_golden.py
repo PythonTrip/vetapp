@@ -29,9 +29,8 @@ def _canonical_golden_value(
 
 def test_vii11_normative_rows_match_frozen_golden_fixture() -> None:
     fixture_path = (
-        Path(__file__).resolve().parents[6]
-        / "docs"
-        / "data"
+        Path(__file__).resolve().parents[3]
+        / "fixtures"
         / "fediaf_2025_vii11_golden.json"
     )
     golden = json.loads(fixture_path.read_text(encoding="utf-8"))

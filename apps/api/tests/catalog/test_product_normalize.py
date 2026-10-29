@@ -6,7 +6,7 @@ import pytest
 
 
 def _load_product_normalize():
-    path = Path(__file__).resolve().parents[4] / "scripts" / "file.py"
+    path = Path(__file__).resolve().parents[2] / "scripts" / "file.py"
     spec = spec_from_file_location("product_normalize", path)
     assert spec is not None
     assert spec.loader is not None

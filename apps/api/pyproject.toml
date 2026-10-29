@@ -28,6 +28,8 @@ build-backend = "uv_build"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+cache_dir = ".tmp/pytest-cache"
+addopts = "--basetemp=.tmp/pytest"
 markers = [
     "integration: exercises the FastAPI application against isolated PostgreSQL and filesystem resources",
 ]
@@ -36,3 +38,11 @@ markers = [
 dev = [
     "pytest>=9.1.1",
 ]
+
+tools = [
+    "requests>=2.32.0",
+    "python-dotenv>=1.0.0",
+]
+
+[tool.uv]
+cache-dir = ".tmp/uv-cache"

@@ -38,11 +38,11 @@ The next product surface is the owner's cabinet. The pet owner joins one doctor 
 
 ## Current Functionality
 
-Shipped runtime is the **split stack**: Next.js UI in `frontend/`, one FastAPI process in `apps/api/`, PostgreSQL (already provisioned; local/VPS example `127.0.0.1:15432` or Docker-network hostname). Prisma is not in runtime. Clinical calculations are not duplicated in React.
+Shipped runtime is the **split stack**: Next.js UI in `apps/clinic-web/`, one FastAPI process in `apps/api/`, PostgreSQL (already provisioned; local/VPS example `127.0.0.1:15432` or Docker-network hostname). Prisma is not in runtime. Clinical calculations are not duplicated in React.
 
-Browser calls go to same-origin `/api/*` when `NEXT_PUBLIC_API_URL=/api`. A Next.js Route Handler (`frontend/src/app/api/[...path]/route.ts`) proxies to FastAPI (`API_INTERNAL_URL`). That handler is transport, not the product backend.
+Browser calls go to same-origin `/api/*` when `NEXT_PUBLIC_API_URL=/api`. A Next.js Route Handler (`apps/clinic-web/src/app/api/[...path]/route.ts`) proxies to FastAPI (`API_INTERNAL_URL`). That handler is transport, not the product backend.
 
-Supported run paths: `docker compose up` (API + frontend; Alembic on API start; attachments named volume) or local `uv` + `npm run dev`. Compose does not start PostgreSQL.
+Supported run paths: `pnpm compose up` (API + frontend; Alembic on API start; attachments named volume) or local `uv` + `pnpm dev`. Compose does not start PostgreSQL.
 
 - Navigation: **Пациенты**, **Расписание**, **Приём**, **Питание**, **Настройки**; home shortcuts to patients, schedule, and nutrition
 - Client and Patient as separate entities. Patients is a split-pane workspace: searchable list, read-only card with explicit edit, tabs **Карточка** / **Приёмы** / **Галерея** / **Коммуникации** / **Питание** (`/patients/{id}?tab=`)
@@ -95,7 +95,7 @@ Not shipped: Food `species_compatibility` (dropped from cycle #6), knowledge/AI 
 
 ## Product Architecture
 
-- **Web:** Next.js + TypeScript + Tailwind in `frontend/` — UI only. Same-origin `/api` Route Handler is a proxy to FastAPI. No Prisma. Clinical calculations are not duplicated in React. System clinical field/section catalog lives in `frontend/src/lib/clinical-builder.ts`.
+- **Web:** Next.js + TypeScript + Tailwind in `apps/clinic-web/` — UI only. Same-origin `/api` Route Handler is a proxy to FastAPI. No Prisma. Clinical calculations are not duplicated in React. System clinical field/section catalog lives in `apps/clinic-web/src/lib/clinical-builder.ts`.
 - **API:** one FastAPI process (Pydantic contracts) with internal bounded contexts (`patients`, `encounters`, `encounter_templates`, `clinical_catalog`, `attachments`, `appointments`, `communications`, `catalog`, `guidelines`, `assessments`, `standards`). Module boundaries are the foundation for later extraction; multiple API processes remain deferred.
 - **Nutrition standards:** `StandardRegistry` holds immutable in-process providers. Active FEDIAF edition is `fediaf/v2025` (`provider_version` `fediaf/v2025/1.1.0`, engine id `nutrition-engine/2.0.0`). `GET /guidelines/active` and assessments read the provider, not SQL guideline rows.
 - **Data:** existing PostgreSQL (local published port or Docker-network host such as `pgsql`). No Vercel, no Neon. Docker Compose orchestrates API + frontend only; PostgreSQL stays an already-provisioned instance. Alembic runs to head (`0029_visit_requests`) on API container start.
@@ -232,11 +232,11 @@ Never opened by FastAPI request handlers or Next.js. Catalog import remains the 
 
 | File | Format | Maps to |
 | --- | --- | --- |
-| `docs/data/products_normalized.json` | JSON **array** of food objects | `foods` + `food_nutrient_values` via `vetdietderm_api.catalog.import_products`. Clinician can also create/edit Food in the UI |
+| `apps/api/data/products_normalized.json` | JSON **array** of food objects | `foods` + `food_nutrient_values` via `vetdietderm_api.catalog.import_products`. Clinician can also create/edit Food in the UI |
 | `apps/api/src/vetdietderm_api/standards/fediaf/v2025/normative_data.json` | JSON **object** (Russian FEDIAF snapshot, edition `2025.09`) | in-process provider at import of the Python package |
 | `docs/data/fediaf_2025_veterinary_nutrition_database_ru.json` | JSON **object** | archival / documentation twin of the provider snapshot; not loaded by the API |
 | `docs/data/fediaf_2025_veterinary_nutrition_schema.json` | JSON Schema 2020-12 | validates the FEDIAF snapshot |
-| `docs/data/fediaf_2025_vii11_golden.json` | JSON fixture | Table VII-11 checks |
+| `apps/api/tests/fixtures/fediaf_2025_vii11_golden.json` | JSON fixture | Table VII-11 checks |
 | `docs/data/fediaf_2025_*.csv`, `docs/data/fediaf_2025_veterinary_nutrition_ru.xlsx` | CSV / XLSX | **archival only**; not runtime SoT; VII-11 is not in those files |
 
 **Catalog JSON object** (one array element): `name`; `type` → `foods.category`; `subcat` → `foods.subcategory`; `calculated` string[] of ratio keys (not stored); atomic keys `ME`, `CP`, `CFa`, … matching `nutrients.code` (`number` or `null`); ratio keys such as `ME/DM`, `Ca/P`, `ω6/ω3` (not stored as nutrients). `null` → missing (`unknown`), not zero.

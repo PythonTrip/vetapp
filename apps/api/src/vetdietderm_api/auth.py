@@ -13,6 +13,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from vetdietderm_api.db import Base, get_session_factory
 from vetdietderm_api.settings import get_settings
+from vetdietderm_api.account_schemas import UserProfileRead, OrganizationMembersRead, OrganizationInvitesRead
 
 COOKIE = "vetapp_session"
 router = APIRouter(prefix="/auth-service", tags=["account"])
@@ -184,6 +185,25 @@ PUBLIC = {"auth/register", "auth/email/verify", "auth/email/resend-verification"
 PROTECTED = re.compile(r"(?:me(?:/change-password|/sessions(?:/[\w-]+)?)?|"
                        r"organizations(?:/[\w-]+(?:/members(?:/[\w-]+)?|/invites(?:/[\w-]+)?)?)?|"
                        r"invites/accept)")
+
+
+# Explicit read contracts precede the catch-all. Delegate to the same allowlist,
+# session refresh and authorization flow; preserve upstream extension fields.
+@router.get("/me", response_model=UserProfileRead, response_model_exclude_unset=True, dependencies=[Depends(csrf)])
+def account_profile(request: Request, response: Response):
+    return account_proxy("me", request, response)
+
+
+@router.get("/organizations/{org_id}/members", response_model=OrganizationMembersRead,
+            response_model_exclude_unset=True, dependencies=[Depends(csrf)])
+def account_members(org_id: str, request: Request, response: Response):
+    return account_proxy(f"organizations/{org_id}/members", request, response)
+
+
+@router.get("/organizations/{org_id}/invites", response_model=OrganizationInvitesRead,
+            response_model_exclude_unset=True, dependencies=[Depends(csrf)])
+def account_invites(org_id: str, request: Request, response: Response):
+    return account_proxy(f"organizations/{org_id}/invites", request, response)
 
 
 @router.get("/{path:path}", operation_id="account_get", dependencies=[Depends(csrf)])

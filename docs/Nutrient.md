@@ -33,7 +33,7 @@ Clinical posture: outputs are informational recommendations for complete/complem
 | Normative FEDIAF provider | `vetdietderm_api.standards.fediaf.v2025` (bundled `normative_data.json`) | In-process only; `GET /guidelines/active` and assessments |
 | FEDIAF archive twin | `docs/data/fediaf_2025_veterinary_nutrition_database_ru.json` (+ schema) | Archive / documentation; the API does not import or publish SQL guideline rows |
 | External publication | [FEDIAF Nutritional Guidelines for Complete and Complementary Pet Food for Cats and Dogs](https://europeanpetfood.org/wp-content/uploads/2025/09/FEDIAF-Nutritional-Guidelines_2025-ONLINE.pdf) (edition from `database_meta`, currently `2025.09`) | Cited in `GET /guidelines/active` and Diet Plan snapshot |
-| Product catalog import | `docs/data/products_normalized.json` | Operator CLI `vetdietderm_api.catalog.import_products`; clinician can also create/edit Food in the UI |
+| Product catalog import | `apps/api/data/products_normalized.json` | Operator CLI `vetdietderm_api.catalog.import_products`; clinician can also create/edit Food in the UI |
 | Patient context | `Patient` (+ `Client`) and/or manual profile in the workspace | Prefill via Patient picker or `?patientId=`; session fields stay editable and are not written back |
 | Saved assessments | `DietPlan.assessment_snapshot_json` | Persistence; reopen shows the stored snapshot, not a live recompute |
 | Archival only (not runtime SoT) | `docs/data/fediaf_2025_*.csv`, `docs/data/fediaf_2025_veterinary_nutrition_ru.xlsx` | Historical conversion artifacts |
