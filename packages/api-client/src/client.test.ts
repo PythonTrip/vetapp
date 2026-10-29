@@ -8,6 +8,27 @@ const native = (fetch: typeof globalThis.fetch) => createApiClient({
 });
 
 describe("platform API client", () => {
+  it("supports v1 audience paths and structured errors without crossing credentials", async () => {
+    const requests: Request[] = [];
+    const fetch = vi.fn(async (input: RequestInfo | URL) => {
+      requests.push(input as Request);
+      return json({ error: { code: "conflict", message: "Already linked", details: { field: "email" } } }, 409);
+    });
+    const owner = createApiClient({
+      platform: "native", baseUrl: "https://api.example.test", audience: "owner", fetch,
+      auth: { audience: "owner", headers: () => ({ Cookie: "vetapp_owner_session=owner" }) },
+    });
+    await expect(owner.GET("/v1/owner/me")).rejects.toMatchObject({
+      status: 409, code: "conflict", message: "Already linked", details: { field: "email" },
+    });
+    await expect(owner.POST("/v1/auth/owner/logout")).rejects.toMatchObject({ status: 409 });
+    await expect(owner.GET("/v1/staff/patients")).rejects.toThrow("audience mismatch");
+    await expect(native(fetch).GET("/v1/owner/me")).rejects.toThrow("audience mismatch");
+    await expect(native(fetch).POST("/v1/auth/owner/logout")).rejects.toThrow("audience mismatch");
+    expect(requests).toHaveLength(2);
+    expect(requests.every(request => request.headers.get("Cookie") === "vetapp_owner_session=owner")).toBe(true);
+  });
+
   it("serializes typed path, query and body, retaining native session and workspace", async () => {
     const requests: Request[] = [];
     const fetch = vi.fn(async (input: RequestInfo | URL) => {

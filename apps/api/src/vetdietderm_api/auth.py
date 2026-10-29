@@ -34,7 +34,10 @@ def csrf(request: Request) -> None:
     if request.headers.get("X-Vetapp-CSRF") != "1":
         raise HTTPException(403, "Отсутствует защита запроса")
     origin = request.headers.get("origin")
-    allowed = {get_settings().FRONTEND_URL.rstrip("/"), "http://localhost:3000", "http://127.0.0.1:3000"}
+    settings = get_settings()
+    allowed = getattr(settings, "client_origins", {
+        settings.FRONTEND_URL.rstrip("/"), "http://localhost:3000", "http://127.0.0.1:3000",
+    })
     if origin and origin.rstrip("/") not in allowed:
         raise HTTPException(403, "Недопустимый источник запроса")
 
@@ -135,10 +138,12 @@ def require_clinical_access(request: Request, user: Annotated[dict, Depends(requ
         raise HTTPException(403, "Организация недоступна. Выберите личное рабочее место")
     request.state.tenant_id = org["org_id"] if org else None
     if request.method not in {"GET", "HEAD", "OPTIONS"}:
-        calculation = request.url.path.startswith("/assessments/")
+        # Apply the same resource policy through the legacy and versioned adapters.
+        path = request.url.path.removeprefix("/v1/staff")
+        calculation = path.startswith("/assessments/")
         if org and org.get("org_role") not in {"owner", "admin", "member"} and not calculation:
             raise HTTPException(403, "Роль наблюдателя разрешает только просмотр")
-        if request.url.path.startswith("/foods") and user.get("role") != "super_admin":
+        if path.startswith("/foods") and user.get("role") != "super_admin":
             raise HTTPException(403, "Общий каталог изменяет только администратор сервиса")
 
 
@@ -157,8 +162,10 @@ def login(request: Request, response: Response, body: dict):
         store_pair(row, pair)
         db.add(row)
         db.commit()
-    response.set_cookie(COOKIE, key, httponly=True, secure=get_settings().AUTH_COOKIE_SECURE,
-                        samesite="lax", path="/", max_age=pair["refresh_token_expires_in"])
+    settings = get_settings()
+    response.set_cookie(COOKIE, key, httponly=True, secure=settings.AUTH_COOKIE_SECURE,
+                        samesite=getattr(settings, "AUTH_COOKIE_SAMESITE", "lax"),
+                        path="/", max_age=pair["refresh_token_expires_in"])
     response.headers["Cache-Control"] = "no-store"
     return {"ok": True}
 

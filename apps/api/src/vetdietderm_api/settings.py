@@ -1,5 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
+from urllib.parse import urlsplit
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -25,8 +27,34 @@ class Settings(BaseSettings):
     DATABASE_SSLMODE: str = "prefer"
     MODULE_AUTH_URL: str = "http://127.0.0.1:8321"
     AUTH_COOKIE_SECURE: bool = False
+    AUTH_COOKIE_SAMESITE: Literal["lax", "strict", "none"] = "lax"
     FRONTEND_URL: str = "http://127.0.0.1:3000"
+    API_ALLOWED_ORIGINS: list[str] = Field(default_factory=list)
     ATTACHMENT_DIR: Path = _API_ROOT / "data" / "attachments"
+
+    @property
+    def client_origins(self) -> list[str]:
+        return sorted({origin.rstrip("/") for origin in (
+            self.FRONTEND_URL, "http://localhost:3000", "http://127.0.0.1:3000",
+            *self.API_ALLOWED_ORIGINS,
+        )})
+
+    @field_validator("API_ALLOWED_ORIGINS")
+    @classmethod
+    def validate_client_origins(cls, origins: list[str]) -> list[str]:
+        for origin in origins:
+            parsed = urlsplit(origin)
+            if (parsed.scheme not in {"http", "https"} or not parsed.hostname
+                    or "*" in origin or parsed.username or parsed.password
+                    or parsed.path not in {"", "/"} or parsed.query or parsed.fragment):
+                raise ValueError("API_ALLOWED_ORIGINS must contain exact HTTP(S) origins")
+        return [origin.rstrip("/") for origin in origins]
+
+    @model_validator(mode="after")
+    def validate_cookie_settings(self) -> "Settings":
+        if self.AUTH_COOKIE_SAMESITE == "none" and not self.AUTH_COOKIE_SECURE:
+            raise ValueError("AUTH_COOKIE_SAMESITE=none requires AUTH_COOKIE_SECURE=true")
+        return self
 
     @model_validator(mode="after")
     def build_database_url(self) -> "Settings":

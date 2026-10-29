@@ -24,7 +24,7 @@ type Options<A extends Audience> = {
 );
 
 export class ApiError extends Error {
-  constructor(message: string, readonly status: number, readonly details?: unknown) {
+  constructor(message: string, readonly status: number, readonly details?: unknown, readonly code?: string) {
     super(message);
     this.name = "ApiError";
   }
@@ -40,6 +40,7 @@ export class ApiConnectionError extends Error {
 function errorMessage(payload: unknown): string {
   if (!payload || typeof payload !== "object") return "Request failed";
   const record = payload as Record<string, unknown>;
+  if (record.error && typeof record.error === "object" && "message" in record.error && typeof record.error.message === "string") return record.error.message;
   if (typeof record.detail === "string") return record.detail;
   if (Array.isArray(record.detail)) {
     return record.detail.map(item => typeof item?.msg === "string" ? item.msg : "").filter(Boolean).join(". ") || "Request failed";
@@ -80,7 +81,7 @@ export function createApiClient<A extends Audience>(options: Options<A>) {
         throw new Error("Request escaped the configured API base URL");
       }
       const path = url.pathname.slice(basePath.length);
-      const ownerRoute = path === "/owner" || path.startsWith("/owner/");
+      const ownerRoute = ["/owner", "/v1/owner", "/v1/auth/owner"].some(prefix => path === prefix || path.startsWith(`${prefix}/`));
       if (ownerRoute !== (options.audience === "owner")) throw new Error("API route audience mismatch");
       // Keep a pristine request for one retry, including PUT/POST bodies.
       const execute = async () => {
@@ -118,7 +119,9 @@ export function createApiClient<A extends Audience>(options: Options<A>) {
       if (response.ok) return;
       const payload: unknown = await response.clone().json().catch(() => undefined);
       const record = payload && typeof payload === "object" ? payload as Record<string, unknown> : undefined;
-      throw new ApiError(errorMessage(payload), response.status, record?.details ?? record?.detail);
+      const error = record?.error && typeof record.error === "object" ? record.error as Record<string, unknown> : undefined;
+      throw new ApiError(errorMessage(payload), response.status, error?.details ?? record?.details ?? record?.detail,
+        typeof error?.code === "string" ? error.code : undefined);
     },
   });
   return client;

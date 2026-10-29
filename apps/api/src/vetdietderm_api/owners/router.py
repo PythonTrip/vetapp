@@ -63,8 +63,9 @@ def create_session(db: Session, request: Request, response: Response, owner: Own
     db.add(OwnerSession(key_hash=session_digest(key), owner_account_uuid=owner.uuid,
                         expires=time.time() + SESSION_SECONDS))
     db.commit()
-    response.set_cookie(COOKIE, key, httponly=True, secure=get_settings().AUTH_COOKIE_SECURE,
-                        samesite="lax", path="/", max_age=SESSION_SECONDS)
+    settings = get_settings()
+    response.set_cookie(COOKIE, key, httponly=True, secure=settings.AUTH_COOKIE_SECURE,
+                        samesite=getattr(settings, "AUTH_COOKIE_SAMESITE", "lax"), path="/", max_age=SESSION_SECONDS)
 
 
 @router.get("/join-codes/current", response_model=CurrentJoinCode, dependencies=[Depends(require_clinical_access)])

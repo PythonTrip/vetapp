@@ -23,8 +23,8 @@ from vetdietderm_api.chat.router import router as chat_router
 from vetdietderm_api.questionnaires.router import router as questionnaires_router
 from vetdietderm_api.visits.router import router as visits_router
 from vetdietderm_api.settings import get_settings
-
-NEXT_ORIGIN = "http://127.0.0.1:3000"
+from vetdietderm_api.api_errors import install_error_handlers
+from vetdietderm_api.v1 import create_v1_router
 
 
 class StatusResponse(BaseModel):
@@ -49,7 +49,7 @@ def create_app() -> FastAPI:
     )
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=[get_settings().FRONTEND_URL, NEXT_ORIGIN, "http://localhost:3000"],
+        allow_origins=get_settings().client_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -81,6 +81,14 @@ def create_app() -> FastAPI:
     application.include_router(catalog_router, dependencies=auth)
     application.include_router(guidelines_router, dependencies=auth)
     application.include_router(assessments_router, dependencies=auth)
+    application.include_router(create_v1_router(
+        staff_routers=[patients_router, encounters_router, encounter_templates_router,
+                       clinical_catalog_router, attachments_router, appointments_router,
+                       communications_router, catalog_router, guidelines_router,
+                       assessments_router, questionnaires_router],
+        mixed_routers=[owners_router, chat_router, visits_router],
+    ))
+    install_error_handlers(application, get_settings().client_origins)
     return application
 
 

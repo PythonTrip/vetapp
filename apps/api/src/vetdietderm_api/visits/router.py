@@ -115,7 +115,9 @@ def reject_visit(request_id: UUID, body: VisitReject, request: Request, db: DB):
     return result
 
 
-@clinical.get("/visit-requests/{request_id}/files/{file_id}")
+@clinical.get("/visit-requests/{request_id}/files/{file_id}", response_class=FileResponse,
+              responses={200: {"content": {"application/octet-stream": {
+                  "schema": {"type": "string", "format": "binary"}}}}})
 def staff_download(request_id: UUID, file_id: UUID, request: Request, db: DB):
     row, _, _ = repo.context(db, request_id, user=request.state.user)
     return download(db, row, file_id)

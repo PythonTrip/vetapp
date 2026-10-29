@@ -62,7 +62,9 @@ def read_attachment(attachment_id: UUID, session: SessionDep) -> AttachmentRead:
     return AttachmentRead.model_validate(repository.get_attachment(session, attachment_id))
 
 
-@attachments.get("/{attachment_id}/file")
+@attachments.get("/{attachment_id}/file", response_class=FileResponse,
+                 responses={200: {"content": {"application/octet-stream": {
+                     "schema": {"type": "string", "format": "binary"}}}}})
 @logger.catch(reraise=True)
 def download_attachment(attachment_id: UUID, session: SessionDep) -> FileResponse:
     attachment = repository.get_attachment(session, attachment_id)
