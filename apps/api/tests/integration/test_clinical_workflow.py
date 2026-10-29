@@ -135,7 +135,7 @@ def test_clinical_records_persist_across_requests_and_attachment_storage(
                     "encounter_uuid": str(encounter.uuid),
                     "starts_at": "2026-09-01T01:30:00Z",
                     "duration_min": 45,
-                    "visit_type": "recheck",
+                    "visit_type": "secondary",
                     "status": "scheduled",
                     "notes": "Контроль терапии",
                 },

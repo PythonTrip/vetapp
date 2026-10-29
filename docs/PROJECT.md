@@ -16,8 +16,9 @@ VetDietDerm is a veterinary clinical workbench for specialists who manage patien
 - Private-practice veterinary nutritionists and dermatologists
 - Small specialty clinics and cabinets
 - Assistants and admins who schedule visits and owner communications (later CRM depth)
+- Pet owners who join one doctor's practice through that doctor's code or link (cabinet join, profile and animal passports shipped)
 
-Core cycles #1–#6 and Platform cycle #8 Pilot Hardening are closed. Clinical CRM Pivot (#5) closed on the shipped workspace; signed encounters and encounter-stored calculations moved to Specialty Depth (#7), which remains Planned. Deployment on an existing VPS is in use.
+Core cycles #1–#6 and Platform cycle #8 Pilot Hardening are closed. Clinical CRM Pivot (#5) closed on the shipped workspace; signed encounters and encounter-stored calculations sit in Specialty Depth (#9). Cycle #7 Owner Cabinet is in progress (join, profile, animal passports and registration acceptance implemented). Deployment on an existing VPS is in use.
 
 ## Business Model
 
@@ -33,17 +34,25 @@ The nutrition workbench lets the clinician start from a real Patient (or a manua
 
 The rebuild laid a foundation for CRM and specialty packs: separate Client and Patient, modular API bounded contexts, one FastAPI process that can be split later. Clinical encounters, structured form builder, templates, attachments, appointments, and communications now sit on that core.
 
+The next product surface is the owner's cabinet. The pet owner joins one doctor through that doctor's code, registers their animals, chats with the practice, and requests a visit with that doctor's questionnaire and files. The clinician workspace stays the system of record. Specialty depth follows the cabinet.
+
 ## Current Functionality
 
-Shipped runtime is the **split stack**: Next.js UI in `frontend/`, one FastAPI process in `apps/api/`, PostgreSQL (already provisioned; local/VPS example `127.0.0.1:15432` or Docker-network hostname). Prisma is not in runtime. Clinical calculations are not duplicated in React.
+Shipped runtime is the **split stack**: Next.js UI in `apps/clinic-web/`, one FastAPI process in `apps/api/`, PostgreSQL (already provisioned; local/VPS example `127.0.0.1:15432` or Docker-network hostname). Prisma is not in runtime. Clinical calculations are not duplicated in React.
 
-Browser calls go to same-origin `/api/*` when `NEXT_PUBLIC_API_URL=/api`. A Next.js Route Handler (`frontend/src/app/api/[...path]/route.ts`) proxies to FastAPI (`API_INTERNAL_URL`). That handler is transport, not the product backend.
+Browser calls go to same-origin `/api/*` when `NEXT_PUBLIC_API_URL=/api`. A Next.js Route Handler (`apps/clinic-web/src/app/api/[...path]/route.ts`) proxies to FastAPI (`API_INTERNAL_URL`). That handler is transport, not the product backend.
 
-Supported run paths: `docker compose up` (API + frontend; Alembic on API start; attachments named volume) or local `uv` + `npm run dev`. Compose does not start PostgreSQL.
+Supported run paths: `pnpm compose up` (API + frontend; Alembic on API start; attachments named volume) or local `uv` + `pnpm dev`. Compose does not start PostgreSQL.
 
 - Navigation: **Пациенты**, **Расписание**, **Приём**, **Питание**, **Настройки**; home shortcuts to patients, schedule, and nutrition
 - Client and Patient as separate entities. Patients is a split-pane workspace: searchable list, read-only card with explicit edit, tabs **Карточка** / **Приёмы** / **Галерея** / **Коммуникации** / **Питание** (`/patients/{id}?tab=`)
 - Patient card fields include allergies, chronic conditions, and feeding notes
+- Owner registrations stay in a separate queue on `/patients`, outside patient/client lists and search until acceptance. Editors explicitly create or select a client and match animals in the invitation's workspace; observers can only read the queue. After linking, the owner sees and edits passports of every patient on that client, adds patients immediately, and keeps client contact details synchronized. Clinical fields stay private. Clinicians can still create clients and patients without owner accounts. Requires migration `0025_registration_acceptance`.
+- Each animal has one text conversation, available to the owner and the registration queue before acceptance. Acceptance retains the same history on the patient «Коммуникации» tab beside the separate communication log. Personal conversations belong to the inviting doctor; organization editors reply and observers read. Owners see all staff replies under their inviting doctor's name. No attachments, edits, deletion or notifications. Requires migration `0026_animal_chat`.
+- The owner downloads a gallery file only after the clinician turns on «Показывать владельцу». Existing files stay clinician-only, and linking a client does not share that client's old gallery. Before acceptance the cabinet does not list files. Requires migration `0027_owner_file_visibility`.
+- The inviting doctor publishes one questionnaire per bookable visit type (`primary`, `secondary`, `consultation`, `supervision`) from `/settings`. Lists belong to the signed-in doctor's `user_id`, independently of workspace; other doctors cannot read or edit them. Replacing a list, including an empty list, does not create an encounter or change submitted answers. Requires migration `0028_visit_questionnaires`.
+- From the animal card, the owner proposes a visit time, answers every published question and attaches photos/PDFs (up to 8 MiB each). The request stays off the day schedule until staff confirm a real start and duration; confirming also accepts a pending registration in one transaction. Reject/withdraw retain downloadable request files; cancel and clinician appointment changes synchronize the owner status without exposing encounter text. New appointments use only `primary`, `secondary`, `consultation`, `supervision`; existing `recheck`, `procedure`, `telemedicine` remain readable and can retain their type on edit. Requires migration `0029_visit_requests`.
+- The pending area on `/patients` has separate «Регистрации» and «Запросы визитов» groups outside patient search. Requested visits show the proposed time, Russian questionnaire snapshots and downloadable files, refreshing every 30 seconds. Editors confirm with the real start/duration and, for a pending registration, create or link the client and match animals; rejection accepts an optional reason. Observers can read both groups and download files without accepting, confirming or rejecting. Successful confirmation refreshes registrations, patient search and appointments; failed actions retain the row and API error.
 - Encounters on the patient card and `/encounter`: specialty (dermatology / nutrition / general), type, statuses draft / in progress / completed
 - Structured clinical form builder for anamnesis and exam (system field/section catalog in the UI, plus clinic/doctor catalog items in PostgreSQL). Generated clinical text plus optional manual edit. Plan remains free text. Diagnoses, VAS 1–10, autosave
 - Visit templates: system structured templates (general primary/recheck, dermatology, nutrition, gastro) shipped in the UI; clinic/doctor templates may add a JSON `definition`. Legacy snippet `body` still exists on `encounter_templates`. `standard` rows in the database stay read-only
@@ -68,7 +77,7 @@ Supported run paths: `docker compose up` (API + frontend; Alembic on API start; 
 - SQL FEDIAF import and publish are not in the API process; normative values load only from the in-process FEDIAF 2025 provider. Schema `legacy_guidelines` remains
 - List windows: patients/clients 50, foods 50, diet plans 50, appointments 200
 
-Not shipped: Food `species_compatibility` (dropped from cycle #6), owner share portal, knowledge/AI handouts, drug checker, English UI, S3, dose/fluids calculators, signed encounters, backup/restore. Accounts and organization roles ship through module-auth. Prisma is not in the repository.
+Not shipped: Food `species_compatibility` (dropped from cycle #6), knowledge/AI handouts, drug checker, English UI, S3, dose/fluids calculators, signed encounters, backup/restore. Accounts and organization roles ship through module-auth. Prisma is not in the repository.
 
 ## Product Cycle Roadmap
 
@@ -78,21 +87,26 @@ Not shipped: Food `species_compatibility` (dropped from cycle #6), owner share p
 | 2 | ❌ Cancelled | Core | FEDIAF Relational Assessment | Trustworthy Postgres-backed ration analysis on the Next/Prisma prototype. Cancelled: same clinical outcome is delivered on a new stack in cycle 3; in-place Prisma refactor was rejected. | Historical PRD cleaned 2026-08-31 |
 | 3 | ✅ Done | Core | Split-Stack Nutrition | Nutritionist uses a rebuilt workbench (Next.js UI + one FastAPI process + existing PostgreSQL): Client/Patient, Food catalog, ration, honest FEDIAF 2025 assessment, reproducible saved plan. Legacy prototype modules left runtime. Therapeutic-goal gate from this cycle was later removed in #4. | [PRD](prd/2026-08-28_split-stack-nutrition_prd.md) |
 | 4 | ✅ Done | Core | Nutrition Workbench Polish | Nutritionist picks a Patient on `/nutrition`, browses Foods as a category-filtered nutrient table, and always gets a FEDIAF comparison after confirm — no therapeutic-goal switch. Confirmed profile and MER formula were strictly paired until #6. | [PRD](prd/2026-08-29_nutrition-workbench-polish_prd.md) |
-| 5 | ✅ Done | Core | Clinical CRM Pivot | Client/Patient/Encounter workspace with schedule, attachments, communications, structured form builder, encounter templates, and accounts with an optional organization. Signed encounters and encounter-stored calculations moved to #7. | — |
+| 5 | ✅ Done | Core | Clinical CRM Pivot | Client/Patient/Encounter workspace with schedule, attachments, communications, structured form builder, encounter templates, and accounts with an optional organization. Signed encounters and encounter-stored calculations moved to Specialty Depth (#9). | — |
 | 6 | ✅ Done | Core | Nutrition Context Split | Energy formulas and nutrient profiles remain independent; the server resolves both from the animal card, adult verdicts use imported MER95/110 and MER75/100 profiles, and stale results cannot look valid. | [PRD](prd/2026-08-29_nutrition-context-split_prd.md) |
-| 7 | ⬜ Planned | Pro | Specialty Depth | Stronger derm/nutrition encounter templates, follow-up CRM, signed encounters, encounter-stored calculations, additional clinical calculators (dose, fluids), and disease-specific therapeutic nutrient profiles if still wanted. Not the next cycle. | — |
+| 7 | 🚧 In Progress | Pro | Owner Cabinet | A pet owner joins one doctor by code or link, registers their animals, chats, requests a visit with that doctor's questionnaire and files, and downloads only files the clinician shares. | [PRD](prd/2026-10-27_owner-cabinet_prd.md) (draft) |
 | 8 | ✅ Done | Platform | Pilot Hardening | The running API calculates nutrition only with the in-process FEDIAF provider. Public `/ready` requires the clinical session. The container still waits for PostgreSQL before the UI starts. Backup and restore stay later. | [PRD](prd/2026-10-27_pilot-hardening_prd.md) |
+| 9 | ⬜ Planned | Pro | Specialty Depth | Stronger derm/nutrition encounter templates, follow-up CRM, signed encounters, encounter-stored calculations, additional clinical calculators (dose, fluids), and disease-specific therapeutic nutrient profiles if still wanted. Moved from #7 on 2026-10-27. Not the next cycle. | — |
 
 ## Product Architecture
 
-- **Web:** Next.js + TypeScript + Tailwind in `frontend/` — UI only. Same-origin `/api` Route Handler is a proxy to FastAPI. No Prisma. Clinical calculations are not duplicated in React. System clinical field/section catalog lives in `frontend/src/lib/clinical-builder.ts`.
+- **Web:** Next.js + TypeScript + Tailwind in `apps/clinic-web/` — UI only. Same-origin `/api` Route Handler is a proxy to FastAPI. No Prisma. Clinical calculations are not duplicated in React. System clinical field/section catalog lives in `apps/clinic-web/src/lib/clinical-builder.ts`.
 - **API:** one FastAPI process (Pydantic contracts) with internal bounded contexts (`patients`, `encounters`, `encounter_templates`, `clinical_catalog`, `attachments`, `appointments`, `communications`, `catalog`, `guidelines`, `assessments`, `standards`). Module boundaries are the foundation for later extraction; multiple API processes remain deferred.
 - **Nutrition standards:** `StandardRegistry` holds immutable in-process providers. Active FEDIAF edition is `fediaf/v2025` (`provider_version` `fediaf/v2025/1.1.0`, engine id `nutrition-engine/2.0.0`). `GET /guidelines/active` and assessments read the provider, not SQL guideline rows.
-- **Data:** existing PostgreSQL (local published port or Docker-network host such as `pgsql`). No Vercel, no Neon. Docker Compose orchestrates API + frontend only; PostgreSQL stays an already-provisioned instance. Alembic runs to head (`0022_users_organizations`) on API container start.
-- **Access:** external module-auth (`MODULE_AUTH_URL`) behind a FastAPI BFF. The browser holds an opaque HttpOnly cookie; tokens stay in `browser_sessions`. Clinical routers require an active verified account. `X-Vetapp-Workspace` is `personal` or `organization`. Personal rows use `tenant_id` NULL and `created_by` equal to the user. Rows with both NULL stay inaccessible. Organization observers are read-only except unsaved assessments. Food catalog writes require global `super_admin`.
+- **Data:** existing PostgreSQL (local published port or Docker-network host such as `pgsql`). No Vercel, no Neon. Docker Compose orchestrates API + frontend only; PostgreSQL stays an already-provisioned instance. Alembic runs to head (`0029_visit_requests`) on API container start.
+- **Access:** external module-auth (`MODULE_AUTH_URL`) behind a FastAPI BFF. The browser holds an opaque HttpOnly cookie; tokens stay in `browser_sessions`. Clinical routers require an active verified staff account and read only `vetapp_session`. Owners use the separate HttpOnly `vetapp_owner_session` cookie; neither session opens the other surface. Owner passwords use per-account salted scrypt in PostgreSQL; owner registration sends no email. `X-Vetapp-Workspace` is `personal` or `organization`. Personal rows use `tenant_id` NULL and `created_by` equal to the user. Rows with both NULL stay inaccessible. Organization observers are read-only except unsaved assessments. Food catalog writes require global `super_admin`.
 - **Core entities:** Client, Patient, Encounter, EncounterTemplate, ClinicalCatalogItem, Appointment, Attachment, Communication, Food, Nutrient, Diet Plan. FEDIAF edition identity is provider-owned; `guideline_standards` / `guideline_editions` remain in `public` as leftover metadata. Physical tables, keys, JSONB payloads, and import formats are in [Data](#data).
 - **Nutrition analysis model:** Animal Context lets the server independently resolve an Energy Formula and Nutrient Profile. Compatibility is species + physiological context + required fields — not `energy_formula.profile_id`. Adult verdicts use imported MER95/110 and MER75/100 concentration profiles; growth and reproduction keep their published life-stage profiles. Table VII-11 remains available as reference data but is not auto-selected for adults.
-- **Later entities:** signed encounter, S3 object store, specialty calculators. User accounts live in module-auth and must stay attached to Client/Patient without collapsing owner back into Patient.
+- **Owner passports:** owners add and edit name, species, breed, sex and birth date. Pending animals stay in `owner_animals` and are absent from patients, clients and clinical search until acceptance. Migration `0025` links registrations to clients and pending animals to patients; after acceptance, passport reads and writes use every patient of the linked client, scoped to the invitation workspace. `accept_registration(session, registration_id, payload)` validates permissions and matches and flushes atomically; its caller supplies verified staff in `session.info['user']` and owns commit. Owner routes use a plain session with explicit workspace predicates, independent of the clinician's current workspace. Patient cards include sex (male/female/unspecified; migration `0024`).
+- **Animal chat:** `chat_threads` has unique nullable owner-animal and patient references; `chat_messages` stores immutable text, author identity and sender label at send time. These tables use explicit authorization rather than `TenantOwned`. Registration and patient locks serialize first sends with acceptance. Matching a patient with an existing conversation retains both histories in the pending thread. Message sends never create `communications` rows.
+- **Visit questionnaires:** `visit_questionnaires` (unique doctor `user_id` + visit type) and ordered `visit_questions` (kind, label, JSONB options), outside tenant-owned clinical records. Answers are immutable JSONB snapshots on `visit_requests`, including question id, label, kind, submitted value and select options at submission.
+- **Visit requests:** explicit owner and invitation-workspace authorization; registration and request locks serialize acceptance, confirmation, withdrawal and file upload. Confirmation flushes acceptance and one appointment before a single commit. `visit_request_files` stores disk keys and a gallery-copy marker; gallery rows use `create_attachment(commit=False)` with both owner flags. Gallery copies have separate disk keys so deleting a gallery file cannot break the retained request download. Appointment PATCH copies start, duration and status back; deleting a linked appointment cancels its request.
+- **Later entities:** remaining owner pending-list UI (#7, not shipped); signed encounter and specialty calculators (#9); S3 object store. Staff accounts live in module-auth. Client stays the owner and Patient stays the animal.
 - Disease-specific therapeutic profiles are not a product mode. Species other than dog/cat still skip normative comparison.
 
 ## Data
@@ -101,7 +115,7 @@ Operational source of truth is PostgreSQL for clinical CRM, the Food catalog, an
 
 FEDIAF normative values, energy formulas, applicability, and derived expressions are **not** request-path SQL. They load from `apps/api/src/vetdietderm_api/standards/fediaf/v2025/`. Alembic `0019` moved the former runtime tables into schema `legacy_guidelines`. SQL FEDIAF import and publish are not in the API process; schema `legacy_guidelines` remains.
 
-User accounts and organization membership live in module-auth, not in this database. Migration `0022` adds nullable `tenant_id` and `created_by` on clinical tables and stores opaque browser sessions in `browser_sessions`. Assessments are not stored as rows: the engine writes one JSON snapshot onto `diet_plans` at save. Lesion binaries live on disk; PostgreSQL keeps metadata only.
+Staff accounts and organization membership live in module-auth. Owner accounts, scrypt password hashes, sessions, stable join codes, staff email reservations, and pending registrations live in PostgreSQL (migration `0023`). Migration `0022` adds nullable `tenant_id` and `created_by` on clinical tables and stores opaque browser sessions in `browser_sessions`. Assessments are not stored as rows: the engine writes one JSON snapshot onto `diet_plans` at save. Lesion binaries live on disk; PostgreSQL keeps metadata only.
 
 ### Relationship map
 
@@ -163,8 +177,8 @@ Uniqueness that matters at runtime: `food_nutrient_values` identity `(food_uuid,
 | `encounters` | Visit | `specialty` `dermatology` \| `nutrition` \| `general`; `type` `appointment` \| `note` \| `diagnostic` \| `treatment`; `status` `draft` \| `in_progress` \| `completed`; SOAP-ish text fields (`chief_complaint`, `anamnesis`, `exam`, `plan`); `anamnesis_data` JSONB; `diagnoses` JSONB `string[]`; `prescriptions` JSONB `{ name, dosage, frequency, duration, instructions }[]`; `vas_score`; `occurred_at` |
 | `encounter_templates` | Visit templates | `scope` `standard` \| `clinic` \| `doctor`; `section` `anamnesis` \| `exam` \| `plan`; `specialty`; `title`, `body`; optional JSONB `definition` (`kind: structured`, `sectionIds`, optional `sectionFieldIds`); optional `doctor_name`. `standard` is read-only in product |
 | `clinical_catalog_items` | Reusable fields/sections | `kind` `field` \| `section`; `scope` `clinic` \| `doctor`; optional `specialty`; `key`, `label`; JSONB `definition`; optional `doctor_name` |
-| `appointments` | Schedule | `starts_at`, `duration_min`; `visit_type` `consultation` \| `recheck` \| `procedure` \| `telemedicine`; `status` `scheduled` \| `completed` \| `cancelled` \| `no_show`; optional `encounter_uuid` |
-| `attachments` | Gallery metadata | `kind` `lesion_photo` \| `document`; `caption`, `body_region`, `vas_score`; `content_type`, `byte_size`; `storage_key` (path under `ATTACHMENT_DIR`, not the bytes) |
+| `appointments` | Schedule | `starts_at`, `duration_min`; new `visit_type` `primary` \| `secondary` \| `consultation` \| `supervision` (stored legacy `recheck`, `procedure`, `telemedicine` remain readable); `status` `scheduled` \| `completed` \| `cancelled` \| `no_show`; optional `encounter_uuid` |
+| `attachments` | Gallery metadata | `kind` `lesion_photo` \| `document`; `caption`, `body_region`, `vas_score`; `content_type`, `byte_size`; `storage_key` (path under `ATTACHMENT_DIR`, not the bytes); `owner_visible` and `uploaded_by_owner`, both boolean, default false. The owner list omits the storage key and clinical fields |
 | `communications` | Owner log | `channel` `phone` \| `email` \| `text` \| `video` \| `in_person`; `direction` `inbound` \| `outbound`; `subject`, `body`; `occurred_at`, optional `follow_up_at` |
 
 `anamnesis_data` shape used by the form builder: `{ specialty, version, answers, free_text, documents: { anamnesis, exam } }`. Each document is `{ version: 1, kind, templateId?, sectionIds, sectionFieldIds, values[], finalText, textEdited }`. Field types: `binary`, `single_select`, `multi_select`, `number`, `text`, `date`. Legacy encounters without `documents` still open via stored `anamnesis` / `exam` text.
@@ -218,11 +232,11 @@ Never opened by FastAPI request handlers or Next.js. Catalog import remains the 
 
 | File | Format | Maps to |
 | --- | --- | --- |
-| `docs/data/products_normalized.json` | JSON **array** of food objects | `foods` + `food_nutrient_values` via `vetdietderm_api.catalog.import_products`. Clinician can also create/edit Food in the UI |
+| `apps/api/data/products_normalized.json` | JSON **array** of food objects | `foods` + `food_nutrient_values` via `vetdietderm_api.catalog.import_products`. Clinician can also create/edit Food in the UI |
 | `apps/api/src/vetdietderm_api/standards/fediaf/v2025/normative_data.json` | JSON **object** (Russian FEDIAF snapshot, edition `2025.09`) | in-process provider at import of the Python package |
 | `docs/data/fediaf_2025_veterinary_nutrition_database_ru.json` | JSON **object** | archival / documentation twin of the provider snapshot; not loaded by the API |
 | `docs/data/fediaf_2025_veterinary_nutrition_schema.json` | JSON Schema 2020-12 | validates the FEDIAF snapshot |
-| `docs/data/fediaf_2025_vii11_golden.json` | JSON fixture | Table VII-11 checks |
+| `apps/api/tests/fixtures/fediaf_2025_vii11_golden.json` | JSON fixture | Table VII-11 checks |
 | `docs/data/fediaf_2025_*.csv`, `docs/data/fediaf_2025_veterinary_nutrition_ru.xlsx` | CSV / XLSX | **archival only**; not runtime SoT; VII-11 is not in those files |
 
 **Catalog JSON object** (one array element): `name`; `type` → `foods.category`; `subcat` → `foods.subcategory`; `calculated` string[] of ratio keys (not stored); atomic keys `ME`, `CP`, `CFa`, … matching `nutrients.code` (`number` or `null`); ratio keys such as `ME/DM`, `Ca/P`, `ω6/ω3` (not stored as nutrients). `null` → missing (`unknown`), not zero.
@@ -261,8 +275,8 @@ External publication cited by provider metadata: [FEDIAF Nutritional Guidelines 
 
 - Full rebuild is authorized; unused prototype modules may be deleted rather than migrated.
 - No migration of existing Pet/Consultation/DietPlan/Prisma rows. Catalog is imported fresh into PostgreSQL. FEDIAF runtime moved from SQL tables to an in-process provider in `0019` without a clinician-facing import UI.
-- Split-Stack Nutrition (#3), Nutrition Workbench Polish (#4), Clinical CRM Pivot (#5), and Nutrition Context Split (#6) are closed. Cycle #5 closed on the shipped workspace; signed encounters and encounter-stored calculations moved to #7. Cycle 2 is cancelled, not deferred. Docker Compose and the Next `/api` proxy are operations that landed without closing Platform cycle #8.
-- On 2026-10-27 Platform cycle #8 Pilot Hardening closed ahead of Planned #7: SQL FEDIAF import/publish left the API process, public `/ready` requires the clinical session, and the container waits for PostgreSQL on an in-process probe with no user session and no new token. Public `/health` stays a process check. Schema `legacy_guidelines` stays. Backup and restore were not part of #8.
+- Split-Stack Nutrition (#3), Nutrition Workbench Polish (#4), Clinical CRM Pivot (#5), and Nutrition Context Split (#6) are closed. Cycle #5 closed on the shipped workspace; signed encounters and encounter-stored calculations moved to Specialty Depth (#9). Cycle 2 is cancelled, not deferred. Docker Compose and the Next `/api` proxy are operations that landed without closing Platform cycle #8.
+- On 2026-10-27 Platform cycle #8 Pilot Hardening closed ahead of Specialty Depth: SQL FEDIAF import/publish left the API process, public `/ready` requires the clinical session, and the container waits for PostgreSQL on an in-process probe with no user session and no new token. Public `/health` stays a process check. Schema `legacy_guidelines` stays. Backup and restore were not part of #8. Specialty Depth is now #9.
 - Happy path works with and without a saved Patient; a Diet Plan may be saved without a Patient. The nutrition workspace offers a searchable Patient picker (animal and owner), plus the `?patientId=` deep-link and the save dialog.
 - Selecting a Patient prefills the animal form for this sitting. Fields stay editable as session overrides. Nutrition-session overrides (including `target_body_weight_kg`) are not written back to the Patient card.
 - Client and Patient are separate; owner is not embedded on the animal row. Patient card is read-only until the clinician starts an explicit edit.
@@ -285,10 +299,11 @@ External publication cited by provider metadata: [FEDIAF Nutritional Guidelines 
 - Food `species_compatibility`, species-filtered search, and ration-level mismatch confirmation are **out of cycle #6**. Catalog and ration Add remain name/category search without a species gate.
 - Encounter anamnesis and exam are structured documents generated from a field catalog, not a free-text SOAP block as the primary capture. Plan stays free text. System templates ship in the UI; clinic/doctor catalog items persist in PostgreSQL.
 - The doctor label on personal templates comes from the signed-in profile. Authentication is the module-auth session, not that label.
-- Breed notes, complementary-only analysis branch, NRC/AAFCO, knowledge/AI, share portal, drug checker, English UI, and Vercel/Neon remain later. Accounts and organization roles are in use. Encounters, templates, derm gallery, schedule, and communications sit on the split stack without Prisma.
+- Breed notes, complementary-only analysis branch, NRC/AAFCO, knowledge/AI, drug checker, English UI, and Vercel/Neon remain later. Owner join, separate sign-in, the doctor/profile cabinet and pending animal passports ship in cycle #7; remaining cabinet workflows are in progress. Accounts and organization roles are in use. Encounters, templates, derm gallery, schedule, and communications sit on the split stack without Prisma.
 - Lesion originals live on disk (`ATTACHMENT_DIR`); PostgreSQL stores attachment metadata only. No base64 in the primary tables. Compose named volume does not auto-import an existing `data/attachments` tree.
 - Multiple API processes are deferred; keep extractable modules in one process.
 - Next Route Handler must stay the public `/api` path. Direct FastAPI publish is loopback-only.
+- 2026-10-27 — Owner Cabinet is the next cycle (#7, Pro, draft PRD). Specialty Depth moves from #7 to #9 and stays Planned. The owner self-registers through one doctor's code or link, registers animals, and sees that doctor. A registration stays off the main patient list until the clinician accepts it or confirms the first appointment. Chat and visit requests work before that. No owner email in this cycle. Payment, a second doctor on the same owner account, and Specialty Depth stay later.
 
 ## Cycle History
 
@@ -310,6 +325,7 @@ External publication cited by provider metadata: [FEDIAF Nutritional Guidelines 
 - 2026-10-27 — Accounts and an optional organization ship through module-auth and migration `0022`. The personal workspace is the default. Prototype Prisma scripts (SQLite-to-Neon copy, Prisma catalog import, Pet/Consultation seed, TypeScript FEDIAF codegen) are removed. Schema `legacy_guidelines` stays.
 - 2026-10-27 — Product discovery closed #5 on the shipped CRM workspace and moved signed encounters plus encounter-stored calculations to #7. Drafted Platform cycle #8 Pilot Hardening as the next cycle, ahead of #7: one in-process FEDIAF engine, session-gated public `/ready`, internal container probe that still waits for PostgreSQL. Backup and restore are out of #8 because no working restore exists.
 - 2026-10-27 — Cycle #8 **Pilot Hardening** closed as ✅ Done. SQL FEDIAF import/publish left the API process; public `/ready` requires the clinical session; Compose probes PostgreSQL in-process inside the API container. Schema `legacy_guidelines` and leftover `guideline_standards` / `guideline_editions` remain.
+- 2026-10-27 — Product discovery registered Pro cycle **Owner Cabinet** as roadmap #7, ahead of Specialty Depth. Specialty Depth moved from #7 to #9 without a scope change. Owner Cabinet PRD is draft, so #7 stays Planned.
 
 ## Open Product Questions
 
@@ -327,3 +343,8 @@ External publication cited by provider metadata: [FEDIAF Nutritional Guidelines 
 - Whether archival adult density standards (`dog_adult_density_95/110`, `cat_adult_density_75/100`) later get a clinician cross-check surface, or stay data-only
 - When backup and restore of the clinical database and gallery files become their own cycle. They are not part of #8.
 - Whether `/settings` later hosts clinic/doctor catalog editing, or that stays inside the encounter workspace
+- Where owner credentials live, so long as an owner session cannot open the clinician workspace and a staff session cannot open the cabinet
+- When owner email (verification, password reset, chat and appointment notices) returns; #7 has an in-app cabinet only
+- When one owner account may join a second doctor
+- When a clinician can rotate a leaked join code
+- When online visit payment returns; #7 does not collect payment

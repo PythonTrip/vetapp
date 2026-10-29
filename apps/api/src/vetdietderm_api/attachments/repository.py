@@ -13,6 +13,9 @@ from vetdietderm_api.attachments.storage import (
     write_bytes,
 )
 from vetdietderm_api.encounters.repository import get_encounter
+from vetdietderm_api.owners.models import JoinCode, OwnerAccount
+from vetdietderm_api.owners.repository import registration_for_owner, workspace_filter
+from vetdietderm_api.patients.models import Patient
 from vetdietderm_api.patients.repository import get_patient
 
 
@@ -50,6 +53,10 @@ def create_attachment(
     body_region: str | None,
     vas_score: int | None,
     encounter_uuid: UUID | None,
+    *,
+    owner_visible: bool = False,
+    uploaded_by_owner: bool = False,
+    commit: bool = True,
 ) -> Attachment:
     get_patient(session, patient_uuid)
     if encounter_uuid is not None:
@@ -78,10 +85,20 @@ def create_attachment(
         content_type=content_type,
         byte_size=len(payload),
         storage_key=storage_key,
+        owner_visible=owner_visible,
+        uploaded_by_owner=uploaded_by_owner,
     )
     session.add(attachment)
-    session.commit()
-    session.refresh(attachment)
+    try:
+        if commit:
+            session.commit()
+        else:
+            session.flush()
+    except Exception:
+        delete_file(storage_key)
+        raise
+    if commit:
+        session.refresh(attachment)
     return attachment
 
 
@@ -92,6 +109,9 @@ def update_attachment(
 ) -> Attachment:
     attachment = get_attachment(session, attachment_uuid)
     payload = data.model_dump(exclude_unset=True)
+    payload.pop("uploaded_by_owner", None)
+    if payload.get("owner_visible") is None:
+        payload.pop("owner_visible", None)
     if "encounter_uuid" in payload and payload["encounter_uuid"] is not None:
         encounter = get_encounter(session, payload["encounter_uuid"])
         if encounter.patient_uuid != attachment.patient_uuid:
@@ -103,6 +123,53 @@ def update_attachment(
     attachment.updated_at = utc_now()
     session.commit()
     session.refresh(attachment)
+    return attachment
+
+
+def _linked_patient(session: Session, owner: OwnerAccount, animal_id: UUID) -> Patient:
+    registration = registration_for_owner(session, owner)
+    code = session.get(JoinCode, owner.join_code_uuid)
+    patient = None
+    if registration.client_uuid is not None and code is not None:
+        patient = session.scalar(
+            select(Patient).where(
+                Patient.uuid == animal_id,
+                Patient.client_uuid == registration.client_uuid,
+                workspace_filter(Patient, code),
+            )
+        )
+    if patient is None:
+        raise _not_found("Файл не найден")
+    return patient
+
+
+def list_owner_files(session: Session, owner: OwnerAccount, animal_id: UUID) -> list[Attachment]:
+    patient = _linked_patient(session, owner, animal_id)
+    stmt = (
+        select(Attachment)
+        .where(Attachment.patient_uuid == patient.uuid, Attachment.owner_visible.is_(True))
+        .order_by(Attachment.created_at.desc(), Attachment.uuid.desc())
+    )
+    return list(session.scalars(stmt).all())
+
+
+def get_owner_file(session: Session, owner: OwnerAccount, attachment_id: UUID) -> Attachment:
+    registration = registration_for_owner(session, owner)
+    code = session.get(JoinCode, owner.join_code_uuid)
+    attachment = None
+    if registration.client_uuid is not None and code is not None:
+        attachment = session.scalar(
+            select(Attachment)
+            .join(Patient, Attachment.patient_uuid == Patient.uuid)
+            .where(
+                Attachment.uuid == attachment_id,
+                Attachment.owner_visible.is_(True),
+                Patient.client_uuid == registration.client_uuid,
+                workspace_filter(Patient, code),
+            )
+        )
+    if attachment is None:
+        raise _not_found("Файл не найден")
     return attachment
 
 

@@ -13,8 +13,8 @@ from vetdietderm_api.catalog.models import Food, FoodNutrientValue, Nutrient
 from vetdietderm_api.db import get_session_factory
 from vetdietderm_api.ids import uuid6
 
-REPO_ROOT = Path(__file__).resolve().parents[5]
-PRODUCTS_PATH = REPO_ROOT / "products_normalized.json"
+API_ROOT = Path(__file__).resolve().parents[3]
+PRODUCTS_PATH = API_ROOT / "data" / "products_normalized.json"
 AS_FED_BASIS = "per_100g_as_fed"
 
 

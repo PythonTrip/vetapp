@@ -11,7 +11,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[4]
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=(_REPO_ROOT / ".env", _API_ROOT / ".env"),
+        env_file=_API_ROOT / ".env",
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     MODULE_AUTH_URL: str = "http://127.0.0.1:8321"
     AUTH_COOKIE_SECURE: bool = False
     FRONTEND_URL: str = "http://127.0.0.1:3000"
-    ATTACHMENT_DIR: Path = _REPO_ROOT / "data" / "attachments"
+    ATTACHMENT_DIR: Path = _API_ROOT / "data" / "attachments"
 
     @model_validator(mode="after")
     def build_database_url(self) -> "Settings":

@@ -25,6 +25,7 @@ class AttachmentUpdate(BaseModel):
     caption: str | None = None
     body_region: str | None = None
     vas_score: int | None = Field(default=None, ge=1, le=10)
+    owner_visible: bool | None = None
 
     @field_validator("caption", "body_region", mode="before")
     @classmethod
@@ -44,5 +45,18 @@ class AttachmentRead(BaseModel):
     vas_score: int | None
     content_type: str
     byte_size: int
+    owner_visible: bool
+    uploaded_by_owner: bool
     created_at: datetime
     updated_at: datetime
+
+
+class OwnerFileRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    uuid: UUID
+    caption: str | None
+    content_type: str
+    byte_size: int
+    created_at: datetime
+    uploaded_by_owner: bool

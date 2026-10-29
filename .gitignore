@@ -76,3 +76,7 @@ graphify-out/
 .mega/
 .impeccable/
 .codex-qa/
+# App-local artifacts
+**/coverage/
+**/data/attachments/
+**/.uv-cache*/

@@ -1,0 +1,14 @@
+**
+!package.json
+!pnpm-workspace.yaml
+!pnpm-lock.yaml
+!apps/
+!apps/clinic-web/
+!apps/clinic-web/**
+**/node_modules
+**/.next
+**/.tmp
+**/.env*
+**/*.tsbuildinfo
+**/*.log
+**/.ruff_cache

@@ -44,6 +44,7 @@ class Patient(TenantOwned, Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     species: Mapped[str] = mapped_column(String(16), nullable=False)
     breed: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    sex: Mapped[str] = mapped_column(String(16), nullable=False, default="unspecified", server_default="unspecified")
     body_weight_kg: Mapped[float | None] = mapped_column(Numeric(10, 3), nullable=True)
     expected_adult_weight_kg: Mapped[float | None] = mapped_column(Numeric(10, 3), nullable=True)
     birth_date: Mapped[date | None] = mapped_column(Date, nullable=True)

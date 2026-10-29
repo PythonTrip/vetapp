@@ -1,7 +1,0 @@
-node_modules
-.next
-.env*
-*.tsbuildinfo
-*.log
-.git
-.ruff_cache

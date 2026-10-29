@@ -13,6 +13,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from vetdietderm_api.db import Base, get_session_factory
 from vetdietderm_api.settings import get_settings
+from vetdietderm_api.account_schemas import UserProfileRead, OrganizationMembersRead, OrganizationInvitesRead
 
 COOKIE = "vetapp_session"
 router = APIRouter(prefix="/auth-service", tags=["account"])
@@ -118,6 +119,9 @@ def require_user(request: Request) -> dict:
     profile = authenticated_call(request, "GET", "/me")
     if profile.get("account_status") != "active" or not profile.get("email_verified"):
         raise HTTPException(401, "Войдите в активный аккаунт")
+    from vetdietderm_api.owners.repository import reserve_staff_email
+    with get_session_factory()() as db:
+        reserve_staff_email(db, profile["email"], profile["user_id"])
     request.state.user = profile
     return profile
 
@@ -183,6 +187,25 @@ PROTECTED = re.compile(r"(?:me(?:/change-password|/sessions(?:/[\w-]+)?)?|"
                        r"invites/accept)")
 
 
+# Explicit read contracts precede the catch-all. Delegate to the same allowlist,
+# session refresh and authorization flow; preserve upstream extension fields.
+@router.get("/me", response_model=UserProfileRead, response_model_exclude_unset=True, dependencies=[Depends(csrf)])
+def account_profile(request: Request, response: Response):
+    return account_proxy("me", request, response)
+
+
+@router.get("/organizations/{org_id}/members", response_model=OrganizationMembersRead,
+            response_model_exclude_unset=True, dependencies=[Depends(csrf)])
+def account_members(org_id: str, request: Request, response: Response):
+    return account_proxy(f"organizations/{org_id}/members", request, response)
+
+
+@router.get("/organizations/{org_id}/invites", response_model=OrganizationInvitesRead,
+            response_model_exclude_unset=True, dependencies=[Depends(csrf)])
+def account_invites(org_id: str, request: Request, response: Response):
+    return account_proxy(f"organizations/{org_id}/invites", request, response)
+
+
 @router.get("/{path:path}", operation_id="account_get", dependencies=[Depends(csrf)])
 @router.post("/{path:path}", operation_id="account_post", dependencies=[Depends(csrf)])
 @router.patch("/{path:path}", operation_id="account_patch", dependencies=[Depends(csrf)])
@@ -190,12 +213,23 @@ PROTECTED = re.compile(r"(?:me(?:/change-password|/sessions(?:/[\w-]+)?)?|"
 def account_proxy(path: str, request: Request, response: Response, body: dict | None = None):
     response.headers["Cache-Control"] = "no-store"
     if path in PUBLIC and request.method == "POST":
-        return checked(upstream("POST", "/" + path, body))
+        if path == "auth/register":
+            from vetdietderm_api.owners.models import OwnerAccount
+            from vetdietderm_api.owners.repository import TAKEN_EMAIL, normalize_email
+            email = normalize_email(str((body or {}).get("email", "")))
+            with get_session_factory()() as db:
+                if db.scalar(select(OwnerAccount.uuid).where(OwnerAccount.email == email)):
+                    raise HTTPException(409, TAKEN_EMAIL)
+        result = upstream("POST", "/" + path, body)
+        if path == "auth/register" and result.status_code == 409:
+            from vetdietderm_api.owners.repository import TAKEN_EMAIL
+            raise HTTPException(409, TAKEN_EMAIL)
+        return checked(result)
     if path == "auth/refresh" and request.method == "POST":
         return authenticated_call(request, "GET", "/me", force_refresh=True)
     if not PROTECTED.fullmatch(path):
         raise HTTPException(404, "Не найдено")
-    result = authenticated_call(request, request.method, "/" + path, body)
+    result = require_user(request) if path == "me" and request.method == "GET" else authenticated_call(request, request.method, "/" + path, body)
     if (request.method == "POST" and path in {"organizations", "invites/accept"}) or (
         request.method in {"PATCH", "DELETE"} and "/members/" in path):
         authenticated_call(request, "GET", "/me", force_refresh=True)

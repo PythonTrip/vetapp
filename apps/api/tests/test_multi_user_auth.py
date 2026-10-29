@@ -94,7 +94,9 @@ def test_cookie_no_tokens_rotation_and_terminal_401(bff, engine, monkeypatch):
         if path == "/auth/refresh":
             assert body == {"refresh_token": "refresh-1"}
             return httpx.Response(200, json=pair("access-2", "refresh-2"))
-        return httpx.Response(401 if token == "access-1" else 200, json={"user_id": "user"})
+        return httpx.Response(401 if token == "access-1" else 200, json={
+            "user_id": "11111111-1111-4111-8111-111111111111", "email": "staff@example.com",
+            "account_status": "active", "email_verified": True})
     monkeypatch.setattr(auth, "upstream", remote)
     result = bff.post("/auth-service/auth/login", json={"email": "a@example.com", "password": "secret"})
     assert result.json() == {"ok": True}

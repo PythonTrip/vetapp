@@ -10,6 +10,8 @@ from vetdietderm_api.appointments.schemas import AppointmentUpdate, AppointmentW
 from vetdietderm_api.encounters.repository import get_encounter
 from vetdietderm_api.patients.models import Patient
 from vetdietderm_api.patients.repository import get_patient
+from vetdietderm_api.questionnaires.schemas import VisitType as BookableVisitType
+from vetdietderm_api.visits.models import VisitRequest
 
 
 def _not_found(detail: str) -> HTTPException:
@@ -74,8 +76,20 @@ def create_appointment(session: Session, data: AppointmentWrite) -> Appointment:
 
 
 def update_appointment(session: Session, appointment_uuid: UUID, data: AppointmentUpdate) -> Appointment:
+    # Same lock order as owner cancellation: request, then appointment. The
+    # statement only runs after verifying the appointment in the current workspace.
     appointment = get_appointment(session, appointment_uuid)
+    linked = session.scalar(select(VisitRequest).where(VisitRequest.appointment_uuid == appointment_uuid).with_for_update())
+    session.scalar(select(Appointment).where(Appointment.uuid == appointment_uuid).with_for_update()
+                   .execution_options(populate_existing=True))
     payload = data.model_dump(exclude_unset=True)
+    for field in ("patient_uuid", "starts_at", "duration_min", "visit_type", "status"):
+        if field in payload and payload[field] is None:
+            raise HTTPException(422, "Обязательное поле не может быть пустым")
+    if linked and payload.get("patient_uuid", appointment.patient_uuid) != appointment.patient_uuid:
+        raise HTTPException(422, "Нельзя сменить пациента в записи владельца")
+    if "visit_type" in payload and payload["visit_type"] not in set(BookableVisitType) and payload["visit_type"] != appointment.visit_type:
+        raise HTTPException(422, "Выберите один из четырёх типов визита")
     if "patient_uuid" in payload:
         get_patient(session, payload["patient_uuid"])
     patient_uuid = payload.get("patient_uuid", appointment.patient_uuid)
@@ -88,11 +102,20 @@ def update_appointment(session: Session, appointment_uuid: UUID, data: Appointme
     for key, value in payload.items():
         setattr(appointment, key, value)
     appointment.updated_at = utc_now()
+    if linked:
+        linked.confirmed_starts_at = appointment.starts_at
+        linked.duration_min = appointment.duration_min
+        linked.status = appointment.status
+        linked.updated_at = utc_now()
     session.commit()
     return get_appointment(session, appointment.uuid)
 
 
 def delete_appointment(session: Session, appointment_uuid: UUID) -> None:
     appointment = get_appointment(session, appointment_uuid)
+    linked = session.scalar(select(VisitRequest).where(VisitRequest.appointment_uuid == appointment_uuid).with_for_update())
+    if linked:
+        linked.status, linked.appointment_uuid, linked.updated_at = "cancelled", None, utc_now()
+        session.flush()
     session.delete(appointment)
     session.commit()

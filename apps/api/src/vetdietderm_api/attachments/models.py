@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, Uuid
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, Uuid, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from vetdietderm_api.db import Base
@@ -38,6 +38,8 @@ class Attachment(TenantOwned, Base):
     content_type: Mapped[str] = mapped_column(String(128), nullable=False)
     byte_size: Mapped[int] = mapped_column(Integer, nullable=False)
     storage_key: Mapped[str] = mapped_column(String(512), nullable=False)
+    owner_visible: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=false())
+    uploaded_by_owner: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=false())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
 
