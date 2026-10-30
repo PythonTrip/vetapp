@@ -1,0 +1,9 @@
+@import "@vetdietderm/ui/styles.css";
+@source "../../../../packages/ui/src";
+@source "../../../../packages/owner-features/src";
+
+:root {
+  --font-geist-sans: Arial, Helvetica, sans-serif;
+  --font-geist-mono: monospace;
+}
+body { font-family: var(--font-geist-sans); }

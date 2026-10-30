@@ -71,7 +71,9 @@ def create_session(db: Session, request: Request, response: Response, owner: Own
 @router.get("/join-codes/current", response_model=CurrentJoinCode, dependencies=[Depends(require_clinical_access)])
 def join_code(request: Request, db: DB):
     row = repo.current_code(db, request.state.user, request.headers.get("X-Vetapp-Workspace", "personal"))
-    return dict(code=row.code, link=f"{get_settings().FRONTEND_URL.rstrip('/')}/join/{row.code}",
+    settings = get_settings()
+    owner_origin = settings.OWNER_FRONTEND_URL or settings.FRONTEND_URL
+    return dict(code=row.code, link=f"{owner_origin.rstrip('/')}/join/{row.code}",
                 doctor_name=row.doctor_label, organization_name=row.organization_name)
 
 

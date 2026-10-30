@@ -20,6 +20,7 @@ services:
       AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-true}
       AUTH_COOKIE_SAMESITE: ${AUTH_COOKIE_SAMESITE:-lax}
       FRONTEND_URL: ${FRONTEND_URL:-https://vetapp.syndex-ai.ru}
+      OWNER_FRONTEND_URL: ${OWNER_FRONTEND_URL:-${FRONTEND_URL:-https://vetapp.syndex-ai.ru}}
       API_ALLOWED_ORIGINS: '${API_ALLOWED_ORIGINS:-[]}'
       ATTACHMENT_DIR: /data/attachments
 
@@ -74,6 +75,25 @@ services:
     ports:
       - "127.0.0.1:${FRONTEND_PORT:-3003}:3000"
 
+    depends_on:
+      api:
+        condition: service_healthy
+
+  owner-web:
+    profiles: [owner]
+    build:
+      context: ..
+      dockerfile: infra/docker/owner-web.Dockerfile
+    restart: unless-stopped
+    environment:
+      OWNER_FRONTEND_URL: ${OWNER_FRONTEND_URL:-${FRONTEND_URL:-https://vetapp.syndex-ai.ru}}
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://vetapp-api:8000}
+    networks:
+      shared:
+        aliases:
+          - vetapp-owner-web
+    ports:
+      - "127.0.0.1:${OWNER_FRONTEND_PORT:-3004}:3000"
     depends_on:
       api:
         condition: service_healthy

@@ -1,0 +1,11 @@
+import { createWebProxy } from "@vetdietderm/web-proxy";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+const proxy = createWebProxy({ audience: "owner", frontendUrl: () => process.env.OWNER_FRONTEND_URL });
+export const GET = proxy;
+export const POST = proxy;
+export const PUT = proxy;
+export const PATCH = proxy;
+export const DELETE = proxy;
+export const HEAD = proxy;
+export const OPTIONS = proxy;

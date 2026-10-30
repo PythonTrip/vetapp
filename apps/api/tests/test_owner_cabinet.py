@@ -35,7 +35,7 @@ def cabinet(monkeypatch):
     for module in (auth, owners):
         monkeypatch.setattr(module, "get_session_factory", lambda: factory)
         monkeypatch.setattr(module, "get_settings", lambda: SimpleNamespace(
-            FRONTEND_URL="http://testserver", AUTH_COOKIE_SECURE=False))
+            FRONTEND_URL="http://testserver", OWNER_FRONTEND_URL=None, AUTH_COOKIE_SECURE=False))
     user = dict(user_id=str(uuid4()), email="Doctor@example.com", display_name="Доктор Иванова",
                 account_status="active", email_verified=True,
                 organization=dict(org_id=str(uuid4()), name="Клиника", status="active", org_role="member"))
@@ -73,6 +73,30 @@ def test_stable_workspace_codes_preview_and_label_refresh(cabinet):
     assert staff.get("/join-codes/current").json()["doctor_name"] == "Новое имя"
     assert owner.get(f"/owner/join/{personal['code']}").json() == dict(doctor_name="Новое имя", organization_name=None)
     assert owner.get("/owner/join/unknown").json() == {"detail": "Код не найден"}
+
+
+def test_independent_owner_origin_preserves_inviting_doctor(cabinet, monkeypatch):
+    from vetdietderm_api.settings import Settings
+
+    staff, owner, factory, user = cabinet
+    before = staff.get("/join-codes/current").json()
+    settings = Settings(DATABASE_URL="sqlite://", FRONTEND_URL="http://testserver",
+                        OWNER_FRONTEND_URL="https://owner.example/", AUTH_COOKIE_SECURE=False)
+    assert "https://owner.example" in settings.client_origins
+    monkeypatch.setattr(owners, "get_settings", lambda: settings)
+    monkeypatch.setattr(auth, "get_settings", lambda: settings)
+    after = staff.get("/join-codes/current").json()
+    assert after["code"] == before["code"]
+    assert after["link"] == f"https://owner.example/join/{before['code']}"
+    owner.headers["Origin"] = "https://owner.example"
+    assert register(owner, after["code"]).status_code == 201
+    assert owner.get("/owner/me").status_code == 200
+    with factory() as db:
+        account = db.scalar(select(OwnerAccount))
+        assert account.doctor_user_id == UUID(user["user_id"])
+        assert account.workspace == "personal" and account.tenant_id is None
+    assert owner.post("/owner/logout").status_code == 200
+    assert owner.get("/owner/me").status_code == 401
 
 
 def test_registration_login_profile_binding_and_cookie_boundaries(cabinet):

@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     AUTH_COOKIE_SECURE: bool = False
     AUTH_COOKIE_SAMESITE: Literal["lax", "strict", "none"] = "lax"
     FRONTEND_URL: str = "http://127.0.0.1:3000"
+    OWNER_FRONTEND_URL: str | None = None
     API_ALLOWED_ORIGINS: list[str] = Field(default_factory=list)
     ATTACHMENT_DIR: Path = _API_ROOT / "data" / "attachments"
 
@@ -37,7 +38,15 @@ class Settings(BaseSettings):
         return sorted({origin.rstrip("/") for origin in (
             self.FRONTEND_URL, "http://localhost:3000", "http://127.0.0.1:3000",
             *self.API_ALLOWED_ORIGINS,
+            *([self.OWNER_FRONTEND_URL] if self.OWNER_FRONTEND_URL else []),
         )})
+
+    @field_validator("OWNER_FRONTEND_URL")
+    @classmethod
+    def validate_owner_origin(cls, origin: str | None) -> str | None:
+        if origin is None:
+            return None
+        return cls.validate_client_origins([origin])[0]
 
     @field_validator("API_ALLOWED_ORIGINS")
     @classmethod

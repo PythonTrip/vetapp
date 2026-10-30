@@ -20,6 +20,9 @@
     "typecheck": "pnpm -r typecheck",
     "db:migrate": "uv run --directory apps/api --cache-dir .tmp/uv-cache alembic upgrade head",
     "compose": "docker compose --project-name vetapp --env-file infra/.env -f infra/compose.yml",
-    "test:db": "docker compose -f infra/compose.test.yml"
+    "test:db": "docker compose -f infra/compose.test.yml",
+    "dev:owner": "pnpm --filter vetdietderm-owner-web dev",
+    "build:owner": "pnpm --filter vetdietderm-owner-web build",
+    "start:owner": "pnpm --filter vetdietderm-owner-web start"
   }
 }

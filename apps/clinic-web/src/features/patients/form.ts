@@ -1,22 +1,7 @@
 import { type PatientRecord, type PatientWrite, type Sex, type Species } from "@/features/patients/api";
 
 
-export const SEX_OPTIONS: { value: Sex; label: string }[] = [
-  { value: "unspecified", label: "Не указан" },
-  { value: "male", label: "Самец" },
-  { value: "female", label: "Самка" },
-];
-
-export function sexLabel(sex: Sex): string {
-  return SEX_OPTIONS.find(option => option.value === sex)?.label ?? "Не указан";
-}
-
-export const SPECIES_OPTIONS: { value: Species; label: string }[] = [
-  { value: "dog", label: "Собака" },
-  { value: "cat", label: "Кошка" },
-  { value: "other", label: "Другое" },
-];
-
+export { SEX_OPTIONS, SPECIES_OPTIONS, sexLabel, speciesLabel } from "@vetdietderm/owner-features/domain";
 export const LIFE_STAGE_OPTIONS = [
   { value: "puppy_kitten", label: "Щенок / котёнок" },
   { value: "adult", label: "Взрослый" },
@@ -31,10 +16,6 @@ export const ACTIVITY_OPTIONS = [
   { value: "high", label: "Высокая" },
   { value: "very_high", label: "Очень высокая" },
 ] as const;
-
-export function speciesLabel(species: Species): string {
-  return SPECIES_OPTIONS.find((option) => option.value === species)?.label ?? species;
-}
 
 export function formatWeightKg(value: number | null): string {
   if (value == null) return "—";

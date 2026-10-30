@@ -17,11 +17,17 @@
 - каталог кормов, рацион и оценка по FEDIAF 2025;
 - аккаунт и необязательная организация через внешний module-auth.
 
-Пока нет: портала владельца, knowledge/AI, проверки препаратов, калькуляторов дозы и инфузии, подписанных приёмов, S3.
+Кабинет владельца выделен в самостоятельный `apps/owner-web`: приглашение конкретным врачом,
+паспорта животных, chat, заявки на визит, анкеты и вложения. Общие модули и адаптеры
+browser / telegram, запуск и порядок переноса описаны в [Owner Web](docs/architecture/owner-web.md).
+Локальный запуск интерфейса: `pnpm dev:owner`; Clinic UI для него не нужен.
+
+Пока нет: knowledge/AI, проверки препаратов, калькуляторов дозы и инфузии, подписанных приёмов, S3.
 
 ## Стек
 
 - Next.js и TypeScript в `apps/clinic-web/` — только интерфейс. Браузер ходит в `/api`, Route Handler проксирует запросы в FastAPI.
+- `apps/owner-web/` — отдельный owner host; `packages/owner-features/` содержит единые owner-сценарии для web и будущего Telegram entry point.
 - FastAPI и Pydantic в `apps/api/`. Клинические расчёты живут на сервере.
 - PostgreSQL, схема через Alembic. Prisma в рантайме нет.
 - Нормы FEDIAF 2025 — пакет `vetdietderm_api.standards.fediaf.v2025`, не таблицы SQL.

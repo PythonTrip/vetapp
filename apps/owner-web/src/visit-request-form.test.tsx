@@ -1,8 +1,8 @@
 import * as React from "react";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ownerVisits, type OwnerVisit, type VisitQuestion } from "@/features/owner-cabinet/api";
-import { AnimalVisits, VisitRequestForm } from "@/features/owner-cabinet/components/visit-request-form";
+import { ownerVisits, type OwnerVisit, type VisitQuestion } from "@vetdietderm/owner-features/api";
+import { AnimalVisits, VisitRequestForm } from "@vetdietderm/owner-features/components/visit-request-form";
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 const questions: VisitQuestion[] = [
