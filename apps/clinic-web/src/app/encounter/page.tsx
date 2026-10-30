@@ -1,6 +1,6 @@
 import { Suspense } from "react";
-import { EncounterWorkspace } from "@/components/clinical/encounter-workspace";
-import { Skeleton } from "@/components/ui/skeleton";
+import { EncounterWorkspace } from "@/app/_components/encounter-workspace";
+import { Skeleton } from "@/shared/ui/skeleton";
 
 function EncounterFallback() {
   return (

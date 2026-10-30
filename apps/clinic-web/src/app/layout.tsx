@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as SonnerToaster } from "@/components/ui/sonner";
-import { ThemeProvider } from "@/components/theme-provider";
-import { QueryProvider } from "@/components/query-provider";
-import { SurfaceBoundary } from "@/components/surface-boundary";
+import { Toaster } from "@/shared/ui/toaster";
+import { Toaster as SonnerToaster } from "@/shared/ui/sonner";
+import { ThemeProvider } from "@/shared/providers/theme-provider";
+import { QueryProvider } from "@/shared/providers/query-provider";
+import { SurfaceBoundary } from "@/app/_components/surface-boundary";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

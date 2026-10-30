@@ -1,4 +1,4 @@
-import { ScheduleBoard } from "@/components/clinical/schedule-board";
+import { ScheduleBoard } from "@/features/appointments/components/schedule-board";
 
 export default function SchedulePage() {
   return <ScheduleBoard />;

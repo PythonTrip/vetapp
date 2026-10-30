@@ -1,4 +1,4 @@
-import { NutritionWorkspace } from "@/components/nutrition/nutrition-workspace";
+import { NutritionWorkspace } from "@/features/nutrition/components/nutrition-workspace";
 
 export default function NutritionPage() {
   return <NutritionWorkspace />;

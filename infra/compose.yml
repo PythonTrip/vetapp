@@ -18,7 +18,9 @@ services:
 
       MODULE_AUTH_URL: ${MODULE_AUTH_URL:?Set MODULE_AUTH_URL reachable from the API container}
       AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-true}
+      AUTH_COOKIE_SAMESITE: ${AUTH_COOKIE_SAMESITE:-lax}
       FRONTEND_URL: ${FRONTEND_URL:-https://vetapp.syndex-ai.ru}
+      API_ALLOWED_ORIGINS: '${API_ALLOWED_ORIGINS:-[]}'
       ATTACHMENT_DIR: /data/attachments
 
     networks:
