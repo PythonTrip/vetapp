@@ -83,7 +83,8 @@ def auth_router() -> APIRouter:
 
 
 FILE_HANDLERS = {"download_attachment", "download_owner_file", "owner_download", "staff_download"}
-OWNER_AUTH_PATHS = {"/owner/register", "/owner/login", "/owner/logout", "/owner/join/{code}"}
+OWNER_AUTH_PATHS = {"/owner/register", "/owner/login", "/owner/logout", "/owner/join/{code}",
+                    "/owner/telegram/login", "/owner/telegram/link"}
 
 
 def alias(target: APIRouter, source: APIRoute, path: str, dependencies: list) -> None:

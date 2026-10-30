@@ -15,9 +15,11 @@ COPY apps/owner-web ./apps/owner-web
 COPY packages ./packages
 ARG NEXT_PUBLIC_API_URL=/api
 ARG API_INTERNAL_URL=http://vetapp-api:8000
+ARG TELEGRAM_WEB_ENABLED=false
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
     API_INTERNAL_URL=$API_INTERNAL_URL \
     DOCKER_BUILD=1
+ENV TELEGRAM_WEB_ENABLED=$TELEGRAM_WEB_ENABLED
 RUN pnpm --filter vetdietderm-owner-web build
 
 FROM node:22-bookworm-slim AS runner

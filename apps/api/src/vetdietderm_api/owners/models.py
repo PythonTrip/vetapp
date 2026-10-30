@@ -53,6 +53,18 @@ class OwnerSession(Base):
     expires: Mapped[float] = mapped_column(Float, index=True)
 
 
+class TelegramIdentity(Base):
+    __tablename__ = "owner_telegram_identities"
+    telegram_user_id: Mapped[str] = mapped_column(String(20), primary_key=True)
+    owner_account_uuid: Mapped[UUID] = mapped_column(ForeignKey("owner_accounts.uuid", ondelete="CASCADE"), unique=True)
+
+
+class TelegramExchange(Base):
+    __tablename__ = "owner_telegram_exchanges"
+    digest: Mapped[str] = mapped_column(String(64), primary_key=True)
+    expires: Mapped[float] = mapped_column(Float, index=True)
+
+
 class StaffEmailReservation(Base):
     __tablename__ = "staff_email_reservations"
     email: Mapped[str] = mapped_column(String(255), primary_key=True)

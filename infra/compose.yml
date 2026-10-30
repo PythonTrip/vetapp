@@ -19,6 +19,9 @@ services:
       MODULE_AUTH_URL: ${MODULE_AUTH_URL:?Set MODULE_AUTH_URL reachable from the API container}
       AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-true}
       AUTH_COOKIE_SAMESITE: ${AUTH_COOKIE_SAMESITE:-lax}
+      OWNER_COOKIE_SAMESITE: ${OWNER_COOKIE_SAMESITE:-lax}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_INIT_DATA_MAX_AGE: ${TELEGRAM_INIT_DATA_MAX_AGE:-300}
       FRONTEND_URL: ${FRONTEND_URL:-https://vetapp.syndex-ai.ru}
       OWNER_FRONTEND_URL: ${OWNER_FRONTEND_URL:-${FRONTEND_URL:-https://vetapp.syndex-ai.ru}}
       API_ALLOWED_ORIGINS: '${API_ALLOWED_ORIGINS:-[]}'
@@ -84,6 +87,8 @@ services:
     build:
       context: ..
       dockerfile: infra/docker/owner-web.Dockerfile
+      args:
+        TELEGRAM_WEB_ENABLED: ${TELEGRAM_WEB_ENABLED:-false}
     restart: unless-stopped
     environment:
       OWNER_FRONTEND_URL: ${OWNER_FRONTEND_URL:-${FRONTEND_URL:-https://vetapp.syndex-ai.ru}}

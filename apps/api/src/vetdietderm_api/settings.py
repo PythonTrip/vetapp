@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     AUTH_COOKIE_SAMESITE: Literal["lax", "strict", "none"] = "lax"
     FRONTEND_URL: str = "http://127.0.0.1:3000"
     OWNER_FRONTEND_URL: str | None = None
+    TELEGRAM_BOT_TOKEN: str | None = Field(default=None, repr=False)
+    TELEGRAM_INIT_DATA_MAX_AGE: int = Field(default=300, ge=30, le=3600)
+    OWNER_COOKIE_SAMESITE: Literal["lax", "strict", "none"] = "lax"
     API_ALLOWED_ORIGINS: list[str] = Field(default_factory=list)
     ATTACHMENT_DIR: Path = _API_ROOT / "data" / "attachments"
 
@@ -61,7 +64,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_cookie_settings(self) -> "Settings":
-        if self.AUTH_COOKIE_SAMESITE == "none" and not self.AUTH_COOKIE_SECURE:
+        if "none" in {self.AUTH_COOKIE_SAMESITE, self.OWNER_COOKIE_SAMESITE} and not self.AUTH_COOKIE_SECURE:
             raise ValueError("AUTH_COOKIE_SAMESITE=none requires AUTH_COOKIE_SECURE=true")
         return self
 

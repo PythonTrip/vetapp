@@ -7,7 +7,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import FileResponse
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -17,10 +17,12 @@ from vetdietderm_api.attachments.storage import extension_for, resolve_file
 from vetdietderm_api.auth import csrf, require_clinical_access, require_user
 from vetdietderm_api.db import get_session_factory
 from vetdietderm_api.owners import repository as repo
-from vetdietderm_api.owners.models import JoinCode, OwnerAccount, OwnerRegistration, OwnerSession, utc_now
+from vetdietderm_api.owners.models import JoinCode, OwnerAccount, OwnerRegistration, OwnerSession, TelegramExchange, TelegramIdentity, utc_now
 from vetdietderm_api.owners.schemas import CurrentJoinCode, DoctorPreview, OwnerLogin, OwnerProfileWrite, OwnerRead, OwnerRegister
 from vetdietderm_api.owners.schemas import AnimalCreate, AnimalRead, AnimalUpdate
 from vetdietderm_api.owners.schemas import RegistrationAccept, RegistrationAccepted, RegistrationRead
+from vetdietderm_api.owners.schemas import TelegramLogin, TelegramLink
+from vetdietderm_api.owners.telegram import validate_init_data
 from vetdietderm_api.patients.models import Patient
 from vetdietderm_api.settings import get_settings
 
@@ -65,7 +67,59 @@ def create_session(db: Session, request: Request, response: Response, owner: Own
     db.commit()
     settings = get_settings()
     response.set_cookie(COOKIE, key, httponly=True, secure=settings.AUTH_COOKIE_SECURE,
-                        samesite=getattr(settings, "AUTH_COOKIE_SAMESITE", "lax"), path="/", max_age=SESSION_SECONDS)
+                        samesite=getattr(settings, "OWNER_COOKIE_SAMESITE", "lax"), path="/", max_age=SESSION_SECONDS)
+
+
+@router.post("/owner/telegram/login", response_model=OwnerRead)
+def telegram_login(body: TelegramLogin, request: Request, response: Response, db: DB):
+    return telegram_exchange(body, request, response, db, link=False)
+
+
+@router.post("/owner/telegram/link", response_model=OwnerRead)
+def telegram_link(body: TelegramLink, request: Request, response: Response, db: DB):
+    return telegram_exchange(body, request, response, db, link=True)
+
+
+def telegram_exchange(body: TelegramLogin, request: Request, response: Response, db: Session, *, link: bool):
+    settings = get_settings()
+    identity, digest, expires = validate_init_data(body.init_data, settings.TELEGRAM_BOT_TOKEN,
+                                                  settings.TELEGRAM_INIT_DATA_MAX_AGE)
+    binding = db.get(TelegramIdentity, identity)
+    if link:
+        owner = db.scalar(select(OwnerAccount).where(OwnerAccount.email == repo.normalize_email(body.email)))
+        candidate = repo.password_hash(body.password, owner.password_salt if owner else "00" * 16)
+        if owner is None or not secrets.compare_digest(candidate, owner.password_hash):
+            raise HTTPException(401, "Неверная почта или пароль")
+        session = db.get(OwnerSession, session_digest(request.cookies.get(COOKIE, "")))
+        if session and session.expires > time.time() and session.owner_account_uuid != owner.uuid:
+            raise HTTPException(409, "Сначала выйдите из другого кабинета владельца")
+        other = db.scalar(select(TelegramIdentity).where(TelegramIdentity.owner_account_uuid == owner.uuid))
+        if (binding and binding.owner_account_uuid != owner.uuid) or (other and other.telegram_user_id != identity):
+            raise HTTPException(409, "Telegram или кабинет уже привязан к другому аккаунту")
+        if binding is None:
+            db.add(TelegramIdentity(telegram_user_id=identity, owner_account_uuid=owner.uuid))
+    else:
+        if binding is None:
+            raise HTTPException(409, "Сначала войдите по почте и привяжите Telegram. Для нового кабинета нужен код врача")
+        owner = db.get(OwnerAccount, binding.owner_account_uuid)
+        session = db.get(OwnerSession, session_digest(request.cookies.get(COOKIE, "")))
+        if session and session.expires > time.time() and session.owner_account_uuid != owner.uuid:
+            raise HTTPException(409, "Сначала выйдите из другого кабинета владельца")
+    try:
+        # Use one cutoff so a token validated just before expiry cannot delete its
+        # own replay marker if the clock passes its expiry during this request.
+        cutoff = time.time()
+        if expires < cutoff:
+            raise HTTPException(401, "Данные Telegram устарели. Откройте Mini App заново")
+        db.execute(delete(TelegramExchange).where(TelegramExchange.expires < cutoff))
+        db.add(TelegramExchange(digest=digest, expires=expires))
+        # Unique constraints serialize replay and concurrent account-link conflicts.
+        db.flush()
+        create_session(db, request, response, owner)
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(409, "Привязка конфликтует или данные Telegram уже использованы. Откройте Mini App заново") from exc
+    return repo.owner_read(db, owner)
 
 
 @router.get("/join-codes/current", response_model=CurrentJoinCode, dependencies=[Depends(require_clinical_access)])

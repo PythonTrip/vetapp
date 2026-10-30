@@ -14,7 +14,7 @@
 ```mermaid
 flowchart LR
   Browser[Owner Web host] --> Features[owner-features]
-  Telegram[Будущий Telegram entry] --> Features
+  Telegram[Telegram Mini App] --> Features
   Features --> Platform[OwnerPlatform: browser / telegram]
   Features --> Client[api-client/http: owner audience]
   Features --> UI[Общие UI-примитивы]
@@ -95,7 +95,7 @@ CSS, печатные отчёты и оформление рабочих обл
 Не следует проксировать owner-домен через запущенный Clinic UI: owner-web
 напрямую обращается к FastAPI по `API_INTERNAL_URL`.
 
-## Платформы и следующий Telegram entry point
+## Платформы и Telegram entry point
 
 `OwnerPlatform` задаёт `navigate` и `saveFile`. Shared components и внутренние
 ссылки используют этот интерфейс. Browser adapter выполняет Blob download;
@@ -106,26 +106,18 @@ routes без дополнительного provider.
 навигацию и способ сохранения уже авторизованного Blob. Проверка с fake bridge
 использует те же JoinForm и AnimalFiles. SDK не импортируется в feature modules.
 
-Telegram entry point **ещё не включён**. Чтобы добавить его без копирования UI:
+Owner host загружает официальный SDK и выбирает Telegram adapter при наличии
+сырого `initData`; в обычном браузере остаётся browser adapter. Кабинет предлагает
+вход через Telegram и привязку существующего аккаунта с подтверждением пароля.
+Сервер проверяет HMAC, срок и одноразовость обмена; врач и workspace не меняются.
+Новые владельцы используют прежнюю регистрацию по коду врача.
 
-1. Создать host route/provider, загрузить Telegram SDK, передать bridge и вызвать
-   `initialize`. При обычном открытии использовать browser adapter. Сохранить
-   выбранный provider на маршрутах join/cabinet и подключить Telegram BackButton.
-2. Реализовать и проверить сохранение файлов в целевых Telegram clients через
-   `saveFile`; авторизованный Blob уже доступен. Не выдавать session cookie или
-   долгоживущие публичные ссылки ради скачивания.
-3. Сначала можно оставить существующий email/password login. Для Telegram SSO
-   потребуется отдельный серверный обмен с проверкой подписи и срока `initData`,
-   защитой от повторного использования и явной привязкой существующего owner.
-   Непроверенный `initDataUnsafe` не является авторизацией. Наличие Telegram
-   аккаунта не отменяет приглашения конкретного врача.
-4. Для web-версии Telegram отдельно настроить frame policy выделенного entry:
-   текущий Owner Web ставит `X-Frame-Options: DENY`. Проверить cookie в iframe и
-   WebView; если потребуется иная owner-cookie policy, отделить её от staff
-   cookie настроек и проверить CSRF. Глобально ослаблять staff SameSite нельзя.
+Для Telegram Web доступны отдельная owner-cookie policy и build-time frame policy;
+staff настройки не ослабляются. Файлы передаются как авторизованные Blob через
+системный share sheet либо browser download. Сценарии требуют дополнительной
+проверки в реальных Telegram clients после развёртывания HTTPS host.
 
-Таким образом Telegram потребует host integration и проверки среды, а формы,
-chat, visits, анкеты, API DTO и серверная бизнес-логика останутся общими.
+Протокол, конфигурация, миграция и ограничения: [Telegram owner](telegram-owner.md).
 
 ## Запуск и проверка
 

@@ -8,7 +8,9 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: [
       { key: "X-Content-Type-Options", value: "nosniff" },
-      { key: "X-Frame-Options", value: "DENY" },
+      ...(process.env.TELEGRAM_WEB_ENABLED === "true"
+        ? [{ key: "Content-Security-Policy", value: "frame-ancestors 'self' https://web.telegram.org https://*.telegram.org" }]
+        : [{ key: "X-Frame-Options", value: "DENY" }]),
       { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
     ] }];
   },

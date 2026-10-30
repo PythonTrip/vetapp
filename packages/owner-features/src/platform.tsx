@@ -7,6 +7,10 @@ export interface OwnerPlatform {
   readonly kind: "browser" | "telegram";
   navigate: (path: string, replace?: boolean) => void;
   saveFile: (blob: Blob, filename: string) => Promise<void>;
+  telegramAuth?: {
+    login: () => Promise<import("./api").OwnerProfile>;
+    link: (email: string, password: string) => Promise<import("./api").OwnerProfile>;
+  };
 }
 
 const PlatformContext = createContext<OwnerPlatform>(createBrowserPlatform());

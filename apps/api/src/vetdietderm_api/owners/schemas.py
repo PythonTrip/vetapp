@@ -39,6 +39,15 @@ class OwnerLogin(BaseModel):
     password: str = Field(min_length=1, max_length=128)
 
 
+class TelegramLogin(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    init_data: str = Field(min_length=1, max_length=16384)
+
+
+class TelegramLink(TelegramLogin, OwnerLogin):
+    pass
+
+
 class DoctorPreview(BaseModel):
     doctor_name: str
     organization_name: str | None

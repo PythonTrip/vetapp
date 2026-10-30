@@ -50,13 +50,20 @@ def install_error_handlers(app: FastAPI, allowed_origins: list[str]) -> None:
     @app.exception_handler(HTTPException)
     async def http_error(request: Request, exc: HTTPException):
         if not is_v1(request):
-            return await http_exception_handler(request, exc)
+            response = await http_exception_handler(request, exc)
+            if request.url.path.startswith("/owner/telegram/"):
+                response.headers["Cache-Control"] = "no-store"
+            return response
         return error_response(exc.status_code,
                               exc.detail if isinstance(exc.detail, str) else "Request failed",
                               None if isinstance(exc.detail, str) else exc.detail, exc.headers)
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError):
+        if request.url.path.startswith("/owner/telegram/"):
+            # initData is a short-lived bearer credential; never echo input values.
+            details = [{key: err[key] for key in ("loc", "msg", "type")} for err in exc.errors()]
+            return JSONResponse(status_code=422, content={"detail": details}, headers={"Cache-Control": "no-store"})
         if not is_v1(request):
             return await request_validation_exception_handler(request, exc)
         # Never echo submitted credentials or Pydantic input/context into errors.
