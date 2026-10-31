@@ -1,83 +1,86 @@
-# Telegram Mini App: авторизация владельца
+# Telegram Mini App: быстрый вход владельца
 
-Общий Owner Cabinet используется без копий паспортов, чата, заявок, анкет и
-файлов. Owner host загружает официальный Telegram SDK, передаёт сырой
-`WebApp.initData` серверу через owner proxy и использует Telegram platform adapter.
-Обычный браузер сохраняет вход по email/password.
+Открытие `/cabinet` в Mini App автоматически обменивает подписанный
+`WebApp.initData` на HttpOnly owner-cookie. Если Telegram ещё не привязан,
+сервер создаёт отдельный кабинет с именем из проверенных данных Telegram.
+Почта, пароль, телефон и код врача для начала работы не нужны.
+Пользователь сразу может добавлять и редактировать паспорта питомцев.
 
-## Серверная проверка
+## Необязательные следующие шаги
 
-Спецификация: https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
-(проверена 2026-10-30). Используется метод backend бота: HMAC-SHA-256,
-ключ `HMAC-SHA-256(key=WebAppData, message=bot_token)`, затем HMAC отсортированных
-декодированных полей с разделителем LF, без `hash`. Поле `signature`, если
-присутствует, входит в HMAC; Ed25519 для сторонних проверяющих без bot token
-здесь не используется. Сравнение выполняется в постоянное время.
+- «Добавить вход по почте»: `POST /owner/credentials` с `{email, password}`.
+  Устанавливает первые credentials у текущего владельца, сохраняя UUID,
+  питомцев и Telegram identity. Пароль — 15–128 символов, пробелы сохраняются.
+  Повторная установка запрещена. Почта проверяется на коллизии с владельцами
+  и staff. Если врач уже принял владельца, почта синхронизируется с клиентом.
+- «Подключить врача»: `POST /owner/connect-doctor` с `{code}`. Проверяет код,
+  атомарно назначает врача и workspace существующей регистрации. Питомцы
+  сохраняются. Повторная привязка к врачу запрещена. До этого шага кабинет
+  не виден врачам; чат и заявки недоступны. `start_param` врача не назначает.
+- Профиль Telegram-пользователя можно сохранить без почты и телефона.
+  После установки пароля почту для входа нельзя очистить.
+- Переход по `/join/{code}` в Mini App показывает врача и позволяет продолжить
+  через Telegram без обязательной контактной формы и пароля.
 
-После HMAC проверяются `auth_date` (по умолчанию не старше 300 секунд, будущее
-не более 30 секунд) и положительный целочисленный `user.id` до 52 бит.
-Дубли параметров, некорректный percent encoding, malformed JSON и превышение
-размера отклоняются. `initDataUnsafe`, пользовательские ID и email из Telegram
-для авторизации не принимаются. Bot token доступен только backend.
+## Веб-вход в тот же кабинет
 
-## Привязка и повторный вход
+`GET /owner/telegram/config` возвращает только публичный `bot_username`.
+Веб-версия подключает официальный Telegram Login Widget и отправляет его
+подписанный callback на `POST /owner/telegram/widget`.
 
-- `POST /owner/telegram/link`: `{init_data, email, password}`. Повторно проверяет
-  пароль существующего OwnerAccount, даже при наличии owner cookie. Email не
-  используется для автоматического объединения identity. Новый владелец сначала
-  регистрируется обычным способом по проверенному коду конкретного врача.
-- `POST /owner/telegram/login`: `{init_data}`. Вход только для уже привязанной
-  identity. Непривязанная identity получает 409 с инструкцией о привязке.
-- Версионированные аналоги: `/v1/auth/owner/telegram/link` и `/login`.
-- Unique constraints в `owner_telegram_identities` обеспечивают связь 1:1;
-  другой Telegram у владельца, другой владелец у Telegram и попытка переключить
-  активный чужой кабинет дают 409. Перезаписи привязки и автоматического merge нет.
-- Успешный обмен атомарно сохраняет canonical hash в `owner_telegram_exchanges`
-  и выдаёт обычную случайную HttpOnly owner-cookie. В БД хранится hash session
-  token. Старый токен текущего браузера отзывается. Unique constraint блокирует
-  повторный обмен и гонки; перестановка query-полей не обходит проверку.
-- Использованный `initData` нельзя обменять снова даже после logout. Нужно
-  закрыть и заново открыть Mini App для свежих launch data либо войти по паролю.
-  Автоматического повторного входа после logout нет. Просроченные replay-записи
-  удаляются при последующих успешных обменах.
-- UI показывает ошибки подписи/срока, повторного обмена и конфликтов, сохраняет
-  парольный вход. Пароль подтверждения привязки очищается после запроса.
+Сервер проверяет HMAC-SHA-256 с ключом `SHA256(bot_token)`, срок `auth_date`
+и положительный целочисленный Telegram ID. Mini App использует отдельную
+проверку с ключом `HMAC-SHA-256(key=WebAppData, message=bot_token)`.
+Оба способа разрешают одну `TelegramIdentity` и один OwnerAccount.
+Если identity новая, кабинет создаётся так же, как в Mini App.
+Вход по почте и паролю остаётся доступен.
 
-Вход не меняет doctor, join code, workspace, tenant или OwnerRegistration.
-`start_param` не назначает врача. Все клинические запросы проходят существующий
-`require_owner` и проверки принадлежности пациента, чата, заявки и видимости файла.
-Staff-cookie не создаётся и не принимается. Секреты не передаются в URL/localStorage;
-ответы обмена и ошибки не кэшируются, ошибки валидации не отражают credentials.
+Документация Telegram: [Mini Apps](https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app),
+[Login Widget](https://core.telegram.org/widgets/login-legacy).
+Используется существующий bot-token HMAC протокол виджета; это не OIDC.
 
-## Настройка
+## Защита и существующие аккаунты
 
-1. Применить Alembic `0030_owner_telegram`: `pnpm db:migrate`.
-2. На API задать `TELEGRAM_BOT_TOKEN` нужного бота и HTTPS `OWNER_FRONTEND_URL`.
-   Без token endpoints возвращают 503. `TELEGRAM_INIT_DATA_MAX_AGE` — 30–3600
-   секунд, по умолчанию 300. В production `AUTH_COOKIE_SECURE=true`.
-3. Указать в BotFather Mini App URL owner host `/cabinet`. Существующие владельцы
-   входят по паролю и нажимают «Привязать Telegram». Новые вводят код врача в
-   общей `/join` форме, регистрируются и привязывают Telegram в кабинете.
-4. Для Telegram Web iframe собрать owner host с `TELEGRAM_WEB_ENABLED=true` и
-   задать API `OWNER_COOKIE_SAMESITE=none` при `AUTH_COOKIE_SECURE=true`.
-   Framing разрешён только официальным HTTPS Telegram origins. Staff SameSite
-   не меняется. По умолчанию owner SameSite=lax, framing запрещён. Флаг frame
-   policy применяется во время Next build, включая Docker build args Compose.
-   Браузеры, блокирующие third-party cookies, могут требовать открытия в мобильном
-   Telegram или отдельном браузере.
-5. Compose передаёт параметры из `infra/.env`; bot token остаётся только в API.
-   Пересобрать профиль owner после смены frame policy.
+- `POST /owner/telegram/link` с `{init_data, email, password}` привязывает
+  Telegram к существующему кабинету только после проверки пароля.
+  Войти по почте можно в Mini App после выхода; для привязки нужны свежие
+  launch data — закрыть и заново открыть приложение, сохранив owner-cookie.
+- Совпадение почты не объединяет аккаунты. Существующая активная сессия
+  другого владельца блокирует вход и автоматическое создание нового кабинета.
+- Unique constraints обеспечивают связь Telegram и владельца 1:1.
+  Создание владельца, identity, регистрации, replay marker и сессии атомарно.
+- Проверяются подпись, срок (по умолчанию 300 секунд), дубли query-параметров,
+  percent encoding, JSON и Telegram ID до 52 бит. `initDataUnsafe` не доверяется.
+- Canonical digest обменивается один раз. Widget и Mini App имеют раздельные
+  replay domains. После logout повторный обмен отклоняется; автологин после
+  явного выхода не выполняется. Для Mini App нужны свежие launch data.
+- Сессии случайные, в БД хранится hash; cookie HttpOnly. Credentials не передаются
+  в URL/localStorage и не отражаются в validation errors. Ответы не кэшируются.
+- Owner endpoints сохраняют CSRF, принадлежность питомцев и файлов и изоляцию
+  от staff. Неподключённые кабинеты не дают доступа к клиническим данным.
 
-Файлы передаются адаптеру как авторизованный Blob; при доступности используется
-системный share sheet, иначе browser download. Публичные ссылки не создаются.
-Проверка в настоящих Telegram iOS/Android/Desktop/Web клиентах и настройка
-BotFather требуют развёрнутого HTTPS host и бота; локальные тесты их не заменяют.
+## Развёртывание
+
+1. Применить Alembic `0031_owner_quick_start` через `pnpm db:migrate`.
+   Существующие аккаунты сохраняются. Откат не удаляет новые кабинеты:
+   восстановление NOT NULL потребует сначала заполнить их отсутствующие поля.
+2. API: задать `TELEGRAM_BOT_TOKEN` и `TELEGRAM_BOT_USERNAME` одного бота
+   (username без `@`), HTTPS `OWNER_FRONTEND_URL`. Compose читает их из
+   `infra/.env`. Token остаётся только на API. Без него обмены возвращают 503.
+3. BotFather: Mini App URL — owner host `/cabinet`; для веб-виджета привязать
+   домен owner host командой `/setdomain`. В production `AUTH_COOKIE_SECURE=true`.
+4. Для Telegram Web iframe собрать owner host с `TELEGRAM_WEB_ENABLED=true`,
+   API: `OWNER_COOKIE_SAMESITE=none`, `AUTH_COOKIE_SECURE=true`. Framing разрешён
+   только официальным HTTPS Telegram origins. Staff SameSite не меняется.
+   При блокировке third-party cookies потребуется мобильный Telegram или браузер.
+5. Пересобрать и развернуть API и owner host. Проверить реальный вход в
+   Telegram iOS/Android/Desktop/Web и callback виджета на разрешённом HTTPS домене.
 
 ## Проверки
 
-`tests/test_telegram_owner.py` проверяет подпись, дополнительные подписанные поля,
-другой bot token, срок, дубли, некорректные user IDs, replay после logout,
-конфликты, personal/organization binding, CSRF и изоляцию клинических пациентов.
-`apps/owner-web/src/telegram-auth.test.tsx` проверяет вход, передачу raw initData,
-подтверждение пароля, конфликт, срок и отсутствие auto-login после logout.
-Тесты выполняются вместе с существующими owner/chat/visits/auth suites.
+`tests/test_telegram_owner.py`: HMAC, срок, replay, CSRF, конфликты, создание
+без контактов, настройка credentials, веб-вход в тот же UUID, подключение врача,
+перенос питомцев и изоляция клинических данных.
+`apps/owner-web/src/telegram-auth.test.tsx`: автологин, single flight, logout,
+необязательные credentials, привязка и сообщения об ошибках.
+Локальные тесты не заменяют настройку BotFather и реальный HTTPS вход.

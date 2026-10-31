@@ -9,7 +9,7 @@ import { AnimalChat } from "./animal-chat";
 import { AnimalFiles } from "./animal-files";
 import { AnimalVisits } from "./visit-request-form";
 
-export function AnimalList({ linked }: { linked: boolean }) {
+export function AnimalList({ linked, hasDoctor = true }: { linked: boolean; hasDoctor?: boolean }) {
   const [animals, setAnimals] = React.useState<AnimalPassport[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
@@ -36,9 +36,9 @@ export function AnimalList({ linked }: { linked: boolean }) {
         <dt className="text-muted-foreground">Дата рождения</dt><dd>{animal.birth_date ? animal.birth_date.split("-").reverse().join(".") : "Не указана"}</dd>
       </dl>
       <Button variant="outline" disabled={editing !== null} onClick={() => { setEditing(animal); setNotice(""); }}>Редактировать паспорт</Button>
-      <AnimalChat key={animal.uuid} path={`/owner/animals/${animal.uuid}/chat`} ownerView />
+      {hasDoctor && <AnimalChat key={animal.uuid} path={`/owner/animals/${animal.uuid}/chat`} ownerView />}
       <AnimalFiles animalId={animal.uuid} linked={linked} />
-      <AnimalVisits animalId={animal.uuid} />
+      {hasDoctor && <AnimalVisits animalId={animal.uuid} />}
     </li>)}</ul>
     {editing ? <AnimalForm key={editing === "new" ? "new" : editing.uuid} animal={editing === "new" ? undefined : editing} onCancel={() => setEditing(null)} onSaved={saved => {
       setAnimals(current => current.some(animal => animal.uuid === saved.uuid) ? current.map(animal => animal.uuid === saved.uuid ? saved : animal) : [...current, saved]);

@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://127.0.0.1:3000"
     OWNER_FRONTEND_URL: str | None = None
     TELEGRAM_BOT_TOKEN: str | None = Field(default=None, repr=False)
+    TELEGRAM_BOT_USERNAME: str | None = None
     TELEGRAM_INIT_DATA_MAX_AGE: int = Field(default=300, ge=30, le=3600)
     OWNER_COOKIE_SAMESITE: Literal["lax", "strict", "none"] = "lax"
     API_ALLOWED_ORIGINS: list[str] = Field(default_factory=list)

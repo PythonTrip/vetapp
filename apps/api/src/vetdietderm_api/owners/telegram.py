@@ -43,3 +43,17 @@ def validate_init_data(raw: str, bot_token: str | None, max_age: int, *, now: fl
         raise invalid from exc
     # Canonical signed digest, independent of query ordering or percent encoding.
     return str(identity), received.lower(), issued + max_age
+
+
+def validate_widget(data: dict, bot_token: str | None, max_age: int) -> tuple[str, str, float]:
+    if not bot_token:
+        raise HTTPException(503, "Вход через Telegram пока не настроен")
+    fields = {k: str(v) for k, v in data.items() if v is not None and k != "hash"}
+    check = "\n".join(f"{k}={fields[k]}" for k in sorted(fields))
+    expected = hmac.new(hashlib.sha256(bot_token.encode()).digest(), check.encode(), hashlib.sha256).hexdigest()
+    now = time.time()
+    if not hmac.compare_digest(expected, data["hash"].lower()) or not now - max_age <= data["auth_date"] <= now + 30:
+        raise HTTPException(401, "Данные Telegram недействительны или устарели. Повторите вход")
+    # Keep Mini App and widget replay domains separate.
+    digest = hashlib.sha256(("widget:" + expected).encode()).hexdigest()
+    return str(data["id"]), digest, data["auth_date"] + max_age

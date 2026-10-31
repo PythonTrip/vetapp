@@ -1,8 +1,10 @@
 import hashlib
+import json
 import secrets
 import time
 from collections.abc import Iterator
 from typing import Annotated
+from urllib.parse import parse_qs
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -16,13 +18,14 @@ from vetdietderm_api.attachments.schemas import OwnerFileRead
 from vetdietderm_api.attachments.storage import extension_for, resolve_file
 from vetdietderm_api.auth import csrf, require_clinical_access, require_user
 from vetdietderm_api.db import get_session_factory
+from vetdietderm_api.ids import uuid6
 from vetdietderm_api.owners import repository as repo
 from vetdietderm_api.owners.models import JoinCode, OwnerAccount, OwnerRegistration, OwnerSession, TelegramExchange, TelegramIdentity, utc_now
-from vetdietderm_api.owners.schemas import CurrentJoinCode, DoctorPreview, OwnerLogin, OwnerProfileWrite, OwnerRead, OwnerRegister
+from vetdietderm_api.owners.schemas import CurrentJoinCode, DoctorPreview, OwnerLogin, OwnerProfileUpdate, OwnerRead, OwnerRegister
 from vetdietderm_api.owners.schemas import AnimalCreate, AnimalRead, AnimalUpdate
 from vetdietderm_api.owners.schemas import RegistrationAccept, RegistrationAccepted, RegistrationRead
-from vetdietderm_api.owners.schemas import TelegramLogin, TelegramLink
-from vetdietderm_api.owners.telegram import validate_init_data
+from vetdietderm_api.owners.schemas import TelegramLogin, TelegramLink, TelegramWidgetLogin, OwnerCredentials, OwnerJoin
+from vetdietderm_api.owners.telegram import validate_init_data, validate_widget
 from vetdietderm_api.patients.models import Patient
 from vetdietderm_api.settings import get_settings
 
@@ -80,15 +83,18 @@ def telegram_link(body: TelegramLink, request: Request, response: Response, db: 
     return telegram_exchange(body, request, response, db, link=True)
 
 
-def telegram_exchange(body: TelegramLogin, request: Request, response: Response, db: Session, *, link: bool):
+def telegram_exchange(body: TelegramLogin, request: Request, response: Response, db: Session, *, link: bool, verified=None, name="Владелец"):
     settings = get_settings()
-    identity, digest, expires = validate_init_data(body.init_data, settings.TELEGRAM_BOT_TOKEN,
+    identity, digest, expires = verified or validate_init_data(body.init_data, settings.TELEGRAM_BOT_TOKEN,
                                                   settings.TELEGRAM_INIT_DATA_MAX_AGE)
+    if verified is None:
+        user = json.loads(parse_qs(body.init_data)["user"][0])
+        name = " ".join(str(user.get(key) or "") for key in ("first_name", "last_name")).strip()[:255] or name
     binding = db.get(TelegramIdentity, identity)
     if link:
         owner = db.scalar(select(OwnerAccount).where(OwnerAccount.email == repo.normalize_email(body.email)))
-        candidate = repo.password_hash(body.password, owner.password_salt if owner else "00" * 16)
-        if owner is None or not secrets.compare_digest(candidate, owner.password_hash):
+        candidate = repo.password_hash(body.password, owner.password_salt if owner and owner.password_salt else "00" * 16)
+        if owner is None or not secrets.compare_digest(candidate, owner.password_hash or ""):
             raise HTTPException(401, "Неверная почта или пароль")
         session = db.get(OwnerSession, session_digest(request.cookies.get(COOKIE, "")))
         if session and session.expires > time.time() and session.owner_account_uuid != owner.uuid:
@@ -99,10 +105,17 @@ def telegram_exchange(body: TelegramLogin, request: Request, response: Response,
         if binding is None:
             db.add(TelegramIdentity(telegram_user_id=identity, owner_account_uuid=owner.uuid))
     else:
-        if binding is None:
-            raise HTTPException(409, "Сначала войдите по почте и привяжите Telegram. Для нового кабинета нужен код врача")
-        owner = db.get(OwnerAccount, binding.owner_account_uuid)
         session = db.get(OwnerSession, session_digest(request.cookies.get(COOKIE, "")))
+        if binding is None:
+            if session and session.expires > time.time():
+                raise HTTPException(409, "В кабинете уже выполнен вход. Подтвердите пароль для привязки Telegram")
+            owner = OwnerAccount(uuid=uuid6(), name=name, email=None, phone="", password_salt=None, password_hash=None,
+                                 doctor_user_id=None, join_code_uuid=None, workspace=None)
+            db.add(owner)
+            db.add(OwnerRegistration(owner_account_uuid=owner.uuid))
+            db.add(TelegramIdentity(telegram_user_id=identity, owner_account_uuid=owner.uuid))
+        else:
+            owner = db.get(OwnerAccount, binding.owner_account_uuid)
         if session and session.expires > time.time() and session.owner_account_uuid != owner.uuid:
             raise HTTPException(409, "Сначала выйдите из другого кабинета владельца")
     try:
@@ -119,6 +132,62 @@ def telegram_exchange(body: TelegramLogin, request: Request, response: Response,
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(409, "Привязка конфликтует или данные Telegram уже использованы. Откройте Mini App заново") from exc
+    return repo.owner_read(db, owner)
+
+
+@router.get("/owner/telegram/config")
+def telegram_config(response: Response):
+    response.headers["Cache-Control"] = "no-store"
+    settings = get_settings()
+    return {"bot_username": settings.TELEGRAM_BOT_USERNAME if settings.TELEGRAM_BOT_TOKEN else None}
+
+
+@router.post("/owner/telegram/widget", response_model=OwnerRead)
+def telegram_widget(body: TelegramWidgetLogin, request: Request, response: Response, db: DB):
+    settings = get_settings()
+    verified = validate_widget(body.model_dump(), settings.TELEGRAM_BOT_TOKEN, settings.TELEGRAM_INIT_DATA_MAX_AGE)
+    return telegram_exchange(TelegramLogin(init_data="widget"), request, response, db, link=False,
+                             verified=verified, name=(body.first_name + " " + (body.last_name or "")).strip()[:255])
+
+
+@router.post("/owner/credentials", response_model=OwnerRead)
+def set_credentials(body: OwnerCredentials, owner: Owner, db: DB):
+    # Only initial setup: existing passwords require a separate reauthentication flow.
+    registration = repo.registration_for_owner(db, owner, lock=True)
+    db.refresh(owner, with_for_update=True)
+    if owner.password_hash:
+        raise HTTPException(409, "Вход по почте уже настроен")
+    repo.email_available(db, body.email, owner.uuid)
+    if registration.client_uuid:
+        code = db.get(JoinCode, owner.join_code_uuid)
+        client = repo.linked_client(db, registration.client_uuid, code)
+        client.email = body.email
+        client.updated_at = utc_now()
+    owner.email = body.email
+    owner.password_salt = secrets.token_hex(16)
+    owner.password_hash = repo.password_hash(body.password, owner.password_salt)
+    owner.updated_at = utc_now()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(409, repo.TAKEN_EMAIL) from exc
+    return repo.owner_read(db, owner)
+
+
+@router.post("/owner/connect-doctor", response_model=OwnerRead)
+def connect_doctor(body: OwnerJoin, owner: Owner, db: DB):
+    repo.registration_for_owner(db, owner, lock=True)
+    db.refresh(owner)
+    if owner.join_code_uuid:
+        raise HTTPException(409, "Врач уже подключён")
+    code = repo.code_by_value(db, body.code)
+    owner.join_code_uuid = code.uuid
+    owner.doctor_user_id = code.doctor_user_id
+    owner.workspace = code.workspace
+    owner.tenant_id = code.tenant_id
+    owner.updated_at = utc_now()
+    db.commit()
     return repo.owner_read(db, owner)
 
 
@@ -164,8 +233,8 @@ def register(body: OwnerRegister, request: Request, response: Response, db: DB):
 def login(body: OwnerLogin, request: Request, response: Response, db: DB):
     owner = db.scalar(select(OwnerAccount).where(OwnerAccount.email == repo.normalize_email(body.email)))
     # Equal expensive work for unknown emails and incorrect passwords.
-    candidate = repo.password_hash(body.password, owner.password_salt if owner else "00" * 16)
-    if owner is None or not secrets.compare_digest(candidate, owner.password_hash):
+    candidate = repo.password_hash(body.password, owner.password_salt if owner and owner.password_salt else "00" * 16)
+    if owner is None or not secrets.compare_digest(candidate, owner.password_hash or ""):
         raise HTTPException(401, "Неверная почта или пароль")
     create_session(db, request, response, owner)
     return repo.owner_read(db, owner)
@@ -187,17 +256,20 @@ def me(owner: Owner, db: DB):
 
 
 @router.patch("/owner/me", response_model=OwnerRead)
-def update_me(body: OwnerProfileWrite, owner: Owner, db: DB):
+def update_me(body: OwnerProfileUpdate, owner: Owner, db: DB):
     registration = repo.registration_for_owner(db, owner, lock=True)
-    repo.email_available(db, body.email, owner.uuid)
+    if owner.password_hash and not body.email:
+        raise HTTPException(422, "Укажите почту для входа")
+    if body.email:
+        repo.email_available(db, body.email, owner.uuid)
     if registration.client_uuid:
         code = db.get(JoinCode, owner.join_code_uuid)
         client = repo.linked_client(db, registration.client_uuid, code)
         for key, value in body.model_dump().items():
-            setattr(client, key, value)
+            setattr(client, key, value or None if key == "email" else value)
         client.updated_at = utc_now()
     for key, value in body.model_dump().items():
-        setattr(owner, key, value)
+        setattr(owner, key, value or None if key == "email" else value)
     owner.updated_at = utc_now()
     try:
         db.commit()

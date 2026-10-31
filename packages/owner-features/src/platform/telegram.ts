@@ -14,12 +14,13 @@ export function createTelegramPlatform(options: {
   /** Save an already authenticated download; never expose a session in a URL. */
   saveFile: OwnerPlatform["saveFile"];
 }): OwnerPlatform & { initialize: () => void } {
+  let loginFlight: Promise<OwnerProfile> | undefined;
   return {
     kind: "telegram",
     navigate: options.navigate,
     saveFile: options.saveFile,
     telegramAuth: options.bridge.initData ? {
-      login: () => ownerRequest<OwnerProfile>("/telegram/login", "POST", { init_data: options.bridge.initData }),
+      login: () => loginFlight ??= ownerRequest<OwnerProfile>("/telegram/login", "POST", { init_data: options.bridge.initData }).finally(() => { loginFlight = undefined; }),
       link: (email, password) => ownerRequest<OwnerProfile>("/telegram/link", "POST", { init_data: options.bridge.initData, email, password }),
     } : undefined,
     initialize() { options.bridge.ready(); options.bridge.expand(); },

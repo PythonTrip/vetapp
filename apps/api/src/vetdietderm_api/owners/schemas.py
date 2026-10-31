@@ -21,6 +21,16 @@ class OwnerProfileWrite(BaseModel):
         return value
 
 
+class OwnerProfileUpdate(OwnerProfileWrite):
+    email: str = Field(max_length=255)
+    phone: str = Field(max_length=64)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        return OwnerProfileWrite.normalize_email(value) if value.strip() else ""
+
+
 class OwnerRegister(OwnerProfileWrite):
     code: str = Field(min_length=1, max_length=64)
     # Do not strip passwords, including leading/trailing spaces.
@@ -64,6 +74,8 @@ class OwnerRead(DoctorPreview):
     email: str
     phone: str
     linked: bool
+    telegram_linked: bool = False
+    has_password: bool = True
 
 
 class AnimalCreate(BaseModel):
@@ -122,3 +134,25 @@ class RegistrationAccepted(BaseModel):
     uuid: UUID
     client_uuid: UUID
     status: Literal["accepted"]
+
+
+class OwnerCredentials(BaseModel):
+    email: str = Field(min_length=3, max_length=255)
+    password: str = Field(min_length=15, max_length=128)
+
+    _email = field_validator("email")(OwnerProfileWrite.normalize_email.__func__)
+
+
+class OwnerJoin(BaseModel):
+    code: str = Field(min_length=1, max_length=64)
+
+
+class TelegramWidgetLogin(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    id: int = Field(gt=0, lt=2**52)
+    first_name: str = Field(min_length=1, max_length=255)
+    last_name: str | None = Field(default=None, max_length=255)
+    username: str | None = Field(default=None, max_length=255)
+    photo_url: str | None = Field(default=None, max_length=2048)
+    auth_date: int = Field(gt=0)
+    hash: str = Field(pattern="^[a-fA-F0-9]{64}$")

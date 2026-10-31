@@ -51,7 +51,7 @@ def install_error_handlers(app: FastAPI, allowed_origins: list[str]) -> None:
     async def http_error(request: Request, exc: HTTPException):
         if not is_v1(request):
             response = await http_exception_handler(request, exc)
-            if request.url.path.startswith("/owner/telegram/"):
+            if request.url.path.startswith("/owner/telegram/") or request.url.path == "/owner/credentials":
                 response.headers["Cache-Control"] = "no-store"
             return response
         return error_response(exc.status_code,
@@ -60,7 +60,7 @@ def install_error_handlers(app: FastAPI, allowed_origins: list[str]) -> None:
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError):
-        if request.url.path.startswith("/owner/telegram/"):
+        if request.url.path.startswith("/owner/telegram/") or request.url.path == "/owner/credentials":
             # initData is a short-lived bearer credential; never echo input values.
             details = [{key: err[key] for key in ("loc", "msg", "type")} for err in exc.errors()]
             return JSONResponse(status_code=422, content={"detail": details}, headers={"Cache-Control": "no-store"})

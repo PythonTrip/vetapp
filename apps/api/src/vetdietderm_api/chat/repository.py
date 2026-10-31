@@ -14,6 +14,8 @@ from vetdietderm_api.patients.models import Patient
 def owner_target(db: Session, owner: OwnerAccount, animal_id: UUID, *, write=False):
     # Shares acceptance's registration lock, so a first send cannot miss its transfer.
     registration = owners.registration_for_owner(db, owner, lock=True)
+    if owner.join_code_uuid is None:
+        raise HTTPException(409, "Подключите врача по коду, чтобы пользоваться чатом и заявками")
     code = db.get(JoinCode, owner.join_code_uuid)
     if registration.client_uuid:
         patient = db.scalar(select(Patient).where(Patient.uuid == animal_id,

@@ -8,7 +8,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
-from vetdietderm_api.owners.models import JoinCode, OwnerAccount, OwnerAnimal, OwnerRegistration, StaffEmailReservation, utc_now
+from vetdietderm_api.owners.models import JoinCode, OwnerAccount, OwnerAnimal, OwnerRegistration, StaffEmailReservation, TelegramIdentity, utc_now
 from vetdietderm_api.owners.schemas import AnimalCreate, AnimalRead, AnimalUpdate, RegistrationAccept
 from vetdietderm_api.patients.models import Client, Patient
 
@@ -64,10 +64,12 @@ def code_by_value(db: Session, code: str) -> JoinCode:
 
 
 def owner_read(db: Session, owner: OwnerAccount) -> dict:
-    code = db.get(JoinCode, owner.join_code_uuid)
+    code = db.get(JoinCode, owner.join_code_uuid) if owner.join_code_uuid else None
     registration = db.scalar(select(OwnerRegistration).where(OwnerRegistration.owner_account_uuid == owner.uuid))
-    return dict(uuid=owner.uuid, name=owner.name, email=owner.email, phone=owner.phone,
-                doctor_name=code.doctor_label, organization_name=code.organization_name,
+    return dict(uuid=owner.uuid, name=owner.name, email=owner.email or "", phone=owner.phone,
+                telegram_linked=db.scalar(select(TelegramIdentity).where(TelegramIdentity.owner_account_uuid == owner.uuid)) is not None,
+                has_password=bool(owner.password_hash),
+                doctor_name=code.doctor_label if code else "", organization_name=code.organization_name if code else None,
                 linked=bool(registration and registration.client_uuid))
 
 
@@ -82,7 +84,7 @@ def registration_for_owner(db: Session, owner: OwnerAccount, *, lock: bool = Fal
 def list_animals(db: Session, owner: OwnerAccount) -> list[OwnerAnimal | Patient]:
     registration = registration_for_owner(db, owner)
     if registration.client_uuid:
-        code = db.get(JoinCode, owner.join_code_uuid)
+        code = db.get(JoinCode, owner.join_code_uuid) if owner.join_code_uuid else None
         return list(db.scalars(select(Patient).where(
             Patient.client_uuid == registration.client_uuid, workspace_filter(Patient, code)
         ).order_by(Patient.created_at, Patient.uuid)))
@@ -93,7 +95,7 @@ def list_animals(db: Session, owner: OwnerAccount) -> list[OwnerAnimal | Patient
 def create_animal(db: Session, owner: OwnerAccount, payload: AnimalCreate) -> OwnerAnimal | Patient:
     registration = registration_for_owner(db, owner, lock=True)
     if registration.client_uuid:
-        code = db.get(JoinCode, owner.join_code_uuid)
+        code = db.get(JoinCode, owner.join_code_uuid) if owner.join_code_uuid else None
         linked_client(db, registration.client_uuid, code)
         animal = Patient(client_uuid=registration.client_uuid, tenant_id=code.tenant_id,
                          created_by=code.doctor_user_id, **payload.model_dump())
@@ -107,7 +109,7 @@ def create_animal(db: Session, owner: OwnerAccount, payload: AnimalCreate) -> Ow
 def update_animal(db: Session, owner: OwnerAccount, animal_id: UUID, payload: AnimalUpdate) -> OwnerAnimal | Patient:
     registration = registration_for_owner(db, owner, lock=True)
     if registration.client_uuid:
-        code = db.get(JoinCode, owner.join_code_uuid)
+        code = db.get(JoinCode, owner.join_code_uuid) if owner.join_code_uuid else None
         animal = db.scalar(select(Patient).where(
             Patient.uuid == animal_id, Patient.client_uuid == registration.client_uuid,
             workspace_filter(Patient, code)))
@@ -153,7 +155,9 @@ def registration_context(db: Session, registration_id: UUID, *, lock: bool = Fal
     if registration is None:
         raise HTTPException(404, "Регистрация не найдена")
     owner = db.get(OwnerAccount, registration.owner_account_uuid)
-    code = db.get(JoinCode, owner.join_code_uuid)
+    code = db.get(JoinCode, owner.join_code_uuid) if owner.join_code_uuid else None
+    if code is None:
+        raise HTTPException(404, "Врач ещё не подключён")
     return registration, owner, code
 
 
@@ -169,7 +173,7 @@ def registration_queue(db: Session, user: dict, tenant_id: str | None) -> list[d
     for registration, owner, code in db.execute(stmt.order_by(OwnerRegistration.created_at, OwnerRegistration.uuid)):
         authorize_registration(code, user)
         org = user.get("organization") or {}
-        result.append(dict(uuid=registration.uuid, name=owner.name, email=owner.email, phone=owner.phone,
+        result.append(dict(uuid=registration.uuid, name=owner.name, email=owner.email or "", phone=owner.phone,
             doctor_name=code.doctor_label, organization_name=code.organization_name,
             can_accept=not code.tenant_id or org.get("org_role") in {"owner", "admin", "member"},
             animals=[AnimalRead.model_validate(row) for row in db.scalars(select(OwnerAnimal).where(

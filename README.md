@@ -37,16 +37,42 @@ browser / telegram, запуск и порядок переноса описан
 
 ### Docker Compose с существующим PostgreSQL
 
-Compose запускает FastAPI и Next.js. PostgreSQL должен быть уже создан и доступен из контейнера API.
+Compose поднимает FastAPI (`vetapp-api`) и Clinic UI (`vetapp-frontend`). PostgreSQL должен уже существовать и быть доступен из контейнера API. Сеть Docker `shared-backend` — внешняя (создаётся один раз).
 
-```powershell
-Copy-Item infra/.env.example infra/.env
+#### Команды запуска
+
+```bash
+# 1) Сеть (если ещё нет)
+docker network create shared-backend
+
+# 2) Env для Compose
+cp infra/.env.example infra/.env
 # Заполните DATABASE_ADDRESS, DATABASE_PORT, DATABASE_NAME,
 # DATABASE_USER, DATABASE_PASSWORD и MODULE_AUTH_URL в infra/.env.
-pnpm compose up -d --build
+
+# 3) Сборка и запуск (API + Clinic UI)
+docker compose --project-name vetapp --env-file infra/.env -f infra/compose.yml up -d --build
+
+# То же через pnpm-обёртку (нужны Node/pnpm в корне репозитория):
+# pnpm compose up -d --build
+
+# Опционально: owner-web на 127.0.0.1:3004 (профиль owner)
+docker compose --project-name vetapp --env-file infra/.env -f infra/compose.yml --profile owner up -d --build
+# pnpm compose --profile owner up -d --build
 ```
 
-Для PostgreSQL на этом VPS задайте `DATABASE_ADDRESS=host.docker.internal` и опубликованный порт базы (в примере `15432`). Для удалённой базы укажите её DNS-имя/IP и порт (обычно `5432`). `127.0.0.1` внутри контейнера указывает на сам контейнер. PostgreSQL должен разрешать соединения из сети Docker.
+Полезные команды:
+
+```bash
+docker compose --project-name vetapp --env-file infra/.env -f infra/compose.yml ps
+docker compose --project-name vetapp --env-file infra/.env -f infra/compose.yml logs -f
+docker compose --project-name vetapp --env-file infra/.env -f infra/compose.yml down
+# pnpm compose ps | logs -f | down
+```
+
+Том вложений сохраняется при `down`. После смены `NEXT_PUBLIC_API_URL` / `API_INTERNAL_URL` пересоберите с `--build`.
+
+Для PostgreSQL на этом VPS задайте `DATABASE_ADDRESS=host.docker.internal` и опубликованный порт базы (в примере `15432`). Для удалённой базы укажите её DNS-имя/IP и порт (обычно `5432`). `127.0.0.1` внутри контейнера указывает на сам контейнер. PostgreSQL должен разрешать соединения из сети Docker. Если Postgres уже в `shared-backend` (например `pgsql`), укажите его hostname как `DATABASE_ADDRESS`.
 
 `DATABASE_SSLMODE` по умолчанию — `prefer`; для сервера, требующего TLS, задайте `require` или подходящий режим проверки сертификата. Пароль можно записать в одинарных кавычках, чтобы Compose не подставлял переменные вместо символов `$`. Спецсимволы в пароле кодировать как URL не нужно.
 
@@ -62,9 +88,9 @@ pnpm compose up -d --build
 | vetapp-api | Postgres по `DATABASE_ADDRESS` (у вас `pgsql` в `shared-backend`) |
 | отладка API с хоста | `127.0.0.1:8001` (в интернет не публиковать) |
 
-Порты на этом хосте (loopback): frontend `3003`, API `8001`; заняты другими стеками `3000`/`3001`/`3002`/`8000`. Имена в общей сети уникальны: `vetapp-api`, `vetapp-frontend` — не используйте короткое `api`, чтобы не пересечься с другими compose-проектами.
+Порты на этом хосте (loopback): frontend `3003`, API `8001`, owner-web `3004`; заняты другими стеками `3000`/`3001`/`3002`/`8000`. Имена в общей сети уникальны: `vetapp-api`, `vetapp-frontend`, `vetapp-owner-web` — не используйте короткое `api`, чтобы не пересечься с другими compose-проектами.
 
-Не проксируйте `/api` из nginx на FastAPI. После смены `NEXT_PUBLIC_API_URL` / `API_INTERNAL_URL` пересоберите: `pnpm compose up -d --build`.
+Не проксируйте `/api` из nginx на FastAPI.
 
 Пример nginx только для UI:
 
@@ -80,8 +106,6 @@ server {
     }
 }
 ```
-
-Логи: `pnpm compose logs -f`. Остановка: `pnpm compose down` (том вложений сохраняется).
 
 ### Без Docker
 
@@ -168,8 +192,7 @@ API читает `apps/api/.env`; переменные процесса имею
 Старый корневой `.env` при миграции перенесён в `infra/.env`; настройки API перенесены в `apps/api/.env` с сохранением приоритета существующих значений приложения.
 Параметры web из старого корневого env перенесены в `apps/clinic-web/.env.local`, если такого файла ещё не было.
 Для других checkout перенесите значения вручную; старый корневой env больше не загружается.
-При ручном вызове Docker: `docker compose --project-name vetapp --env-file infra/.env -f infra/compose.yml up -d --build`.
-CI проверяет frozen lockfiles, web-тесты, типы/lint, standalone-сборку, весь pytest на PostgreSQL и оба Docker-образа.
+CI проверяет frozen lockfiles, web-тесты, типы/lint, standalone-сборку, весь pytest на PostgreSQL и Docker-образы.
 
 Для изолированных PostgreSQL-тестов локально: `pnpm test:db up -d --wait`, затем
 задайте `DATABASE_URL=postgresql+psycopg://vetapp:test-only@127.0.0.1:15433/vetapp_test`

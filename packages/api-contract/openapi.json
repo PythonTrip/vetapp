@@ -4439,6 +4439,28 @@
         "title": "OrganizationProfile",
         "type": "object"
       },
+      "OwnerCredentials": {
+        "properties": {
+          "email": {
+            "maxLength": 255,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 128,
+            "minLength": 15,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "OwnerCredentials",
+        "type": "object"
+      },
       "OwnerFileRead": {
         "properties": {
           "byte_size": {
@@ -4486,6 +4508,21 @@
         "title": "OwnerFileRead",
         "type": "object"
       },
+      "OwnerJoin": {
+        "properties": {
+          "code": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "OwnerJoin",
+        "type": "object"
+      },
       "OwnerLogin": {
         "properties": {
           "email": {
@@ -4507,11 +4544,10 @@
         "title": "OwnerLogin",
         "type": "object"
       },
-      "OwnerProfileWrite": {
+      "OwnerProfileUpdate": {
         "properties": {
           "email": {
             "maxLength": 255,
-            "minLength": 3,
             "title": "Email",
             "type": "string"
           },
@@ -4523,7 +4559,6 @@
           },
           "phone": {
             "maxLength": 64,
-            "minLength": 1,
             "title": "Phone",
             "type": "string"
           }
@@ -4533,7 +4568,7 @@
           "email",
           "phone"
         ],
-        "title": "OwnerProfileWrite",
+        "title": "OwnerProfileUpdate",
         "type": "object"
       },
       "OwnerRead": {
@@ -4545,6 +4580,11 @@
           "email": {
             "title": "Email",
             "type": "string"
+          },
+          "has_password": {
+            "default": true,
+            "title": "Has Password",
+            "type": "boolean"
           },
           "linked": {
             "title": "Linked",
@@ -4568,6 +4608,11 @@
           "phone": {
             "title": "Phone",
             "type": "string"
+          },
+          "telegram_linked": {
+            "default": false,
+            "title": "Telegram Linked",
+            "type": "boolean"
           },
           "uuid": {
             "format": "uuid",
@@ -6227,6 +6272,77 @@
           "init_data"
         ],
         "title": "TelegramLogin",
+        "type": "object"
+      },
+      "TelegramWidgetLogin": {
+        "additionalProperties": false,
+        "properties": {
+          "auth_date": {
+            "exclusiveMinimum": 0,
+            "title": "Auth Date",
+            "type": "integer"
+          },
+          "first_name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "First Name",
+            "type": "string"
+          },
+          "hash": {
+            "pattern": "^[a-fA-F0-9]{64}$",
+            "title": "Hash",
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMaximum": 4503599627370496,
+            "exclusiveMinimum": 0,
+            "title": "Id",
+            "type": "integer"
+          },
+          "last_name": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Name"
+          },
+          "photo_url": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photo Url"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          }
+        },
+        "required": [
+          "id",
+          "first_name",
+          "auth_date",
+          "hash"
+        ],
+        "title": "TelegramWidgetLogin",
         "type": "object"
       },
       "TemplateScope": {
@@ -9681,6 +9797,88 @@
         ]
       }
     },
+    "/owner/connect-doctor": {
+      "post": {
+        "operationId": "connect_doctor_owner_connect_doctor_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnerJoin"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnerRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Connect Doctor",
+        "tags": [
+          "owners"
+        ]
+      }
+    },
+    "/owner/credentials": {
+      "post": {
+        "operationId": "set_credentials_owner_credentials_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnerCredentials"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnerRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Credentials",
+        "tags": [
+          "owners"
+        ]
+      }
+    },
     "/owner/files/{attachment_id}": {
       "get": {
         "operationId": "download_owner_file_owner_files__attachment_id__get",
@@ -9850,7 +10048,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/OwnerProfileWrite"
+                "$ref": "#/components/schemas/OwnerProfileUpdate"
               }
             }
           },
@@ -9920,6 +10118,25 @@
           }
         },
         "summary": "Register",
+        "tags": [
+          "owners"
+        ]
+      }
+    },
+    "/owner/telegram/config": {
+      "get": {
+        "operationId": "telegram_config_owner_telegram_config_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Telegram Config",
         "tags": [
           "owners"
         ]
@@ -10002,6 +10219,47 @@
           }
         },
         "summary": "Telegram Login",
+        "tags": [
+          "owners"
+        ]
+      }
+    },
+    "/owner/telegram/widget": {
+      "post": {
+        "operationId": "telegram_widget_owner_telegram_widget_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelegramWidgetLogin"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnerRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Telegram Widget",
         "tags": [
           "owners"
         ]
@@ -11545,6 +11803,175 @@
         ]
       }
     },
+    "/v1/auth/owner/telegram/config": {
+      "get": {
+        "operationId": "v1_telegram_config_v1_auth_owner_telegram_config_get",
+        "parameters": [
+          {
+            "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+            "in": "header",
+            "name": "X-Vetapp-CSRF",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+              "title": "X-Vetapp-Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "unauthenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "method not allowed"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "validation error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "rate limited"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "internal error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad gateway"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "service unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "gateway timeout"
+          }
+        },
+        "summary": "V1 Telegram Config",
+        "tags": [
+          "v1 auth owner"
+        ]
+      }
+    },
     "/v1/auth/owner/telegram/link": {
       "post": {
         "operationId": "v1_telegram_link_v1_auth_owner_telegram_link_post",
@@ -11902,6 +12329,187 @@
           }
         },
         "summary": "V1 Telegram Login",
+        "tags": [
+          "v1 auth owner"
+        ]
+      }
+    },
+    "/v1/auth/owner/telegram/widget": {
+      "post": {
+        "operationId": "v1_telegram_widget_v1_auth_owner_telegram_widget_post",
+        "parameters": [
+          {
+            "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+            "in": "header",
+            "name": "X-Vetapp-CSRF",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+              "title": "X-Vetapp-Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelegramWidgetLogin"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnerRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "unauthenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "method not allowed"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "validation error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "rate limited"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "internal error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad gateway"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "service unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "gateway timeout"
+          }
+        },
+        "summary": "V1 Telegram Widget",
         "tags": [
           "v1 auth owner"
         ]
@@ -15024,6 +15632,378 @@
         ]
       }
     },
+    "/v1/owner/connect-doctor": {
+      "post": {
+        "operationId": "v1_connect_doctor_v1_owner_connect_doctor_post",
+        "parameters": [
+          {
+            "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+            "in": "header",
+            "name": "X-Vetapp-CSRF",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+              "title": "X-Vetapp-Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnerJoin"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnerRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "unauthenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "method not allowed"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "validation error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "rate limited"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "internal error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad gateway"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "service unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "gateway timeout"
+          }
+        },
+        "security": [
+          {
+            "OwnerSession": []
+          }
+        ],
+        "summary": "V1 Connect Doctor",
+        "tags": [
+          "v1 owner"
+        ]
+      }
+    },
+    "/v1/owner/credentials": {
+      "post": {
+        "operationId": "v1_set_credentials_v1_owner_credentials_post",
+        "parameters": [
+          {
+            "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+            "in": "header",
+            "name": "X-Vetapp-CSRF",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+              "title": "X-Vetapp-Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnerCredentials"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnerRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "unauthenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "method not allowed"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "validation error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "rate limited"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "internal error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad gateway"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "service unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "gateway timeout"
+          }
+        },
+        "security": [
+          {
+            "OwnerSession": []
+          }
+        ],
+        "summary": "V1 Set Credentials",
+        "tags": [
+          "v1 owner"
+        ]
+      }
+    },
     "/v1/owner/files/{attachment_id}": {
       "get": {
         "operationId": "v1_download_owner_file_v1_owner_files__attachment_id__get",
@@ -15412,7 +16392,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/OwnerProfileWrite"
+                "$ref": "#/components/schemas/OwnerProfileUpdate"
               }
             }
           },
