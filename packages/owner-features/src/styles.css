@@ -1,0 +1,119 @@
+/* Owner surface: existing shared tokens, isolated from the clinical workspace. */
+.owner-app { padding: max(24px, env(safe-area-inset-top)) 16px calc(112px + env(safe-area-inset-bottom)); }
+.owner-app-content { width: 100%; max-width: 720px; margin-inline: auto; }
+[data-owner-cabinet] { min-width: 0; }
+[data-owner-cabinet] :is(button, a, input, textarea, select):focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+[data-owner-cabinet] :is(input, textarea, select) { font-size: 16px; }
+[data-owner-cabinet] button { cursor: pointer; }
+[data-owner-cabinet] button:disabled { cursor: default; opacity: .5; }
+[data-owner-cabinet] ::selection { background: var(--accent); color: var(--foreground); }
+.cabinet-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.cabinet-header h1 { font-size: 24px; line-height: 32px; font-weight: 800; letter-spacing: -.035em; }
+.cabinet-header p { margin-top: 4px; font-size: 14px; line-height: 20px; color: var(--muted-foreground); }
+.profile-avatar { width: 44px; height: 44px; flex-shrink: 0; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--foreground); font-size: 18px; font-weight: 700; border: 2px solid var(--card); }
+.cabinet-nav { position: fixed; z-index: 30; bottom: 0; left: 0; right: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 8px max(8px, calc((100vw - 720px) / 2)) max(12px, env(safe-area-inset-bottom)); background: var(--card); border-top: 1px solid var(--border); }
+.cabinet-nav a { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px; min-height: 56px; font-size: 12px; color: var(--muted-foreground); border-radius: var(--radius); }
+.cabinet-nav a[aria-current] { color: var(--foreground); font-weight: 700; }
+.cabinet-nav a[aria-current] svg { color: var(--primary); stroke-width: 2; }
+.pet-hero { padding-bottom: 0; }
+.pet-pattern { height: 120px; background: var(--primary); border-radius: 24px; overflow: hidden; }
+.pet-pattern svg { height: 100%; width: 100%; }
+.pet-avatar-row { display: flex; justify-content: safe center; align-items: flex-start; gap: 24px; margin-top: -48px; position: relative; overflow-x: auto; padding: 4px 8px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+.pet-hero-choice { display: flex; flex-direction: column; align-items: center; gap: 4px; max-width: 120px; flex-shrink: 0; font-size: 16px; line-height: 20px; font-weight: 700; }
+.pet-hero-choice > span:last-child { overflow-wrap: anywhere; }
+.pet-avatar { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: 80px; height: 80px; background: var(--accent); color: var(--foreground); border: 3px solid var(--background); border-radius: 50%; font-size: 18px; font-weight: 700; }
+.pet-hero-choice[aria-pressed="true"] .pet-avatar { outline: 2px solid var(--primary); outline-offset: 2px; }
+.pet-avatar-small { width: 48px; height: 48px; font-size: 14px; gap: 0; border: 0; }
+.pet-avatar svg { color: var(--primary); }
+.animal-selector { background: var(--accent); border-radius: 16px; padding: 16px; }
+.owner-dashboard { display: flex; flex-direction: column; gap: 8px; }
+.dashboard-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; position: relative; min-height: 26px; margin-top: 8px; }
+.dashboard-section-heading h2 { font-size: 18px; line-height: 26px; font-weight: 750; letter-spacing: -.025em; }
+.dashboard-section-heading button { display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; min-height: 44px; font-size: 14px; position: absolute; right: 0; top: -8px; }
+.dashboard-section-heading h2 { padding-right: 80px; }
+.current-consultation { background: var(--accent); padding: 12px 16px; border-radius: 16px; }
+.consultation-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; font-size: 14px; }
+.consultation-status { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }
+.status-dot { width: 8px; height: 8px; background: var(--primary); border-radius: 50%; flex-shrink: 0; }
+.current-consultation h3 { margin-top: 4px; font-size: 18px; line-height: 24px; font-weight: 750; letter-spacing: -.025em; overflow-wrap: anywhere; }
+.current-consultation p { font-size: 14px; line-height: 20px; margin-top: 4px; }
+.consultation-date { font-variant-numeric: tabular-nums; }
+.current-consultation-footer { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-top: 8px; }
+.doctor-byline { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.doctor-avatar { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--card); color: var(--primary); flex-shrink: 0; }
+.dashboard-empty { background: var(--accent); border-radius: 16px; padding: 24px; }
+.dashboard-empty h3 { font-size: 18px; font-weight: 600; margin: 12px 0 4px; }
+.dashboard-empty p, .dashboard-hint { font-size: 14px; line-height: 20px; }
+.dashboard-hint { color: var(--muted-foreground); }
+.upcoming-visit { display: flex; align-items: center; gap: 8px; min-width: 0; width: 100%; text-align: left; padding: 4px 0; }
+.visit-calendar { width: 44px; height: 44px; display: grid; place-items: center; background: var(--accent); border-radius: 50%; flex-shrink: 0; color: var(--primary); }
+.upcoming-visit > span:nth-child(2) { min-width: 0; flex: 1; }
+.upcoming-visit strong, .upcoming-visit small { display: block; overflow-wrap: anywhere; font-size: 14px; line-height: 20px; }
+.upcoming-visit small { margin-top: 4px; color: var(--muted-foreground); }
+.upcoming-visit-end { display: flex; flex-direction: column; align-items: flex-end; max-width: 112px; gap: 4px; text-align: right; }
+.upcoming-visit-end small { margin-top: 0; }
+.visit-status-chip { max-width: 112px; border-radius: 12px; padding: 8px; font-size: 12px; line-height: 16px; background: var(--accent); }
+.booking-banner { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 80px; overflow: hidden; width: 100%; border-radius: 16px; background: var(--primary); color: var(--primary-foreground); text-align: left; padding: 16px; margin-top: 0; }
+.booking-banner strong { font-size: 16px; line-height: 24px; font-weight: 700; }
+.booking-banner small { display: block; font-size: 14px; margin-top: 4px; }
+.booking-banner-paw { display: grid; place-items: center; flex-shrink: 0; width: 64px; height: 64px; margin-bottom: -32px; border-radius: 50%; color: var(--primary); background: var(--accent); transform: rotate(-16deg); }
+.cabinet-quick-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cabinet-quick-actions button { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; text-align: left; padding: 12px 16px; border-radius: 16px; background: var(--accent); font-size: 14px; line-height: 20px; font-weight: 600; }
+.cabinet-quick-actions svg { color: var(--primary); }
+.finished-result-link { display: flex; align-items: center; gap: 8px; text-align: left; font-size: 14px; padding: 8px 0; min-height: 44px; }
+.finished-result-link span { flex: 1; }
+.booking-sheet { position: fixed; inset: auto 0 0; margin: 0 auto; width: 100%; max-width: 540px; max-height: calc(100dvh - max(24px, env(safe-area-inset-top))); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--border) var(--card); border: 0; border-radius: 28px 28px 0 0; color: var(--foreground); background: var(--card); padding: 0; }
+.booking-sheet::backdrop { background: color-mix(in srgb, var(--foreground) 52%, transparent); }
+.booking-sheet-content { padding: 12px 24px max(24px, env(safe-area-inset-bottom)); position: relative; }
+.sheet-handle { height: 4px; width: 44px; border-radius: 4px; background: var(--border); margin: 0 auto 16px; }
+.sheet-close { position: absolute; right: 12px; top: 20px; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; }
+.booking-progress { text-align: center; font-size: 12px; line-height: 20px; font-weight: 700; text-transform: uppercase; color: var(--muted-foreground); padding: 4px 44px 0; }
+.booking-title { font-family: Georgia, "Times New Roman", serif; font-size: 28px; line-height: 30px; font-weight: 700; letter-spacing: -.03em; text-align: center; text-wrap: balance; max-width: 320px; margin: 16px auto 0; outline: none; }
+.booking-subtitle { text-align: center; color: var(--muted-foreground); font-size: 14px; line-height: 20px; margin: 8px 0 24px; }
+.booking-form [hidden] { display: none; }
+.booking-form :is(input, select, textarea) { min-width: 0; max-width: 100%; }
+.booking-form input[type="radio"] { accent-color: var(--primary); min-height: 16px; width: 16px; height: 16px; }
+.booking-form button[type="submit"], .booking-form button[value="continue"] { width: 100%; min-height: 52px; }
+.booking-pets legend, .booking-label { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+.booking-pets > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.booking-pet { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px; background: var(--background); border: 1px solid transparent; border-radius: 16px; overflow-wrap: anywhere; }
+.booking-pet:has(input:checked) { border-color: var(--primary); background: var(--accent); }
+.booking-pet input { position: absolute; right: 12px; top: 12px; }
+.booking-doctor { display: flex; align-items: center; gap: 12px; border: 1px solid var(--primary); background: var(--accent); padding: 12px; border-radius: 16px; }
+.booking-doctor input { position: absolute; opacity: 0; }
+.booking-doctor:focus-within { outline: 2px solid var(--ring); outline-offset: 3px; }
+.booking-doctor > span:nth-of-type(2) { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.booking-doctor strong, .booking-doctor small { display: block; font-size: 14px; line-height: 20px; }
+.booking-doctor small { margin-top: 4px; }
+.doctor-initials { display: grid; place-items: center; flex-shrink: 0; width: 48px; height: 48px; border-radius: 50%; background: var(--card); font-size: 18px; font-weight: 700; }
+.booking-context { display: flex; align-items: flex-start; gap: 12px; background: var(--accent); border-radius: 16px; padding: 16px; font-size: 14px; line-height: 20px; }
+.booking-context svg { flex-shrink: 0; }
+.booking-pet small { font-size: 14px; color: var(--muted-foreground); }
+.booking-reasons { display: flex; flex-direction: column; gap: 8px; }
+.booking-reasons button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; background: var(--background); text-align: left; border: 1px solid transparent; border-radius: 16px; }
+.booking-reasons button[aria-pressed="true"] { background: var(--accent); border-color: var(--primary); }
+.booking-reasons button > span:nth-child(2) { flex: 1; min-width: 0; }
+.booking-reasons strong, .booking-reasons small { display: block; font-size: 14px; line-height: 20px; overflow-wrap: anywhere; }
+.booking-reasons small { margin-top: 4px; color: var(--muted-foreground); }
+.reason-icon { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; background: var(--card); color: var(--primary); flex-shrink: 0; }
+.reason-check { width: 16px; height: 16px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 50%; flex-shrink: 0; }
+[aria-pressed="true"] > .reason-check { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+.booking-next { width: 100%; min-height: 52px !important; }
+.booking-days > div { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.booking-days button { display: flex; flex-direction: column; align-items: center; gap: 4px; border: 1px solid transparent; border-radius: 12px; padding: 8px 0; background: var(--background); font-variant-numeric: tabular-nums; }
+.booking-days button[aria-pressed="true"] { background: var(--accent); border-color: var(--primary); }
+.booking-days small { font-size: 12px; line-height: 16px; }
+.booking-days strong { font-size: 18px; }
+.booking-sheet .booking-footer { position: sticky; bottom: 0; background: var(--card); padding: 12px 0 max(12px, env(safe-area-inset-bottom)); z-index: 2; }
+.booking-sheet .booking-back { position: absolute; top: 20px; left: 12px; width: 44px; padding: 0; border: 0; box-shadow: none; background: transparent; }
+.booking-sheet .booking-back span { display: none; }
+.booking-sheet :is(.booking-cancel, .booking-refresh) { display: none; }
+@media (min-width: 768px) {
+  .owner-app { padding: 32px 24px 112px; }
+  .pet-pattern { height: 160px; }
+  .booking-sheet { bottom: 24px; max-height: calc(100dvh - 48px); border-radius: 24px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .booking-sheet[open] { animation: owner-sheet-in 180ms ease-out; }
+  @keyframes owner-sheet-in { from { transform: translateY(24px); } to { transform: translateY(0); } }
+}

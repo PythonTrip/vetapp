@@ -29,9 +29,11 @@ describe("owner scenarios in the independent host", () => {
     fireEvent.change(screen.getByLabelText("Электронная почта"), { target: { value: "owner@example.com" } });
     fireEvent.change(screen.getByLabelText("Пароль"), { target: { value: "long owner password" } });
     fireEvent.click(screen.getByRole("button", { name: "Войти", exact: true }));
-    await screen.findByRole("heading", { name: "Мой кабинет" });
+    await screen.findByRole("heading", { name: "Привет!" });
+    fireEvent.click(screen.getByRole("link", { name: "Профиль", exact: true }));
     expect(screen.getByText("Доктор Иванова")).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole("button", { name: "Выйти из кабинета" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("link", { name: "Профиль", exact: true }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Выйти из кабинета" })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: "Выйти из кабинета" }));
     await screen.findByRole("heading", { name: "Войти в кабинет" });
     expect(requests).toContain("/api/owner/logout");

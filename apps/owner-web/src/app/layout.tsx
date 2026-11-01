@@ -7,6 +7,6 @@ export const metadata: Metadata = {
 };
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return <html lang="ru"><body className="bg-background text-foreground antialiased">
-    <PlatformProvider><main className="min-h-dvh px-4 py-8 sm:py-12"><div className="mx-auto w-full max-w-lg space-y-8">{children}</div></main></PlatformProvider>
+    <PlatformProvider><main className="owner-app min-h-dvh"><div className="owner-app-content">{children}</div></main></PlatformProvider>
   </body></html>;
 }

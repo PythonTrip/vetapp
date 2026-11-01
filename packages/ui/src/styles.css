@@ -3,6 +3,10 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Owner tasks are touch-first in both web hosts and Telegram. */
+[data-owner-cabinet] :is(button, input:not([type="checkbox"]):not([type="radio"]), select) { min-height: 44px; }
+[data-owner-cabinet] :is(input, textarea) { caret-color: var(--primary); }
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

@@ -48,5 +48,6 @@ export const ownerVisits = {
 };
 
 export function ownerError(cause: unknown): string {
+  if (cause instanceof Error && /Failed to fetch|NetworkError|API unavailable|fetch failed|Load failed/i.test(cause.message)) return "Не удалось связаться с сервером. Проверьте подключение и повторите попытку.";
   return cause instanceof Error ? cause.message : "Не удалось выполнить запрос";
 }

@@ -1,4 +1,5 @@
 @import "@vetdietderm/ui/styles.css";
+@import "@vetdietderm/owner-features/styles.css";
 @source "../../../../packages/ui/src";
 @source "../../../../packages/owner-features/src";
 
