@@ -122,7 +122,7 @@ describe("clinician visit queue", () => {
     fireEvent.click(screen.getByRole("button", { name: action === "confirm" ? "Подтвердить" : "Отклонить", exact: true }));
     fireEvent.click(screen.getByRole("button", { name: action === "confirm" ? "Подтвердить визит" : "Отклонить визит" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Время занято");
-    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    fireEvent.click(screen.getByRole("button", { name: "Закрыть форму" }));
     expect(screen.getByRole("heading", { name: "Мурка · Анна" })).toBeInTheDocument();
   });
 

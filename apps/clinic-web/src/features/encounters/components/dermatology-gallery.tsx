@@ -92,7 +92,7 @@ export function DermatologyGallery({ patientId }: { patientId: string }) {
     setError(null);
     const form = new FormData();
     form.set("file", file);
-    form.set("kind", "lesion_photo");
+    form.set("kind", file.type === "application/pdf" ? "document" : "lesion_photo");
     if (caption.trim()) form.set("caption", caption.trim());
     if (bodyRegion) form.set("body_region", bodyRegion);
     if (vasScore != null) form.set("vas_score", String(vasScore));
@@ -134,8 +134,8 @@ export function DermatologyGallery({ patientId }: { patientId: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Галерея</CardTitle>
-        <CardDescription>Фото поражений на диске, метаданные и VAS — в PostgreSQL.</CardDescription>
+        <CardTitle className="text-base">Галерея и результаты приёмов</CardTitle>
+        <CardDescription>Добавьте заключение, рекомендации или фото, выберите приём и откройте доступ владельцу. Без привязки к приёму файл останется в общих документах питомца.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
@@ -207,7 +207,7 @@ export function DermatologyGallery({ patientId }: { patientId: string }) {
                 <AttachmentThumb attachment={item} />
                 <div className="mt-2 flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{item.caption || "Без подписи"}</p>
+                    <p className="break-words text-sm font-medium">{item.caption || "Без подписи"}</p>
                     <p className="text-xs text-muted-foreground">{formatDateTime(item.created_at)}</p>
                     <div className="mt-1 flex flex-wrap gap-1">
                       {item.body_region ? <Badge variant="outline">{item.body_region}</Badge> : null}
@@ -224,6 +224,11 @@ export function DermatologyGallery({ patientId }: { patientId: string }) {
                         onCheckedChange={(checked) => void onShare(item, checked)}
                       />
                     </div>
+                    <p className="mt-2 text-xs text-muted-foreground">{item.owner_visible ? "Доступен владельцу" : "Недоступен владельцу"}{linked ? ` · ${formatDateTime(linked.occurred_at)}` : " · Без привязки к приёму"}</p>
+                    <label className="mt-3 block space-y-1 text-xs"><span>Приём для этого файла</span><select aria-label={`Приём для ${item.caption || "файла"}`} className="min-h-11 w-full min-w-0 rounded-md border bg-background px-2 text-sm" value={item.encounter_uuid ?? ""} disabled={!canShare || share.isPending} onChange={async event => {
+                      try { await share.mutateAsync({ id: item.uuid, body: { encounter_uuid: event.target.value || null } }); toast.success("Привязка файла сохранена"); }
+                      catch (cause) { toast.error(apiErrorMessage(cause)); }
+                    }}><option value="">Без приёма</option>{encounters.data?.map(encounter => <option key={encounter.uuid} value={encounter.uuid}>{formatDateTime(encounter.occurred_at)} · {SPECIALTY_LABELS[encounter.specialty]}</option>)}</select></label>
                   </div>
                   <Button type="button" variant="ghost" size="icon" onClick={() => void onDelete(item)}>
                     <Trash2 className="h-4 w-4" />

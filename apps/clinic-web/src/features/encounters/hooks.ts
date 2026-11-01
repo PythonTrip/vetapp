@@ -37,8 +37,10 @@ export function useUpdateEncounter(patientId: string) {
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: Partial<EncounterWrite> }) =>
       encountersApi.update(id, body),
-    onSuccess: () => {
+    onSuccess: (saved) => {
       void queryClient.invalidateQueries({ queryKey: ["encounters", patientId] });
+      void queryClient.invalidateQueries({ queryKey: ["encounter", saved.uuid] });
+      void queryClient.invalidateQueries({ queryKey: ["appointments"] });
     },
   });
 }

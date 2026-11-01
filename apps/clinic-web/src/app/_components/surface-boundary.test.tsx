@@ -20,8 +20,8 @@ describe("owner and staff surface boundary", () => {
     vi.mocked(fetch).mockResolvedValue(json(401, { detail: "Войдите в кабинет владельца" }));
     mount(<CabinetHome />);
     await screen.findByRole("heading", { name: "Войти в кабинет" });
-    expect(fetch).toHaveBeenCalledTimes(1);
     expect(vi.mocked(fetch).mock.calls[0][0]).toBe("/api/owner/me");
+    expect(vi.mocked(fetch).mock.calls.every(([url]) => String(url).startsWith("/api/owner/"))).toBe(true);
     expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
   });
   it("renders join links outside the staff gate", () => {

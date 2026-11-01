@@ -18,6 +18,7 @@ import { useTheme } from "next-themes";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { sectionFromPathname, type AppSection } from "@/app/_lib/navigation";
+import { ConnectionStatus } from "@vetdietderm/owner-features/components/connection-status";
 
 const NAV_ITEMS: {
   id: AppSection;
@@ -37,7 +38,7 @@ const NAV_ITEMS: {
     id: "schedule",
     href: "/schedule",
     label: "Расписание",
-    desc: "Записи на приём",
+    desc: "Записи и заявки владельцев",
     icon: CalendarDays,
   },
   {
@@ -158,7 +159,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <ThemeToggle />
           </header>
 
-          <nav className="scrollbar-none flex shrink-0 gap-1 overflow-x-auto border-b px-2 py-2 md:hidden" aria-label="Основная навигация">
+          <nav className="grid shrink-0 grid-cols-5 gap-1 border-b px-2 py-2 md:hidden" aria-label="Основная навигация">
             {NAV_ITEMS.map((item) => {
               const active = activeSection === item.id;
               return (
@@ -167,7 +168,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                    "flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-1.5 text-[11px] font-medium transition-colors",
                     active ? "bg-primary text-primary-foreground" : "bg-muted/60 text-muted-foreground",
                   )}
                 >
@@ -179,6 +180,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
 
           <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto has-[[data-catalog-workbench][data-state=active]]:overflow-hidden">
+            <ConnectionStatus />
             {children}
           </main>
         </div>

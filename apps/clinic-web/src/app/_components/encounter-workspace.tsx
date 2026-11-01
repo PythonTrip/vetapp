@@ -228,7 +228,7 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
     setSaveState("idle");
   }
 
-  async function saveEncounter(finalize: boolean, silent = false) {
+  async function saveEncounter(finalize: boolean, silent = false, startConsultation = false) {
     if (!contextReady) return;
     if (!patientId) {
       setFormError(byAppointment ? "Выберите запись" : "Выберите пациента");
@@ -244,7 +244,7 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
     const payload: EncounterWrite = {
       specialty: form.specialty,
       type: form.type,
-      status: finalize || editingRecord?.status === "completed" ? "completed" : "draft",
+      status: finalize || editingRecord?.status === "completed" ? "completed" : startConsultation || editingRecord?.status === "in_progress" ? "in_progress" : "draft",
       chief_complaint: form.chiefComplaint.trim() || null,
       anamnesis: form.anamnesisDoc.finalText.trim() || null,
       anamnesis_data: {
@@ -291,7 +291,7 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
             ? byAppointment
               ? "Приём завершён и связан с записью"
               : "Приём завершён"
-            : "Черновик приёма сохранён",
+            : startConsultation ? "Консультация началась" : "Приём сохранён",
         );
       }
     } catch (cause) {
@@ -324,7 +324,7 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
   }, [appointmentId, byAppointment, formFingerprint, patientId, saveInFlight]);
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] space-y-5 p-3 sm:p-5 lg:p-7">
+    <div className="mx-auto min-w-0 w-full max-w-[1600px] space-y-5 p-3 sm:p-5 lg:p-7">
       <header className="overflow-hidden rounded-2xl bg-[oklch(0.24_0.035_175)] text-white shadow-[0_18px_48px_-32px_oklch(0.2_0.04_175/0.75)]">
         <div className="flex flex-col gap-5 p-4 sm:p-5 lg:flex-row lg:items-start lg:justify-between lg:p-6">
           <div className="max-w-2xl">
@@ -352,7 +352,7 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
           </div>
         </div>
 
-        <div className="grid border-t border-white/10 bg-black/10 lg:grid-cols-[auto_minmax(18rem,1.35fr)_minmax(15rem,1fr)]">
+        <div className="grid min-w-0 grid-cols-1 border-t border-white/10 bg-black/10 [&>div]:min-w-0 lg:grid-cols-[auto_minmax(18rem,1.35fr)_minmax(15rem,1fr)]">
           <div className="flex items-center gap-1 border-b border-white/10 p-3 lg:border-b-0 lg:border-r">
             <button type="button" onClick={() => changeMode(true)} aria-pressed={byAppointment} className={cn("rounded-lg px-3 py-2 text-xs font-semibold transition-colors", byAppointment ? "bg-white text-emerald-950" : "text-emerald-50/75 hover:bg-white/10")}>
               По записи
@@ -406,12 +406,12 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
       ))}
 
       {contextReady && selectedPatient ? (
-        <div className="grid gap-3 rounded-2xl border bg-card p-4 sm:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr_1fr]">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><UserRound className="h-4 w-4" /></span>
+        <div className="grid min-w-0 grid-cols-1 gap-3 rounded-2xl border bg-card p-4 [&>div]:min-w-0 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><UserRound className="h-4 w-4" /></span>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold">{selectedPatient.name}</p>
-              <p className="truncate text-xs text-muted-foreground">{speciesLabel(selectedPatient.species)} · {selectedPatient.breed || "порода не указана"} · {selectedPatient.client.name}</p>
+              <p className="break-words text-xs text-muted-foreground">{speciesLabel(selectedPatient.species)} · {selectedPatient.breed || "порода не указана"} · {selectedPatient.client.name}</p>
             </div>
           </div>
           <div className="space-y-1.5">
@@ -442,7 +442,7 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="encounter-date">Дата и время</Label>
-            <Input id="encounter-date" type="datetime-local" value={form.occurredAt} onChange={(event) => setForm((current) => ({ ...current, occurredAt: event.target.value }))} />
+            <Input id="encounter-date" className="min-w-0 max-w-full" type="datetime-local" value={form.occurredAt} onChange={(event) => setForm((current) => ({ ...current, occurredAt: event.target.value }))} />
           </div>
         </div>
       ) : appointments.isPending || patients.isPending || appointmentQuery.isFetching || patientQuery.isFetching || linkedEncounterQuery.isFetching ? (
@@ -457,7 +457,7 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
 
       {contextReady && selectedPatient ? (
         <>
-          <section className="grid gap-4 rounded-2xl border bg-card p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
+          <section className="grid min-w-0 grid-cols-1 gap-4 rounded-2xl border bg-card p-4 [&>div]:min-w-0 sm:p-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
             <div className="space-y-2">
               <Label htmlFor="chief-complaint">Жалоба</Label>
               <Input id="chief-complaint" value={form.chiefComplaint} onChange={(event) => setForm((current) => ({ ...current, chiefComplaint: event.target.value }))} placeholder="Основная причина обращения" />
@@ -513,8 +513,11 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
               <span className="font-semibold text-white">{saveContext}</span>
               <span className="block">{editingEncounterId ? "Изменения будут сохранены в существующий приём" : "Будет создан новый приём"}</span>
             </p>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              {editingRecord?.status === "completed" && selectedPatient && <Button asChild variant="secondary" className="min-h-11"><Link href={`/patients/${selectedPatient.uuid}?tab=gallery`}>Подготовить результаты</Link></Button>}
               <span className="hidden text-xs text-emerald-50/70 sm:inline">{saveState === "saving" ? "Сохраняем изменения…" : saveState === "error" ? "Автосохранение не удалось" : "Черновик сохраняется автоматически"}</span>
+              {editingRecord?.status !== "completed" && editingRecord?.status !== "in_progress" && <Button type="button" variant="secondary" className="min-h-11" disabled={saveInFlight} onClick={() => void saveEncounter(false, false, true)}>Начать консультацию</Button>}
+              {editingRecord?.status === "in_progress" && <span className="text-sm text-white">Идёт консультация</span>}
               <Button type="button" className="flex-1 bg-emerald-400 text-emerald-950 hover:bg-emerald-300 sm:flex-none" onClick={() => void saveEncounter(true)} disabled={saveInFlight}>{pendingAction === "complete" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Завершить</Button>
             </div>
           </div>

@@ -12,13 +12,21 @@ import { useClientsQuery } from "@/features/patients/hooks";
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value";
 import { ownerError, registrationsApi, visitAnswerLabel, visitRequestsApi, type PendingRegistration, type RegistrationAccept, type StaffVisit, type VisitFile } from "@/features/owner-cabinet/api";
 import { speciesLabel } from "@/features/patients/form";
+import { VISIT_STATUS_LABELS, VISIT_STATUS_STYLES } from "@vetdietderm/owner-features/domain";
 
 const selectClass = "min-h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm";
 
-export function VisitRequestQueue() {
+export function VisitRequestQueue({ inline = false }: { inline?: boolean }) {
   const [open, setOpen] = React.useState(false);
   const queue = useQuery({ queryKey: ["visit-requests"], queryFn: visitRequestsApi.list, refetchInterval: 30_000 });
   const rows = queue.data?.filter(row => row.status === "requested");
+  const content = <>
+    {queue.isPending && <p role="status">Загрузка запросов…</p>}
+    {queue.isError && <div className="space-y-2"><p role="alert" className="text-sm text-destructive">{ownerError(queue.error)}</p><Button variant="outline" onClick={() => void queue.refetch()}>Повторить</Button></div>}
+    {rows?.length === 0 && <p className="text-sm text-muted-foreground">Нет запросов, ожидающих подтверждения</p>}
+    <div className="divide-y">{rows?.map(row => <VisitRow key={row.uuid} row={row} />)}</div>
+  </>;
+  if (inline) return <section aria-label="Заявки владельцев" className="space-y-4 rounded-xl border bg-card p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-lg font-semibold">Заявки владельцев{rows ? ` · ${rows.length}` : ""}</h2><p className="mt-1 text-sm text-muted-foreground">Проверьте анкету и согласуйте время. Подтверждённая заявка появится в расписании.</p></div><Button type="button" variant="outline" disabled={queue.isFetching} onClick={() => void queue.refetch()}>Обновить заявки</Button></div>{content}</section>;
   return <div className="shrink-0 border-b p-3">
     <Button variant="outline" className="w-full" onClick={() => setOpen(true)}>
       Запросы визитов{rows ? ` · ${rows.length}` : ""}
@@ -26,10 +34,7 @@ export function VisitRequestQueue() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader><DialogTitle>Запросы визитов</DialogTitle><DialogDescription>Предложенное время, ответы владельца и файлы к визиту.</DialogDescription></DialogHeader>
-        {queue.isPending && <p role="status">Загрузка запросов…</p>}
-        {queue.isError && <div className="space-y-2"><p role="alert" className="text-sm text-destructive">{ownerError(queue.error)}</p><Button variant="outline" onClick={() => void queue.refetch()}>Повторить</Button></div>}
-        {rows?.length === 0 && <p className="text-sm text-muted-foreground">Нет запросов, ожидающих подтверждения</p>}
-        <div className="divide-y">{rows?.map(row => <VisitRow key={row.uuid} row={row} />)}</div>
+        {content}
       </DialogContent>
     </Dialog>
   </div>;
@@ -62,7 +67,9 @@ function VisitRow({ row }: { row: StaffVisit }) {
     <header className="break-words">
       <h3 className="font-semibold">{row.animal_name} · {row.owner_name}</h3>
       <p className="text-sm">{VISIT_TYPE_LABELS[row.visit_type]}</p>
+      <span className={`mt-2 inline-block rounded-md px-2.5 py-1 text-xs font-semibold ${VISIT_STATUS_STYLES.waiting}`}>{VISIT_STATUS_LABELS.requested}</span>
       <p className="text-sm">Предложено: {formatDateTime(row.proposed_starts_at)}</p>
+      {row.reason && <p className="mt-2 whitespace-pre-wrap break-words text-sm">{row.reason}</p>}
     </header>
     <dl className="space-y-2 text-sm">{row.answers.map(answer => <div key={answer.question_id} className="break-words">
       <dt className="font-medium">{answer.label}</dt><dd className="whitespace-pre-wrap">{visitAnswerLabel(answer)}</dd>
@@ -73,17 +80,16 @@ function VisitRow({ row }: { row: StaffVisit }) {
       <Button type="button" onClick={() => setAction("confirm")}>Подтвердить</Button>
       <Button type="button" variant="outline" onClick={() => { reject.reset(); setReason(""); setAction("reject"); }}>Отклонить</Button>
     </div> : <p className="text-sm text-muted-foreground">Доступен только просмотр.</p>}
-    <Dialog open={action !== null} onOpenChange={open => { if (!open && !reject.isPending) setAction(null); }}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
-        <DialogHeader><DialogTitle>{action === "confirm" ? "Подтверждение визита" : "Отклонение визита"}</DialogTitle><DialogDescription>{row.animal_name} · {row.owner_name}</DialogDescription></DialogHeader>
+    {action !== null && <section className="space-y-4 rounded-lg bg-muted/50 p-4" aria-label={action === "confirm" ? "Подтверждение визита" : "Отклонение визита"}>
+        <h4 className="font-semibold">{action === "confirm" ? "Подтверждение визита" : "Отклонение визита"}</h4>
         {action === "confirm" && row.can_write && <ConfirmVisit row={row} onSuccess={changed} />}
         {action === "reject" && row.can_write && <form className="space-y-3" onSubmit={event => { event.preventDefault(); if (!reject.isPending) reject.mutate(); }}>
           <label className="block space-y-1 text-sm"><span>Причина отказа (необязательно)</span><Textarea maxLength={500} disabled={reject.isPending} value={reason} onChange={event => setReason(event.target.value)} /></label>
           {reject.isError && <p role="alert" className="break-words text-sm text-destructive">{ownerError(reject.error)}</p>}
           <Button type="submit" disabled={reject.isPending}>{reject.isPending ? "Отклонение…" : "Отклонить визит"}</Button>
         </form>}
-      </DialogContent>
-    </Dialog>
+        <Button type="button" variant="ghost" disabled={reject.isPending} onClick={() => setAction(null)}>Закрыть форму</Button>
+    </section>}
   </article>;
 }
 

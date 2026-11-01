@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { CalendarDays, Loader2, Plus, Stethoscope, Trash2 } from "lucide-react";
+import { Loader2, Plus, Stethoscope, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
@@ -34,6 +34,7 @@ import { usePatientsQuery, usePatientQuery } from "@/features/patients/hooks";
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value";
 import { apiErrorMessage } from "@/shared/api/error-message";
 import { speciesLabel } from "@/features/patients/form";
+import { consultationState, VISIT_STATUS_STYLES } from "@vetdietderm/owner-features/domain";
 
 function startOfDay(date: Date): Date {
   const next = new Date(date);
@@ -52,7 +53,8 @@ function toDateInput(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-export function ScheduleBoard() {
+export function ScheduleBoard({ queue, requestCount }: { queue?: React.ReactNode; requestCount?: number }) {
+  const [view, setView] = React.useState<"appointments" | "requests">("appointments");
   const [day, setDay] = React.useState(toDateInput(new Date()));
   const selected = new Date(`${day}T00:00:00`);
   const range = {
@@ -60,6 +62,14 @@ export function ScheduleBoard() {
     to: endOfDay(selected).toISOString(),
   };
   const query = useAppointmentsQuery(range);
+  const [now, setNow] = React.useState(Date.now);
+  const refresh = query.refetch;
+  React.useEffect(() => {
+    const update = () => { if (!document.hidden) { setNow(Date.now()); void refresh(); } };
+    const timer = window.setInterval(update, 30_000);
+    document.addEventListener("visibilitychange", update);
+    return () => { window.clearInterval(timer); document.removeEventListener("visibilitychange", update); };
+  }, [refresh]);
   const [patientSearch, setPatientSearch] = React.useState("");
   const debouncedPatientSearch = useDebouncedValue(patientSearch, 250);
   const patients = usePatientsQuery(debouncedPatientSearch);
@@ -148,11 +158,7 @@ export function ScheduleBoard() {
     <div className="mx-auto w-full max-w-4xl space-y-6 p-4 sm:p-6 lg:p-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-primary">
-            <CalendarDays className="h-3.5 w-3.5" />
-            Расписание
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Записи</h1>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Расписание и заявки</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
             День клиники: создание, перенос, отмена и переход в карточку пациента.
           </p>
@@ -162,6 +168,11 @@ export function ScheduleBoard() {
           Новая запись
         </Button>
       </div>
+
+      {queue && <nav aria-label="Разделы расписания" className="flex flex-wrap gap-2"><Button type="button" variant={view === "appointments" ? "default" : "outline"} aria-pressed={view === "appointments"} className="min-h-11" onClick={() => setView("appointments")}>Расписание</Button><Button type="button" variant={view === "requests" ? "default" : "outline"} aria-pressed={view === "requests"} className="min-h-11" onClick={() => setView("requests")}>Заявки владельцев{requestCount === undefined ? "" : ` · ${requestCount}`}</Button></nav>}
+      {queue && <div hidden={view !== "requests"}>{queue}</div>}
+
+      <div hidden={view !== "appointments"} className="space-y-6">
 
       <div className="flex flex-wrap items-end gap-3">
         <div className="space-y-2">
@@ -176,7 +187,7 @@ export function ScheduleBoard() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Список на {day}</CardTitle>
-          <CardDescription>Статусы: запланирована, завершена, отменена, не явился.</CardDescription>
+          <CardDescription>Откройте запись, чтобы изменить время или статус. Результаты публикуются в карточке пациента, в разделе «Галерея».</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
           {query.isPending ? <Skeleton className="h-24 w-full" /> : null}
@@ -186,33 +197,35 @@ export function ScheduleBoard() {
             </p>
           ) : null}
           {items.map((item) => (
-            <div key={item.uuid} className="flex items-start justify-between gap-3 rounded-lg border p-3">
+            <div key={item.uuid} className="flex flex-col items-start justify-between gap-3 rounded-lg border p-3 sm:flex-row">
               <button type="button" className="min-w-0 flex-1 text-left" onClick={() => openExisting(item)}>
                 <div className="flex flex-wrap items-center gap-2">
                   <strong>{formatDateTime(item.starts_at)}</strong>
                   <Badge variant="outline">{item.duration_min} мин</Badge>
                   <Badge variant="secondary">{VISIT_TYPE_LABELS[item.visit_type]}</Badge>
-                  <Badge>{APPOINTMENT_STATUS_LABELS[item.status]}</Badge>
+                  <Badge className={VISIT_STATUS_STYLES[consultationState(item.status, item.starts_at, item.encounter_status, now).tone]}>{consultationState(item.status, item.starts_at, item.encounter_status, now).label}</Badge>
                 </div>
                 <p className="mt-1 text-sm">
                   {item.patient.name} · {speciesLabel(item.patient.species)} · {item.patient.client.name}
                 </p>
                 {item.notes ? <p className="text-sm text-muted-foreground">{item.notes}</p> : null}
               </button>
-              <div className="flex items-center gap-1">
-                <Button asChild variant="outline" size="sm">
+              <div className="flex min-w-0 flex-wrap items-center gap-1">
+                {(item.encounter_uuid || item.status === "scheduled") && <Button asChild variant="outline" size="sm">
                   <Link href={`/encounter?appointmentId=${item.uuid}`}>
                     <Stethoscope className="h-4 w-4" />
                     {item.encounter_uuid ? "Открыть приём" : "Начать приём"}
                   </Link>
-                </Button>
+                </Button>}
                 <Button asChild variant="ghost" size="sm">
                   <Link href={`/patients/${item.patient_uuid}`}>Карточка</Link>
                 </Button>
+                {(item.status === "completed" || item.encounter_status === "completed") && <Button asChild variant="outline" size="sm"><Link href={`/patients/${item.patient_uuid}?tab=gallery`}>Результаты</Link></Button>}
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
+                  aria-label={`Удалить запись: ${item.patient.name}`}
                   onClick={() => {
                     if (!window.confirm("Удалить запись?")) return;
                     void deleteItem.mutateAsync(item.uuid).then(
@@ -316,6 +329,7 @@ export function ScheduleBoard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }

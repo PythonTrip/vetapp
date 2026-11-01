@@ -16,7 +16,7 @@ export const ENCOUNTER_TYPE_LABELS: Record<EncounterType, string> = {
 
 export const ENCOUNTER_STATUS_LABELS: Record<EncounterStatus, string> = {
   draft: "Черновик",
-  in_progress: "В работе",
+  in_progress: "Идёт консультация",
   completed: "Завершён",
 };
 

@@ -1,5 +1,5 @@
-import { ScheduleBoard } from "@/features/appointments/components/schedule-board";
+import { ScheduleWorkspace } from "@/app/_components/schedule";
 
 export default function SchedulePage() {
-  return <ScheduleBoard />;
+  return <ScheduleWorkspace />;
 }

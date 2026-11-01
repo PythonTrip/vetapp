@@ -27,6 +27,16 @@ function setup(element: React.ReactNode, appointments: AppointmentRecord[] = [])
 }
 
 describe("audit clinical regressions", () => {
+  it("keeps an active consultation in progress during autosave", async () => {
+    const record = { uuid: "linked-visit", patient_uuid: patient.uuid, specialty: "general", type: "appointment", status: "in_progress", chief_complaint: "Existing complaint", occurred_at: appointment.starts_at, diagnoses: [], vas_score: null } as unknown as EncounterRecord;
+    vi.spyOn(appointmentsApi, "get").mockResolvedValue(appointment);
+    vi.spyOn(encountersApi, "get").mockResolvedValue(record);
+    const update = vi.spyOn(encountersApi, "update").mockResolvedValue(record);
+    setup(<EncounterWorkspace initialAppointmentId={appointment.uuid} />);
+    fireEvent.change(await screen.findByDisplayValue("Existing complaint"), { target: { value: "Updated complaint" } });
+    await waitFor(() => expect(update).toHaveBeenCalledWith(record.uuid, expect.objectContaining({ status: "in_progress", chief_complaint: "Updated complaint" })), { timeout: 3000 });
+    expect(screen.queryByRole("button", { name: "Начать консультацию" })).not.toBeInTheDocument();
+  });
   it("does not offer an editable blank visit when the linked encounter fails to load", async () => {
     vi.spyOn(appointmentsApi, "get").mockResolvedValue(appointment);
     vi.spyOn(encountersApi, "get").mockRejectedValue(new Error("Visit unavailable"));
