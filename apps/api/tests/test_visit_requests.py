@@ -59,6 +59,57 @@ def test_snapshot_required_answers_and_no_schedule_entry(visits):
         assert db.scalar(select(func.count()).select_from(Appointment)) == 0
 
 
+def test_reason_without_questionnaire_is_preserved_and_bounded(visits):
+    staff, owner, _, _, animal, _ = visits
+    result = request_visit(owner, animal, reason="Питомец плохо ест")
+    assert result.status_code == 201, result.text
+    assert result.json()["reason"] == "Питомец плохо ест"
+    assert staff.get("/visit-requests").json()[0]["reason"] == "Питомец плохо ест"
+    assert request_visit(owner, animal, reason="x" * 4001).status_code == 422
+    assert confirm(staff, result.json()).status_code == 200
+    assert staff.get("/appointments").json()[0]["notes"] == "Питомец плохо ест"
+
+
+def test_results_use_exact_encounter_patient_and_explicit_visibility(visits):
+    staff, owner, factory, _, animal, _ = visits
+    visit = request_visit(owner, animal).json()
+    assert confirm(staff, visit).status_code == 200
+    patient = owner.get("/owner/animals").json()[0]
+    patient_id = patient["uuid"]
+    encounter = staff.post(f"/patients/{patient_id}/encounters", json={"status": "in_progress", "exam": "Private clinical note"}).json()
+    other = staff.post(f"/patients/{patient_id}/encounters", json={"status": "completed"}).json()
+    with factory() as db:
+        appointment_id = str(db.scalar(select(Appointment)).uuid)
+    assert staff.patch(f"/appointments/{appointment_id}", json={"encounter_uuid": encounter["uuid"]}).status_code == 200
+    assert staff.get(f"/appointments/{appointment_id}").json()["encounter_status"] == "in_progress"
+
+    def upload(encounter_id, visible):
+        response = staff.post(f"/patients/{patient_id}/attachments", data={"kind": "document", "encounter_uuid": encounter_id, "caption": "Рекомендации"}, files={"file": ("result.pdf", b"result", "application/pdf")})
+        assert response.status_code == 201, response.text
+        file = response.json()
+        assert staff.patch(f"/attachments/{file['uuid']}", json={"owner_visible": visible}).status_code == 200
+        return file
+
+    published = upload(encounter["uuid"], True)
+    private = upload(encounter["uuid"], False)
+    upload(other["uuid"], True)
+    listing = f"/owner/animals/{patient_id}/visits"
+    public = owner.get(listing).json()[0]
+    assert public["encounter_status"] == "in_progress"
+    assert [file["uuid"] for file in public["result_files"]] == [published["uuid"]]
+    assert "exam" not in public and "diagnoses" not in public
+    assert owner.get(f"/owner/files/{published['uuid']}").content == b"result"
+    assert owner.get(f"/owner/files/{private['uuid']}").status_code == 404
+    assert staff.patch(f"/attachments/{published['uuid']}", json={"owner_visible": False}).status_code == 200
+    assert owner.get(listing).json()[0]["result_files"] == []
+    assert owner.get(f"/owner/files/{published['uuid']}").status_code == 404
+    # Another owner's identity cannot enumerate this animal or its results.
+    owner.post("/owner/logout")
+    code = staff.get("/join-codes/current").json()["code"]
+    assert register(owner, code, "another@example.com").status_code == 201
+    assert owner.get(listing).status_code == 404
+
+
 @pytest.mark.parametrize("kind,options,valid,invalid", [
     ("binary", [], "no", ["", True, "maybe", []]),
     ("single_select", [{"value": "a", "label": "А"}, {"value": "b", "label": "Б"}], "a", ["c", [], True]),

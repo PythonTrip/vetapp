@@ -40,3 +40,7 @@ class Appointment(TenantOwned, Base):
 
     patient: Mapped[Patient] = relationship()
     encounter: Mapped[Encounter | None] = relationship()
+
+    @property
+    def encounter_status(self) -> str | None:
+        return self.encounter.status if self.encounter else None

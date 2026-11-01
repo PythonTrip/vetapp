@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Uuid
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, Uuid
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -19,6 +19,7 @@ class VisitRequest(Base):
     patient_uuid: Mapped[UUID | None] = mapped_column(ForeignKey("patients.uuid", ondelete="SET NULL"))
     appointment_uuid: Mapped[UUID | None] = mapped_column(ForeignKey("appointments.uuid", ondelete="SET NULL"), unique=True)
     visit_type: Mapped[str] = mapped_column(String(16))
+    reason: Mapped[str | None] = mapped_column(Text)
     proposed_starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     confirmed_starts_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     duration_min: Mapped[int | None] = mapped_column(Integer)

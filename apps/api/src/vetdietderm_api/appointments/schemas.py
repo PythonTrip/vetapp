@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from vetdietderm_api.patients.schemas import PatientRead
+from vetdietderm_api.encounters.schemas import EncounterStatus
 from vetdietderm_api.questionnaires.schemas import VisitType as BookableVisitType
 
 
@@ -72,6 +73,7 @@ class AppointmentRead(BaseModel):
     uuid: UUID
     patient_uuid: UUID
     encounter_uuid: UUID | None
+    encounter_status: EncounterStatus | None = None
     starts_at: datetime
     duration_min: int
     visit_type: VisitType

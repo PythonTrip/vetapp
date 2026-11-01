@@ -5,6 +5,8 @@ from uuid import UUID
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
 from vetdietderm_api.owners.schemas import RegistrationAccept
+from vetdietderm_api.attachments.schemas import OwnerFileRead
+from vetdietderm_api.encounters.schemas import EncounterStatus
 from vetdietderm_api.questionnaires.schemas import QuestionKind, QuestionOption, VisitType
 
 VisitStatus = Literal["requested", "scheduled", "rejected", "withdrawn", "cancelled", "completed", "no_show"]
@@ -24,8 +26,9 @@ class AnswerSnapshot(BaseModel):
 
 
 class VisitCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     visit_type: VisitType
+    reason: str | None = Field(default=None, min_length=1, max_length=4000)
     proposed_starts_at: AwareDatetime
     answers: list[AnswerWrite] = Field(default_factory=list)
 
@@ -56,6 +59,7 @@ class VisitRead(BaseModel):
     owner_animal_uuid: UUID | None
     patient_uuid: UUID | None
     visit_type: VisitType
+    reason: str | None = None
     proposed_starts_at: datetime
     confirmed_starts_at: datetime | None
     duration_min: int | None
@@ -63,6 +67,8 @@ class VisitRead(BaseModel):
     rejection_reason: str | None
     answers: list[AnswerSnapshot]
     files: list[VisitFileRead] = Field(default_factory=list)
+    encounter_status: EncounterStatus | None = None
+    result_files: list[OwnerFileRead] = Field(default_factory=list)
     created_at: datetime
 
 

@@ -524,6 +524,16 @@
             "title": "Duration Min",
             "type": "integer"
           },
+          "encounter_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EncounterStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "encounter_uuid": {
             "anyOf": [
               {
@@ -5922,6 +5932,16 @@
             ],
             "title": "Duration Min"
           },
+          "encounter_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EncounterStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "files": {
             "items": {
               "$ref": "#/components/schemas/VisitFileRead"
@@ -5962,6 +5982,17 @@
             "title": "Proposed Starts At",
             "type": "string"
           },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
           "registration_status": {
             "enum": [
               "pending",
@@ -5985,6 +6016,13 @@
               }
             ],
             "title": "Rejection Reason"
+          },
+          "result_files": {
+            "items": {
+              "$ref": "#/components/schemas/OwnerFileRead"
+            },
+            "title": "Result Files",
+            "type": "array"
           },
           "status": {
             "enum": [
@@ -6495,6 +6533,19 @@
             "title": "Proposed Starts At",
             "type": "string"
           },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
           "visit_type": {
             "$ref": "#/components/schemas/vetdietderm_api__questionnaires__schemas__VisitType"
           }
@@ -6573,6 +6624,16 @@
             ],
             "title": "Duration Min"
           },
+          "encounter_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EncounterStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "files": {
             "items": {
               "$ref": "#/components/schemas/VisitFileRead"
@@ -6609,6 +6670,17 @@
             "title": "Proposed Starts At",
             "type": "string"
           },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
           "rejection_reason": {
             "anyOf": [
               {
@@ -6619,6 +6691,13 @@
               }
             ],
             "title": "Rejection Reason"
+          },
+          "result_files": {
+            "items": {
+              "$ref": "#/components/schemas/OwnerFileRead"
+            },
+            "title": "Result Files",
+            "type": "array"
           },
           "status": {
             "enum": [

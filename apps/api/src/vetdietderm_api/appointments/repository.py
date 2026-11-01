@@ -23,7 +23,7 @@ def _bad_request(detail: str) -> HTTPException:
 
 
 def _appointment_stmt():
-    return select(Appointment).options(joinedload(Appointment.patient).joinedload(Patient.client))
+    return select(Appointment).options(joinedload(Appointment.patient).joinedload(Patient.client), joinedload(Appointment.encounter))
 
 
 def list_appointments(

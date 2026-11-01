@@ -2754,6 +2754,7 @@ export interface components {
             created_at: string;
             /** Duration Min */
             duration_min: number;
+            encounter_status?: components["schemas"]["EncounterStatus"] | null;
             /** Encounter Uuid */
             encounter_uuid: string | null;
             /** Notes */
@@ -4543,6 +4544,7 @@ export interface components {
             created_at: string;
             /** Duration Min */
             duration_min: number | null;
+            encounter_status?: components["schemas"]["EncounterStatus"] | null;
             /** Files */
             files?: components["schemas"]["VisitFileRead"][];
             /** Owner Animal Uuid */
@@ -4556,6 +4558,8 @@ export interface components {
              * Format: date-time
              */
             proposed_starts_at: string;
+            /** Reason */
+            reason?: string | null;
             /**
              * Registration Status
              * @enum {string}
@@ -4568,6 +4572,8 @@ export interface components {
             registration_uuid: string;
             /** Rejection Reason */
             rejection_reason: string | null;
+            /** Result Files */
+            result_files?: components["schemas"]["OwnerFileRead"][];
             /**
              * Status
              * @enum {string}
@@ -4732,6 +4738,8 @@ export interface components {
              * Format: date-time
              */
             proposed_starts_at: string;
+            /** Reason */
+            reason?: string | null;
             visit_type: components["schemas"]["vetdietderm_api__questionnaires__schemas__VisitType"];
         };
         /** VisitFileRead */
@@ -4764,6 +4772,7 @@ export interface components {
             created_at: string;
             /** Duration Min */
             duration_min: number | null;
+            encounter_status?: components["schemas"]["EncounterStatus"] | null;
             /** Files */
             files?: components["schemas"]["VisitFileRead"][];
             /** Owner Animal Uuid */
@@ -4775,8 +4784,12 @@ export interface components {
              * Format: date-time
              */
             proposed_starts_at: string;
+            /** Reason */
+            reason?: string | null;
             /** Rejection Reason */
             rejection_reason: string | null;
+            /** Result Files */
+            result_files?: components["schemas"]["OwnerFileRead"][];
             /**
              * Status
              * @enum {string}

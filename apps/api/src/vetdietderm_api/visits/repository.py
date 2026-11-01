@@ -10,9 +10,12 @@ from sqlalchemy.orm import Session
 
 from vetdietderm_api.appointments.models import Appointment
 from vetdietderm_api.attachments import storage
+from vetdietderm_api.attachments.models import Attachment
+from vetdietderm_api.attachments.schemas import OwnerFileRead
 from vetdietderm_api.attachments.repository import create_attachment
 from vetdietderm_api.attachments.schemas import AttachmentKind
 from vetdietderm_api.chat.repository import owner_target
+from vetdietderm_api.encounters.schemas import EncounterStatus
 from vetdietderm_api.owners import repository as owners
 from vetdietderm_api.owners.models import JoinCode, OwnerAccount, OwnerAnimal, OwnerRegistration, utc_now
 from vetdietderm_api.patients.models import Patient
@@ -94,13 +97,26 @@ def read(db: Session, row: VisitRequest):
     result = VisitRead.model_validate(row)
     result.files = [VisitFileRead.model_validate(file) for file in db.scalars(select(VisitRequestFile).where(
         VisitRequestFile.request_uuid == row.uuid).order_by(VisitRequestFile.created_at, VisitRequestFile.uuid))]
+    appointment = db.get(Appointment, row.appointment_uuid) if row.appointment_uuid else None
+    if appointment and appointment.patient_uuid == row.patient_uuid and appointment.encounter:
+        encounter = appointment.encounter
+        if encounter.patient_uuid == row.patient_uuid:
+            result.encounter_status = EncounterStatus(encounter.status)
+            # Never infer visit ownership from dates or from the patient's gallery.
+            result.result_files = [OwnerFileRead.model_validate(file) for file in db.scalars(
+                select(Attachment).where(
+                    Attachment.patient_uuid == row.patient_uuid,
+                    Attachment.encounter_uuid == encounter.uuid,
+                    Attachment.owner_visible.is_(True),
+                    Attachment.uploaded_by_owner.is_(False),
+                ).order_by(Attachment.created_at, Attachment.uuid))]
     return result
 
 
 def create(db: Session, owner: OwnerAccount, animal_id: UUID, body):
     animal_id, patient_id, code = owner_target(db, owner, animal_id)
     row = VisitRequest(owner_account_uuid=owner.uuid, owner_animal_uuid=animal_id,
-                       patient_uuid=patient_id, visit_type=body.visit_type,
+                       patient_uuid=patient_id, visit_type=body.visit_type, reason=body.reason,
                        proposed_starts_at=body.proposed_starts_at,
                        answers=snapshot(questions(db, code.doctor_user_id, body.visit_type), body.answers))
     db.add(row)
@@ -175,7 +191,7 @@ def confirm(db, request_id, user, body, keys):
         raise HTTPException(409, "Пациент заявки недоступен")
     appointment = Appointment(patient_uuid=patient.uuid, tenant_id=code.tenant_id,
         created_by=code.doctor_user_id, visit_type=row.visit_type, starts_at=body.starts_at,
-        duration_min=body.duration_min, status="scheduled")
+        duration_min=body.duration_min, status="scheduled", notes=row.reason)
     db.add(appointment)
     db.flush()
     row.appointment_uuid = appointment.uuid
