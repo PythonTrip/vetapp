@@ -24,4 +24,5 @@ export const visitRequestsApi = {
 export const staffChatApi = {
  list: (path: string) => apiRequest<ChatMessage[]>(path),
  send: (path: string, _ownerView: boolean, body: string) => apiRequest<ChatMessage>(path, { method: "POST", body: { body } }),
+ download: (path: string, fileId: string) => apiBlob(`${path}/files/${fileId}`, "Не удалось скачать вложение"),
 };

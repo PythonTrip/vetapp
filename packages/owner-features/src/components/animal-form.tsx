@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SEX_OPTIONS, SPECIES_OPTIONS } from "../domain";
 import { ownerError, ownerRequest, type AnimalPassport } from "../api";
 
-export function AnimalForm({ animal, onSaved, onCancel }: { animal?: AnimalPassport; onSaved: (value: AnimalPassport) => void; onCancel: () => void }) {
+export function AnimalForm({ animal, onSaved, onCancel, onBusyChange }: { animal?: AnimalPassport; onSaved: (value: AnimalPassport) => void; onCancel: () => void; onBusyChange?: (busy: boolean) => void }) {
   const [species, setSpecies] = React.useState(animal?.species ?? "dog");
   const [sex, setSex] = React.useState(animal?.sex ?? "unspecified");
   const [busy, setBusy] = React.useState(false);
@@ -16,14 +16,14 @@ export function AnimalForm({ animal, onSaved, onCancel }: { animal?: AnimalPassp
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    setBusy(true); setError("");
+    setBusy(true); onBusyChange?.(true); setError("");
     try {
       const saved = await ownerRequest<AnimalPassport>(animal ? `/animals/${animal.uuid}` : "/animals", animal ? "PATCH" : "POST", {
         name: data.get("name"), species, breed: data.get("breed"), sex, birth_date: data.get("birth_date") || null,
       });
       onSaved(saved);
     } catch (cause) { setError(ownerError(cause)); }
-    finally { setBusy(false); }
+    finally { setBusy(false); onBusyChange?.(false); }
   }
   return <form onSubmit={submit} className="space-y-4">
     <h3 className="text-lg font-semibold">{animal ? "Редактировать паспорт" : "Добавить животное"}</h3>

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -106,6 +106,16 @@ class AnimalUpdate(BaseModel):
 class AnimalRead(AnimalCreate):
     model_config = ConfigDict(from_attributes=True)
     uuid: UUID
+    photo_url: str | None = None
+
+
+class OwnerUploadRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    uuid: UUID
+    filename: str
+    content_type: str
+    byte_size: int
+    created_at: datetime
 
 
 class AnimalMatch(BaseModel):

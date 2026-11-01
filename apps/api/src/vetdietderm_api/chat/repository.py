@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 from vetdietderm_api.chat.models import ChatMessage, ChatThread
 from vetdietderm_api.chat.schemas import MessageCreate, MessageRead
 from vetdietderm_api.owners import repository as owners
-from vetdietderm_api.owners.models import JoinCode, OwnerAccount, OwnerAnimal
+from vetdietderm_api.owners.models import JoinCode, OwnerAccount, OwnerAnimal, OwnerUpload
+from vetdietderm_api.owners.schemas import OwnerUploadRead
 from vetdietderm_api.patients.models import Patient
 
 
@@ -75,6 +76,8 @@ def list_messages(db: Session, target, *, owner_view=False):
     result = []
     for message in messages:
         item = MessageRead.model_validate(message)
+        item.attachments = [OwnerUploadRead.model_validate(file) for file in db.scalars(
+            select(OwnerUpload).where(OwnerUpload.message_uuid == message.uuid).order_by(OwnerUpload.created_at, OwnerUpload.uuid))]
         if owner_view and message.author_kind == "staff":
             item.author_label = target[2].doctor_label
         elif not owner_view and message.author_kind == "owner":
@@ -84,13 +87,27 @@ def list_messages(db: Session, target, *, owner_view=False):
 
 
 def add_message(db: Session, target, payload: MessageCreate, *, owner: OwnerAccount | None = None, user: dict | None = None):
+    files = []
+    if payload.attachment_ids:
+        if owner is None or len(set(payload.attachment_ids)) != len(payload.attachment_ids):
+            raise HTTPException(422, "Некорректные вложения")
+        from vetdietderm_api.owners.uploads import animal_ids
+        ids = animal_ids(db, owner, target[1] or target[0])
+        files = list(db.scalars(select(OwnerUpload).where(OwnerUpload.uuid.in_(payload.attachment_ids),
+            OwnerUpload.owner_account_uuid == owner.uuid, OwnerUpload.animal_uuid.in_(ids),
+            OwnerUpload.kind == "chat", OwnerUpload.message_uuid.is_(None)).with_for_update()))
+        if len(files) != len(payload.attachment_ids):
+            raise HTTPException(404, "Вложение недоступно или уже отправлено")
     thread = thread_for(db, target, create=True)
     message = ChatMessage(thread_uuid=thread.uuid, body=payload.body,
         author_kind="owner" if owner else "staff", author_id=owner.uuid if owner else UUID(user["user_id"]),
         author_label=owner.name if owner else user.get("display_name") or user["email"])
     db.add(message)
     db.flush()
+    for file in files:
+        file.message_uuid = message.uuid
     result = MessageRead.model_validate(message)
+    result.attachments = [OwnerUploadRead.model_validate(file) for file in files]
     if owner is None:
         return result
     result.author_label = owner.name

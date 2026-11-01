@@ -10,9 +10,16 @@ export type OwnerFile = Schemas["OwnerFileRead"];
 export type OwnerContact = Schemas["OwnerProfileUpdate"];
 export type AnimalPassport = Schemas["AnimalRead"];
 export type ChatMessage = Schemas["MessageRead"];
+export type OwnerUpload = Schemas["OwnerUploadRead"];
+export interface ChatTransport {
+  list: (path: string, ownerView: boolean) => Promise<ChatMessage[]>;
+  send: (path: string, ownerView: boolean, body: string, attachmentIds?: string[]) => Promise<ChatMessage>;
+  download?: (path: string, fileId: string) => Promise<Blob>;
+}
 export const chatApi = {
   list: (path: string, _ownerView: boolean) => apiRequest<ChatMessage[]>(path, { authRecovery: false }),
-  send: (path: string, _ownerView: boolean, body: string) => apiRequest<ChatMessage>(path, { method: "POST", body: { body }, authRecovery: false }),
+  send: (path: string, _ownerView: boolean, body: string, attachmentIds?: string[]) => apiRequest<ChatMessage>(path, { method: "POST", body: { body, ...(attachmentIds?.length ? { attachment_ids: attachmentIds } : {}) }, authRecovery: false }),
+  download: (_path: string, fileId: string) => apiBlob(`/owner/uploads/${fileId}`, "Не удалось скачать вложение", false),
 };
 // Owner 401s must never invoke staff recovery or clear the staff session.
 export const ownerRequest = <T,>(path: string, method = "GET", body?: unknown) =>
@@ -21,6 +28,21 @@ export const ownerRequest = <T,>(path: string, method = "GET", body?: unknown) =
 export const ownerFiles = {
   list: (animalId: string) => ownerRequest<OwnerFile[]>(`/animals/${animalId}/files`),
   download: (id: string) => apiBlob(`/owner/files/${id}`, "Не удалось скачать файл", false),
+};
+
+export const OWNER_UPLOAD_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"];
+export function validateOwnerFile(file: File, photo = false) {
+  if (!OWNER_UPLOAD_TYPES.includes(file.type) || (photo && !file.type.startsWith("image/"))) return "Выберите JPEG, PNG, WebP, GIF" + (photo ? "." : " или PDF.");
+  if (!file.size || file.size > 8 * 1024 * 1024) return "Выберите непустой файл не больше 8 МБ.";
+  return "";
+}
+export const ownerUploads = {
+  list: (animalId: string) => ownerRequest<OwnerUpload[]>(`/animals/${animalId}/uploads`),
+  upload: (animalId: string, file: File, kind: "photo" | "document" | "chat") => {
+    const body = new FormData(); body.append("file", file); body.append("kind", kind);
+    return apiUpload<OwnerUpload>(`/owner/animals/${animalId}/uploads`, body, "Не удалось загрузить файл", false);
+  },
+  download: (id: string) => apiBlob(`/owner/uploads/${id}`, "Не удалось скачать файл", false),
 };
 
 export type VisitStatus = Schemas["VisitRead"]["status"];

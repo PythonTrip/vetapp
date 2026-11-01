@@ -156,7 +156,7 @@ def test_owner_passports_are_isolated_and_do_not_create_clinical_rows(cabinet):
     full = owner.post("/owner/animals", json=dict(name="Мурка", species="cat", breed="Сибирская",
         sex="female", birth_date="2020-05-10", body_weight_kg=5, allergies=["private"], feeding_notes="private", chronic_conditions=["private"]))
     assert full.status_code == 201
-    assert set(full.json()) == {"uuid", "name", "species", "breed", "sex", "birth_date"}
+    assert set(full.json()) == {"uuid", "name", "species", "breed", "sex", "birth_date", "photo_url"}
     edited = owner.patch(f"/owner/animals/{animal['uuid']}", json=dict(sex="male", birth_date="2021-01-02", allergies=["private"], body_weight_kg=20))
     assert edited.status_code == 200
     assert edited.json()["name"] == "Тузик" and edited.json()["sex"] == "male"
@@ -269,7 +269,7 @@ def test_link_matches_preserve_clinical_data_and_expose_all_passports(cabinet):
     assert result.status_code == 200, result.text
     passports = owner.get("/owner/animals").json()
     assert len(passports) == 3 and any(row["name"] == "Ранее созданный" for row in passports)
-    assert all(set(row) == {"uuid", "name", "species", "breed", "sex", "birth_date"} for row in passports)
+    assert all(set(row) == {"uuid", "name", "species", "breed", "sex", "birth_date", "photo_url"} for row in passports)
     assert owner.patch(f"/owner/animals/{existing[0]['uuid']}", json=dict(sex="male", body_weight_kg=99, feeding_notes="changed")).status_code == 200
     patient = staff.get(f"/patients/{existing[0]['uuid']}").json()
     assert patient["name"] == animals[0]["name"] and patient["sex"] == "male"

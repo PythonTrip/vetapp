@@ -219,6 +219,7 @@ export function AnimalVisits({ animalId, animalName, doctorName, animals, home =
     const currentState = current && consultationState(current.status, current.confirmed_starts_at, current.encounter_status, now);
     return <section className="owner-dashboard" aria-label="Консультации питомца">
       {booking}
+      <section className="home-booking-section"><h2>Запись к ветеринару</h2><div className="home-booking-card"><div className="home-booking-intro"><span><CabinetIcon name="calendar" size={25} /></span><div><h3>Запланируйте приём</h3><p>Выберите удобное время</p></div></div><Button type="button" className="w-full min-h-12" onClick={() => setOpen(true)}>Записаться к врачу<CabinetIcon name="arrow" size={19} /></Button></div></section>
       <div className="dashboard-section-heading"><h2>Текущая консультация</h2><button type="button" disabled={loading || busy} onClick={() => void load()}>Обновить</button></div>
       {loading && <p role="status">Загрузка консультаций…</p>}
       {error && <div className="space-y-2"><p role="alert" className="text-destructive">{error}</p><Button variant="outline" disabled={loading} onClick={() => void load()}>Повторить загрузку</Button></div>}
@@ -230,10 +231,11 @@ export function AnimalVisits({ animalId, animalName, doctorName, animals, home =
         {!running(current) && <p className="consultation-date">{formatDateTime(current.confirmed_starts_at || current.proposed_starts_at)}</p>}
         <div className="current-consultation-footer"><span className="doctor-byline"><span className="doctor-avatar"><CabinetIcon name="doctor" size={18} /></span>{doctorName}</span><Button type="button" onClick={running(current) ? onChat : () => onSection?.("visits")}>{running(current) ? "Войти в чат" : "Подробнее"}<CabinetIcon name="arrow" size={18} /></Button></div>
       </article> : !loading && !error && <div className="dashboard-empty"><CabinetIcon name="calendar" /><h3>Новых консультаций пока нет</h3><p>Запишитесь к ветеринару, когда понадобится помощь.</p></div>}
+      {pending.length > 1 && <>
       <div className="dashboard-section-heading"><h2>Предстоящие записи</h2><button type="button" onClick={() => onSection?.("visits")}>Все <CabinetIcon name="arrow" size={16} /></button></div>
       {pending.filter(visit => visit !== current).slice(0, 2).map(visit => <button key={visit.uuid} type="button" className="upcoming-visit" onClick={() => onSection?.("visits")}><span className="visit-calendar"><CabinetIcon name="calendar" /></span><span><strong>{VISIT_TYPE_LABELS[visit.visit_type]}</strong><small>{animalName} · {doctorName}</small><small className="sr-only">{formatDateTime(visit.confirmed_starts_at || visit.proposed_starts_at)}</small></span><span className="upcoming-visit-end"><small>{new Date(visit.confirmed_starts_at || visit.proposed_starts_at).toLocaleString("ru", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</small><span className="visit-status-chip">{consultationState(visit.status, visit.confirmed_starts_at, visit.encounter_status, now).label}</span></span></button>)}
-      {!loading && pending.length < 2 && <p className="dashboard-hint">Других записей пока нет</p>}
-      <button type="button" className="booking-banner" onClick={() => setOpen(true)}><span><strong>Записаться к ветеринару</strong><small>Консультация с вашим врачом</small></span><span className="booking-banner-paw"><CabinetIcon name="paw" size={40} /></span></button>
+      </>}
+      {visits.length > 0 && <button type="button" className="finished-result-link" onClick={() => onSection?.("visits")}>Все консультации<CabinetIcon name="arrow" size={18} /></button>}
       {visits.some(finished) && <button type="button" className="finished-result-link" onClick={() => onSection?.("results")}><CabinetIcon name="file" /><span>Результаты завершённых приёмов</span><CabinetIcon name="arrow" size={18} /></button>}
     </section>;
   }

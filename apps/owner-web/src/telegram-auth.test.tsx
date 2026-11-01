@@ -40,6 +40,7 @@ it("confirms owner credentials for linking and surfaces conflict and expired-ini
   vi.stubGlobal("fetch", fetcher);
   render(<OwnerPlatformProvider value={makePlatform()}><CabinetHome /></OwnerPlatformProvider>);
   fireEvent.click(await screen.findByRole("link", { name: "Профиль" }));
+  fireEvent.click(screen.getByText("Способы входа и врач"));
   const password = await screen.findByLabelText("Подтвердите пароль кабинета для привязки Telegram");
   fireEvent.change(password, { target: { value: "owner secret password" } });
   fireEvent.click(screen.getByRole("button", { name: "Привязать Telegram" }));
@@ -47,7 +48,7 @@ it("confirms owner credentials for linking and surfaces conflict and expired-ini
   expect(password).toHaveValue("");
   const call = vi.mocked(fetch).mock.calls.find(([url]) => String(url).endsWith("/telegram/link"))!;
   expect(JSON.parse(call[1]!.body as string)).toEqual({ init_data: "raw-signed-data", email: profile.email, password: "owner secret password" });
-  expect(screen.getByRole("heading", { name: "Привет!" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Профиль", exact: true })).toBeInTheDocument();
 });
 
 it("displays the reopen instruction when Telegram data expires and preserves password login", async () => {
@@ -71,10 +72,11 @@ it("starts without contacts or a doctor and adds optional credentials to the sam
   render(<React.StrictMode><OwnerPlatformProvider value={makePlatform()}><CabinetHome /></OwnerPlatformProvider></React.StrictMode>);
   await screen.findByRole("heading", { name: "Привет!" });
   expect(fetcher.mock.calls.filter(([url]) => url.endsWith("/telegram/login"))).toHaveLength(1);
-  expect(screen.getByRole("button", { name: "Добавить животное" })).toBeInTheDocument();
+  expect(await screen.findByRole("button", { name: "Добавить животное" })).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Привязать Telegram" })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("link", { name: "Профиль" }));
   expect(screen.getByLabelText("Электронная почта")).not.toBeRequired();
+  fireEvent.click(screen.getByText("Способы входа и врач"));
   fireEvent.click(screen.getByText("Добавить вход по почте"));
   fireEvent.change(screen.getByLabelText("Почта для входа"), { target: { value: "later@example.com" } });
   fireEvent.change(screen.getByLabelText("Новый пароль"), { target: { value: "new password for owner" } });

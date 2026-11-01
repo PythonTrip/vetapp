@@ -1,7 +1,7 @@
 from datetime import date, datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import Date, DateTime, Float, ForeignKey, Index, String, Uuid, text
+from sqlalchemy import BigInteger, CheckConstraint, Date, DateTime, Float, ForeignKey, Index, String, Uuid, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from vetdietderm_api.db import Base
@@ -94,3 +94,19 @@ class OwnerAnimal(Base):
     birth_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class OwnerUpload(Base):
+    __tablename__ = "owner_uploads"
+    __table_args__ = (CheckConstraint("kind IN ('photo', 'document', 'chat')", name="ck_owner_upload_kind"),)
+    uuid: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid6)
+    owner_account_uuid: Mapped[UUID] = mapped_column(ForeignKey("owner_accounts.uuid", ondelete="CASCADE"), index=True)
+    # Identifies either an OwnerAnimal or an accepted Patient; authorization resolves both.
+    animal_uuid: Mapped[UUID] = mapped_column(Uuid, index=True)
+    message_uuid: Mapped[UUID | None] = mapped_column(ForeignKey("chat_messages.uuid", ondelete="CASCADE"), nullable=True, index=True)
+    kind: Mapped[str] = mapped_column(String(16))
+    filename: Mapped[str] = mapped_column(String(255))
+    content_type: Mapped[str] = mapped_column(String(100))
+    byte_size: Mapped[int] = mapped_column(BigInteger)
+    storage_key: Mapped[str] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)

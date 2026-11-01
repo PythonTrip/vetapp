@@ -1,7 +1,13 @@
 import type { CSSProperties } from "react";
 
-export type CabinetIconName = "home" | "paw" | "chat" | "profile" | "calendar" | "file" | "arrow" | "close" | "back" | "check" | "doctor";
+export type CabinetIconName = "home" | "paw" | "chat" | "profile" | "calendar" | "file" | "arrow" | "close" | "back" | "check" | "doctor" | "attach" | "send" | "moon" | "sun" | "plus" | "edit";
 const paths: Record<CabinetIconName, React.ReactNode> = {
+  attach: <path d="m8 13 7-7a3 3 0 0 1 4 4L9 20a5 5 0 0 1-7-7L13 2a2 2 0 0 1 3 3L6 15" />,
+  send: <><path d="m3 3 18 9-18 9 4-9Zm4 9h14" /></>,
+  moon: <path d="M21 13A9 9 0 0 1 11 3 9 9 0 1 0 21 13Z" />,
+  sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1 1m12 12 1 1M5 19l1-1M18 6l1-1" /></>,
+  plus: <path d="M12 4v16M4 12h16" />,
+  edit: <><path d="m15 3 6 6L9 21H3v-6Zm-2 2 6 6" /></>,
   home: <><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z" /></>,
   paw: <><ellipse cx="8" cy="6" rx="2" ry="2.5" /><ellipse cx="16" cy="6" rx="2" ry="2.5" /><ellipse cx="4" cy="11" rx="1.5" ry="2" /><ellipse cx="20" cy="11" rx="1.5" ry="2" /><path d="M6 18c0-3 4-6 6-6s6 3 6 6c0 4-4 2-6 2s-6 2-6-2Z" /></>,
   chat: <path d="M21 11a9 9 0 0 1-9 9 10 10 0 0 1-4-1l-6 2 2-6a9 9 0 1 1 17-4Z" />,
@@ -18,9 +24,8 @@ export function CabinetIcon({ name, size = 22 }: { name: CabinetIconName; size?:
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
 }
 
-export function PetAvatar({ name, small = false }: { name: string; small?: boolean }) {
-  // The passport API has no photo field. Use the pet's own initial instead of stock pets.
-  return <span className={`pet-avatar${small ? " pet-avatar-small" : ""}`} aria-hidden="true"><CabinetIcon name="paw" size={small ? 20 : 28} /><b>{name.trim().slice(0, 1).toLocaleUpperCase("ru")}</b></span>;
+export function PetAvatar({ name, small = false, photoUrl }: { name: string; small?: boolean; photoUrl?: string | null }) {
+  return <span className={`pet-avatar${small ? " pet-avatar-small" : ""}`} aria-hidden="true">{photoUrl ? <img src={photoUrl} alt="" /> : <><CabinetIcon name="paw" size={small ? 20 : 28} /><b>{name.trim().slice(0, 1).toLocaleUpperCase("ru")}</b></>}</span>;
 }
 
 export function PetPattern() {

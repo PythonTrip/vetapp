@@ -2,11 +2,13 @@ from datetime import datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from vetdietderm_api.owners.schemas import OwnerUploadRead
 
 
 class MessageCreate(BaseModel):
     body: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=4000)]
+    attachment_ids: list[UUID] = Field(default_factory=list, max_length=10)
 
 
 class MessageRead(BaseModel):
@@ -16,3 +18,4 @@ class MessageRead(BaseModel):
     author_label: str
     body: str
     created_at: datetime
+    attachments: list[OwnerUploadRead] = Field(default_factory=list)

@@ -3,11 +3,11 @@ import json
 import secrets
 import time
 from collections.abc import Iterator
-from typing import Annotated
+from typing import Annotated, Literal
 from urllib.parse import parse_qs
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
@@ -20,9 +20,10 @@ from vetdietderm_api.auth import csrf, require_clinical_access, require_user
 from vetdietderm_api.db import get_session_factory
 from vetdietderm_api.ids import uuid6
 from vetdietderm_api.owners import repository as repo
-from vetdietderm_api.owners.models import JoinCode, OwnerAccount, OwnerRegistration, OwnerSession, TelegramExchange, TelegramIdentity, utc_now
+from vetdietderm_api.owners import uploads
+from vetdietderm_api.owners.models import OwnerAnimal, OwnerUpload, JoinCode, OwnerAccount, OwnerRegistration, OwnerSession, TelegramExchange, TelegramIdentity, utc_now
 from vetdietderm_api.owners.schemas import CurrentJoinCode, DoctorPreview, OwnerLogin, OwnerProfileUpdate, OwnerRead, OwnerRegister
-from vetdietderm_api.owners.schemas import AnimalCreate, AnimalRead, AnimalUpdate
+from vetdietderm_api.owners.schemas import OwnerUploadRead, AnimalCreate, AnimalRead, AnimalUpdate
 from vetdietderm_api.owners.schemas import RegistrationAccept, RegistrationAccepted, RegistrationRead
 from vetdietderm_api.owners.schemas import TelegramLogin, TelegramLink, TelegramWidgetLogin, OwnerCredentials, OwnerJoin
 from vetdietderm_api.owners.telegram import validate_init_data, validate_widget
@@ -300,17 +301,17 @@ def download_owner_file(attachment_id: UUID, owner: Owner, db: DB):
 
 @router.get("/owner/animals", response_model=list[AnimalRead])
 def animals(owner: Owner, db: DB):
-    return repo.list_animals(db, owner)
+    return [uploads.photo_read(db, owner, animal) for animal in repo.list_animals(db, owner)]
 
 
 @router.post("/owner/animals", response_model=AnimalRead, status_code=201)
 def add_animal(body: AnimalCreate, owner: Owner, db: DB):
-    return repo.create_animal(db, owner, body)
+    return uploads.photo_read(db, owner, repo.create_animal(db, owner, body))
 
 
 @router.patch("/owner/animals/{animal_id}", response_model=AnimalRead)
 def edit_animal(animal_id: UUID, body: AnimalUpdate, owner: Owner, db: DB):
-    return repo.update_animal(db, owner, animal_id, body)
+    return uploads.photo_read(db, owner, repo.update_animal(db, owner, animal_id, body))
 
 
 @router.get("/owner-registrations", response_model=list[RegistrationRead], dependencies=[Depends(require_clinical_access)])
@@ -336,3 +337,29 @@ def accept(registration_id: UUID, body: RegistrationAccept, request: Request, db
     registration = repo.accept_registration(db, registration_id, body)
     db.commit()
     return dict(uuid=registration.uuid, client_uuid=registration.client_uuid, status=registration.status)
+
+
+@router.get("/owner/animals/{animal_id}/uploads", response_model=list[OwnerUploadRead])
+def uploaded_documents(animal_id: UUID, owner: Owner, db: DB):
+    return uploads.list_files(db, owner, animal_id)
+
+
+@router.post("/owner/animals/{animal_id}/uploads", response_model=OwnerUploadRead, status_code=201)
+def upload_owner_media(animal_id: UUID, file: UploadFile, kind: Annotated[Literal["photo", "document", "chat"], Form()], owner: Owner, db: DB):
+    return uploads.upload(db, owner, animal_id, file, kind)
+
+
+@router.get("/owner/uploads/{upload_id}")
+def download_owner_upload(upload_id: UUID, owner: Owner, db: DB):
+    row = db.scalar(select(OwnerUpload).where(OwnerUpload.uuid == upload_id, OwnerUpload.owner_account_uuid == owner.uuid))
+    if row is None:
+        raise HTTPException(404, "Файл не найден")
+    # Resolve ownership again, so a removed animal does not leave a readable URL.
+    current = next((animal.uuid for animal in repo.list_animals(db, owner) if animal.uuid == row.animal_uuid), None)
+    if current is None:
+        previous = db.get(OwnerAnimal, row.animal_uuid)
+        current = previous.patient_uuid if previous else None
+    if current is None:
+        raise HTTPException(404, "Животное не найдено")
+    uploads.animal_ids(db, owner, current)
+    return uploads.download(row, inline=row.kind == "photo")
