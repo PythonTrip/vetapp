@@ -75,10 +75,13 @@
 .booking-form input[type="radio"] { accent-color: var(--primary); min-height: 16px; width: 16px; height: 16px; }
 .booking-form button[type="submit"], .booking-form button[value="continue"] { width: 100%; min-height: 52px; }
 .booking-pets legend, .booking-label { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
-.booking-pets > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.booking-pet { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px; background: var(--background); border: 1px solid transparent; border-radius: 16px; overflow-wrap: anywhere; }
+.booking-pets > div { display: flex; flex-direction: column; gap: 8px; }
+.booking-pet { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 8px 12px; background: var(--background); border: 1px solid transparent; border-radius: 12px; cursor: pointer; overflow-wrap: anywhere; }
+.booking-pet > .pet-avatar { flex-shrink: 0; width: 40px; height: 40px; }
+.booking-pet-details { flex: 1; min-width: 0; }
+.booking-pet-details strong, .booking-pet-details small { display: block; line-height: 20px; }
 .booking-pet:has(input:checked) { border-color: var(--primary); background: var(--accent); }
-.booking-pet input { position: absolute; right: 12px; top: 12px; }
+.booking-pet input { flex-shrink: 0; margin: 0; accent-color: var(--primary); }
 .booking-doctor { display: flex; align-items: center; gap: 12px; border: 1px solid var(--primary); background: var(--accent); padding: 12px; border-radius: 16px; }
 .booking-doctor input { position: absolute; opacity: 0; }
 .booking-doctor:focus-within { outline: 2px solid var(--ring); outline-offset: 3px; }

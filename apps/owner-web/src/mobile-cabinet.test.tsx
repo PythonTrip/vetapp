@@ -19,7 +19,8 @@ describe("mobile owner cabinet", () => {
     render(<VisitRequestForm animalId="cat" animalName="Луна" doctorName="Врач кабинета" animals={[{ uuid: "cat", name: "Луна", species: "cat" }, { uuid: "dog", name: "Оскар", species: "dog" }]} onChanged={vi.fn()} onClose={close} />);
     await screen.findByText("Для этого типа визита анкета не требуется.");
     fireEvent.click(screen.getByRole("radio", { name: "Оскар", exact: true }));
-    fireEvent.change(screen.getByLabelText("Причина обращения"), { target: { value: "Снизился аппетит" } });
+    fireEvent.click(screen.getByRole("button", { name: "Продолжить" }));
+    expect(screen.getByRole("heading", { name: "Расскажите о питомце" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Продолжить" }));
     expect(screen.getByRole("heading", { name: "Выберите ветеринара" })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /Врач кабинета/ })).toBeChecked();
@@ -31,7 +32,8 @@ describe("mobile owner cabinet", () => {
     expect(screen.getByText("Оскар · Первичный")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Отправить заявку" }));
     await screen.findByRole("heading", { name: "Заявка отправлена" });
-    expect(create).toHaveBeenCalledWith("dog", expect.objectContaining({ reason: "Снизился аппетит", proposed_starts_at: new Date("2099-11-01T15:00").toISOString() }));
+    expect(create).toHaveBeenCalledWith("dog", expect.objectContaining({ proposed_starts_at: new Date("2099-11-01T15:00").toISOString() }));
+    expect(create.mock.calls[0][1]).not.toHaveProperty("reason");
     fireEvent.click(screen.getByRole("button", { name: "К консультациям" }));
     expect(close).toHaveBeenCalledWith("dog");
   });

@@ -37,8 +37,11 @@ describe("owner visit request", () => {
     const onClose = vi.fn();
     render(<VisitRequestForm animalId="animal-1" onChanged={vi.fn()} onClose={onClose} />);
     await screen.findByLabelText("Что беспокоит? *");
-    fireEvent.change(screen.getByLabelText("Причина обращения"), { target: { value: "Зуд" } });
+    expect(screen.queryByLabelText("Причина обращения")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Что беспокоит? *")).not.toBeVisible();
     expect(Array.from((screen.getByLabelText("Тип визита") as HTMLSelectElement).options).map(option => option.text)).toEqual(["Первичный", "Повторный", "Консультация", "Курирование"]);
+    fireEvent.click(screen.getByRole("button", { name: "Продолжить" }));
+    expect(screen.getByLabelText("Что беспокоит? *")).toBeVisible();
     fireEvent.change(screen.getByLabelText("Предлагаемые дата и время"), { target: { value: "2026-11-01T10:00" } });
     fireEvent.change(screen.getByLabelText("Что беспокоит? *"), { target: { value: "Зуд" } });
     expect(screen.getByRole("button", { name: "Продолжить" })).toBeDisabled();
@@ -51,7 +54,7 @@ describe("owner visit request", () => {
     fireEvent.click(screen.getByRole("button", { name: "Отправить заявку" }));
     await screen.findByRole("heading", { name: "Заявка отправлена" });
     expect(create).toHaveBeenCalledWith("animal-1", {
-      visit_type: "primary", reason: "Зуд", proposed_starts_at: new Date("2026-11-01T10:00").toISOString(),
+      visit_type: "primary", proposed_starts_at: new Date("2026-11-01T10:00").toISOString(),
       answers: [{ question_id: "q1", value: "Зуд" }, { question_id: "q2", value: "no" }],
     });
     expect(screen.queryByLabelText(/Длительность|Подтвержд/)).not.toBeInTheDocument();
@@ -66,7 +69,7 @@ describe("owner visit request", () => {
     const onClose = vi.fn();
     render(<VisitRequestForm animalId="animal-1" onChanged={vi.fn()} onClose={onClose} />);
     await screen.findByText("Для этого типа визита анкета не требуется.");
-    fireEvent.change(screen.getByLabelText("Причина обращения"), { target: { value: "Проверка питания" } });
+    fireEvent.click(screen.getByRole("button", { name: "Продолжить" }));
     fireEvent.click(screen.getByRole("button", { name: "Продолжить" }));
     const first = new File(["a"], "a.jpg", { type: "image/jpeg" });
     const second = new File(["b"], "b.pdf", { type: "application/pdf" });
@@ -88,7 +91,7 @@ describe("owner visit request", () => {
     const onClose = vi.fn();
     render(<VisitRequestForm animalId="animal-1" animalName="Мурка" onChanged={vi.fn()} onClose={onClose} />);
     await screen.findByText("Для этого типа визита анкета не требуется.");
-    fireEvent.change(screen.getByLabelText("Причина обращения"), { target: { value: "Проверка аппетита" } });
+    fireEvent.click(screen.getByRole("button", { name: "Продолжить" }));
     fireEvent.click(screen.getByRole("button", { name: "Продолжить" }));
     fireEvent.change(screen.getByLabelText("Предлагаемые дата и время"), { target: { value: "2026-11-02T12:00" } });
     fireEvent.click(screen.getByRole("button", { name: "Продолжить" }));
@@ -96,7 +99,7 @@ describe("owner visit request", () => {
     fireEvent.click(screen.getByRole("button", { name: "Отправить заявку" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Не удалось связаться с сервером");
     expect(screen.getByRole("heading", { name: "Проверьте перед отправкой" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Причина обращения")).toHaveValue("Проверка аппетита");
+    expect(screen.getByLabelText("Предлагаемые дата и время")).toHaveValue("2026-11-02T12:00");
     expect(screen.queryByRole("heading", { name: "Заявка отправлена" })).not.toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
   });

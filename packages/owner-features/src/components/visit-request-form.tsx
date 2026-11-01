@@ -51,7 +51,6 @@ export function VisitRequestForm({ animalId, animalName, animals, doctorName, on
   const chosenAnimalName = animals?.find(animal => animal.uuid === chosenAnimalId)?.name ?? animalName;
   const id = React.useId();
   const [type, setType] = React.useState<BookableVisitType>("primary");
-  const [reason, setReason] = React.useState("");
   const [questions, setQuestions] = React.useState<VisitQuestion[]>([]);
   const [answers, setAnswers] = React.useState<Record<string, VisitAnswerValue>>({});
   const [startsAt, setStartsAt] = React.useState("");
@@ -73,7 +72,7 @@ export function VisitRequestForm({ animalId, animalName, animals, doctorName, on
     return () => { active = false; };
   }, [type, reload]);
   const validTime = Boolean(startsAt) && Number.isFinite(new Date(startsAt).getTime());
-  const ready = !loading && !questionError && validTime && reason.trim() && questions.every(q => hasAnswer(q, answers[q.uuid]));
+  const ready = !loading && !questionError && validTime && questions.every(q => hasAnswer(q, answers[q.uuid]));
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (busy || (!createdId && !ready)) return;
@@ -81,7 +80,7 @@ export function VisitRequestForm({ animalId, animalName, animals, doctorName, on
     let requestId = createdId;
     try {
       if (!requestId) {
-        const visit = await ownerVisits.create(chosenAnimalId, { visit_type: type, reason: reason.trim(), proposed_starts_at: new Date(startsAt).toISOString(), answers: questions.map(q => ({ question_id: q.uuid, value: answers[q.uuid] })) });
+        const visit = await ownerVisits.create(chosenAnimalId, { visit_type: type, proposed_starts_at: new Date(startsAt).toISOString(), answers: questions.map(q => ({ question_id: q.uuid, value: answers[q.uuid] })) });
         requestId = visit.uuid; setCreatedId(visit.uuid); onChanged();
       }
       // Remove successful uploads immediately. Retrying a failed upload never
@@ -97,30 +96,31 @@ export function VisitRequestForm({ animalId, animalName, animals, doctorName, on
     } finally { setBusy(false); onBusyChange?.(false); }
   }
   if (sent) return <section className="space-y-4 rounded-xl bg-accent p-5" aria-label="Заявка отправлена"><h3 className="text-lg font-semibold" tabIndex={-1} ref={node => node?.focus()}>Заявка отправлена</h3><p className="text-sm">{chosenAnimalName && `${chosenAnimalName} · `}{formatDateTime(new Date(startsAt).toISOString())}</p><p className="text-sm">Ожидает подтверждения. Врач рассмотрит анкету и подтвердит время. Статус и окончательное время появятся в разделе «Консультации».</p><Button type="button" onClick={() => onClose(chosenAnimalId)}>К консультациям</Button></section>;
-  return <form onSubmit={event => { event.preventDefault(); if (step === 3 || createdId) void submit(event); }} className="booking-form min-w-0 space-y-5">
+  return <form onSubmit={event => { event.preventDefault(); if (step === 4 || createdId) void submit(event); }} className="booking-form min-w-0 space-y-5">
       {step > 0 && !createdId && <Button type="button" variant="outline" className="booking-back" aria-label="Назад" disabled={busy} onClick={() => setStep(value => value - 1)}><CabinetIcon name="back" /><span>Назад</span></Button>}
-    <p className="booking-progress" role="status">Шаг {step + 1} из 4</p>
-    <h3 className="booking-title" tabIndex={-1} ref={titleRef}>{["Кому нужна консультация?", "Выберите ветеринара", "Выберите дату и время", "Подтвердите заявку"][step]}</h3>
-    <p className="booking-subtitle">{["Выберите питомца и причину обращения", "Консультация с врачом вашего кабинета", "Предложите удобное время для консультации", "Проверьте данные перед отправкой врачу"][step]}</p>
+    <p className="booking-progress" role="status">Шаг {step + 1} из 5</p>
+    <h3 className="booking-title" tabIndex={-1} ref={titleRef}>{["Кому нужна консультация?", "Расскажите о питомце", "Выберите ветеринара", "Выберите дату и время", "Подтвердите заявку"][step]}</h3>
+    <p className="booking-subtitle">{["Выберите питомца и тип приёма", "Заполните анкету перед приёмом", "Консультация с врачом вашего кабинета", "Предложите удобное время для консультации", "Проверьте данные перед отправкой врачу"][step]}</p>
     <fieldset disabled={busy || createdId !== null} className="min-w-0 space-y-3">
       <div hidden={step !== 0} className="space-y-4">
-      {animals?.length ? <fieldset className="booking-pets"><legend>Питомец</legend><div>{animals.map(animal => <label key={animal.uuid} className="booking-pet"><input type="radio" name={`${id}-pet`} value={animal.uuid} aria-label={animal.name} checked={chosenAnimalId === animal.uuid} onChange={() => setChosenAnimalId(animal.uuid)} /><PetAvatar name={animal.name} small /><strong>{animal.name}</strong><small>{speciesLabel(animal.species)}</small></label>)}</div></fieldset> : animalName && <p className="booking-context"><CabinetIcon name="paw" />{animalName}</p>}
-      <div className="space-y-2"><label htmlFor={`${id}-reason`} className="text-sm font-medium">Причина обращения</label><Textarea id={`${id}-reason`} required maxLength={4000} value={reason} onChange={event => setReason(event.target.value)} placeholder="Что беспокоит питомца и как давно?" /></div>
+      {animals?.length ? <fieldset className="booking-pets"><legend>Питомец</legend><div>{animals.map(animal => <label key={animal.uuid} className="booking-pet"><PetAvatar name={animal.name} small /><span className="booking-pet-details"><strong>{animal.name}</strong><small>{speciesLabel(animal.species)}</small></span><input type="radio" name={`${id}-pet`} value={animal.uuid} aria-label={animal.name} checked={chosenAnimalId === animal.uuid} onChange={() => setChosenAnimalId(animal.uuid)} /></label>)}</div></fieldset> : animalName && <p className="booking-context"><CabinetIcon name="paw" />{animalName}</p>}
       <div className="space-y-1"><label htmlFor={`${id}-type`} className="text-sm font-medium">Тип визита</label>
         <select id={`${id}-type`} className="sr-only" tabIndex={-1} value={type} onChange={event => { setLoading(true); setType(event.target.value as BookableVisitType); }}>
           {BOOKABLE_VISIT_TYPES.map(value => <option key={value} value={value}>{VISIT_TYPE_LABELS[value]}</option>)}
         </select>
         <div className="booking-reasons" role="group" aria-label="Тип обращения">{BOOKABLE_VISIT_TYPES.map(value => <button type="button" key={value} aria-pressed={type === value} onClick={() => { if (value !== type) { setLoading(true); setType(value); } }}><span className="reason-icon"><CabinetIcon name={value === "primary" ? "doctor" : value === "secondary" ? "calendar" : value === "consultation" ? "chat" : "file"} /></span><span><strong>{VISIT_TYPE_LABELS[value]}</strong><small>{{ primary: "Первое обращение по проблеме", secondary: "Контроль состояния после приёма", consultation: "Вопросы о здоровье и уходе", supervision: "Наблюдение и сопровождение лечения" }[value]}</small></span><span className="reason-check">{type === value && <CabinetIcon name="check" size={14} />}</span></button>)}</div>
       </div>
+      </div>
+      <div hidden={step !== 1} className="space-y-4">
       {loading && <p role="status" className="text-sm">Загрузка анкеты…</p>}
       {questionError && <div className="space-y-2"><p role="alert" className="text-sm text-destructive">{questionError}</p><Button type="button" variant="outline" onClick={() => setReload(value => value + 1)}>Повторить загрузку анкеты</Button></div>}
       {!loading && !questionError && (questions.length ? <><p className="text-sm text-muted-foreground">Все вопросы обязательны</p>{questions.map(question => <QuestionField key={question.uuid} question={question} value={answers[question.uuid]} onChange={value => setAnswers(current => ({ ...current, [question.uuid]: value }))} />)}</> : <p className="text-sm text-muted-foreground">Для этого типа визита анкета не требуется.</p>)}
       </div>
-      <div hidden={step !== 1} className="space-y-4">
+      <div hidden={step !== 2} className="space-y-4">
         <fieldset><legend className="booking-label">Ветеринар вашего кабинета</legend><label className="booking-doctor"><input type="radio" checked readOnly name={`${id}-doctor`} /><span className="doctor-initials" aria-hidden="true">{doctorName ? doctorName.split(" ").filter(Boolean).slice(0, 2).map(part => part[0]).join("") : <CabinetIcon name="doctor" />}</span><span><strong>{doctorName || "Подключённый врач"}</strong><small>Врач рассмотрит вашу заявку</small></span><CabinetIcon name="check" /></label></fieldset>
         <p className="booking-context"><CabinetIcon name="doctor" />Переписка, фото и рекомендации — в чате с врачом. Доступен врач, подключённый к вашему кабинету.</p>
       </div>
-      <div hidden={step !== 2} className="space-y-4">
+      <div hidden={step !== 3} className="space-y-4">
       <BookingDatePicker id={`${id}-time`} value={startsAt} onChange={setStartsAt} />
       <div className="min-w-0 space-y-1"><label htmlFor={`${id}-files`} className="text-sm font-medium">Фото и документы</label>
         <Input id={`${id}-files`} className="h-auto min-w-0 py-2" type="file" multiple accept={allowedTypes.join(",")} onChange={event => {
@@ -135,13 +135,13 @@ export function VisitRequestForm({ animalId, animalName, animals, doctorName, on
       </div>
       </div>
     </fieldset>
-    {step === 3 && <div className="space-y-3 text-sm"><h4 className="font-semibold">Проверьте перед отправкой</h4><p>{chosenAnimalName ? `${chosenAnimalName} · ` : ""}{VISIT_TYPE_LABELS[type]}</p>{doctorName && <p>{doctorName}</p>}<p className="whitespace-pre-wrap break-words">{reason}</p><p>Предложено: {formatDateTime(new Date(startsAt).toISOString())}</p><dl className="space-y-2">{questions.map(q => <div key={q.uuid}><dt className="font-medium">{q.label}</dt><dd className="whitespace-pre-wrap break-words">{visitAnswerLabel({ ...q, question_id: q.uuid, value: answers[q.uuid] })}</dd></div>)}</dl></div>}
+    {step === 4 && <div className="space-y-3 text-sm"><h4 className="font-semibold">Проверьте перед отправкой</h4><p>{chosenAnimalName ? `${chosenAnimalName} · ` : ""}{VISIT_TYPE_LABELS[type]}</p>{doctorName && <p>{doctorName}</p>}<p>Предложено: {formatDateTime(new Date(startsAt).toISOString())}</p><dl className="space-y-2">{questions.map(q => <div key={q.uuid}><dt className="font-medium">{q.label}</dt><dd className="whitespace-pre-wrap break-words">{visitAnswerLabel({ ...q, question_id: q.uuid, value: answers[q.uuid] })}</dd></div>)}</dl></div>}
     {files.length > 0 && <ul className="space-y-1 text-sm">{files.map((file, index) => <li key={`${file.name}-${index}`} className="break-words">{file.name}</li>)}</ul>}
     {error && <p role="alert" className="break-words text-sm text-destructive">{error}</p>}
     <div className="booking-footer flex flex-col gap-2">
-      {(step === 3 || createdId) ? <Button key="send" type="submit" disabled={busy || (!createdId && !ready)}>{busy ? "Отправка…" : createdId ? "Повторить загрузку файлов" : "Отправить заявку"}</Button> : <Button key="continue" className="booking-next" type="button" disabled={busy || (step === 0 ? !reason.trim() || loading || Boolean(questionError) || !questions.every(q => hasAnswer(q, answers[q.uuid])) : step === 2 ? !validTime : false)} onClick={event => { event.preventDefault(); setStep(value => value + 1); }}>Продолжить<CabinetIcon name="arrow" size={18} /></Button>}
+      {(step === 4 || createdId) ? <Button key="send" type="submit" disabled={busy || (!createdId && !ready)}>{busy ? "Отправка…" : createdId ? "Повторить загрузку файлов" : "Отправить заявку"}</Button> : <Button key="continue" className="booking-next" type="button" disabled={busy || (step === 1 ? loading || Boolean(questionError) || !questions.every(q => hasAnswer(q, answers[q.uuid])) : step === 3 ? !validTime : false)} onClick={event => { event.preventDefault(); setStep(value => value + 1); }}>Продолжить<CabinetIcon name="arrow" size={18} /></Button>}
       <Button type="button" variant="outline" className="booking-cancel" disabled={busy} onClick={() => onClose(createdId ? chosenAnimalId : undefined)}>{createdId ? "Закрыть — заявка уже создана" : "Отмена"}</Button>
-      {step === 0 && !createdId && !loading && !questionError && <Button type="button" variant="ghost" className="booking-refresh" disabled={busy} onClick={() => setReload(value => value + 1)}>Обновить анкету</Button>}
+      {step === 1 && !createdId && !loading && !questionError && <Button type="button" variant="ghost" className="booking-refresh" disabled={busy} onClick={() => setReload(value => value + 1)}>Обновить анкету</Button>}
     </div>
   </form>;
 }
