@@ -259,3 +259,39 @@
 
 .owner-account-methods > summary { min-height: 44px; cursor: pointer; font-weight: 600; }
 .owner-account-methods[open] > div { margin-top: 16px; }
+
+/* Messages owns one visible viewport; only its feed scrolls. */
+.owner-cabinet[data-section="chat"] {
+  position: fixed;
+  top: calc(var(--owner-chat-top, 0px) + max(8px, env(safe-area-inset-top), var(--tg-content-safe-area-inset-top, 0px)));
+  left: max(16px, calc((100vw - 640px) / 2));
+  right: max(16px, calc((100vw - 640px) / 2));
+  height: calc(var(--owner-chat-height, var(--tg-viewport-stable-height, 100dvh)) - max(8px, env(safe-area-inset-top), var(--tg-content-safe-area-inset-top, 0px)));
+  gap: 8px;
+  overflow: hidden;
+}
+.owner-cabinet[data-section="chat"] > .owner-brand-header { flex: none; min-height: 44px; }
+.owner-cabinet[data-section="chat"] > div:not([hidden]) { display: flex; flex: 1; min-height: 0; }
+.owner-cabinet[data-section="chat"] .owner-animal-content { flex: 1; min-height: 0; gap: 8px; padding: 0; }
+.owner-cabinet[data-section="chat"] .owner-selected-content { flex: 1; min-height: 0; gap: 0; }
+.owner-cabinet[data-section="chat"] .owner-page-heading { flex: none; }
+.owner-cabinet[data-section="chat"] .owner-page-heading h1 { font-size: 20px; line-height: 28px; }
+.owner-cabinet[data-section="chat"] .owner-pet-selector { flex: none; gap: 8px; }
+.owner-cabinet[data-section="chat"] .owner-pet-selector select { min-height: 44px; height: 44px; padding: 8px 12px; }
+.owner-cabinet[data-section="chat"] .owner-chat { flex: 1; height: auto; min-height: 0; gap: 8px; overflow: hidden; }
+.owner-cabinet[data-section="chat"] .owner-chat-contact { flex: none; gap: 8px; padding: 8px 12px; }
+.owner-cabinet[data-section="chat"] .owner-chat-contact h4 { font-size: 14px; line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.owner-cabinet[data-section="chat"] .owner-chat-contact p { font-size: 12px; line-height: 16px; }
+.owner-cabinet[data-section="chat"] .owner-chat-avatar { width: 32px; height: 32px; border-radius: 8px; }
+.owner-cabinet[data-section="chat"] .owner-chat-avatar svg { width: 20px; height: 20px; }
+.owner-cabinet[data-section="chat"] .owner-chat-feed { padding: 8px 0; gap: 8px; }
+.owner-chat .owner-chat-bubble time { display: block; margin-top: 4px; text-align: right; font-size: 12px; line-height: 16px; color: var(--foreground); }
+.owner-cabinet[data-section="chat"] .owner-chat-composer { flex: none; padding: 8px 0; }
+.owner-cabinet[data-section="chat"] .owner-chat-input { field-sizing: fixed; min-height: 48px; max-height: 96px; overflow-y: auto; }
+.owner-cabinet[data-section="chat"] .owner-chat-pending { max-height: clamp(44px, calc(var(--owner-chat-height, 100dvh) * .12), 88px); }
+.owner-cabinet[data-section="chat"] .owner-chat-error { flex: none; max-height: 80px; overflow-y: auto; }
+.owner-cabinet[data-section="chat"] .cabinet-nav { position: static; order: 10; width: 100vw; align-self: center; flex: none; margin: 0; }
+.owner-cabinet[data-section="chat"]:is([data-keyboard-open="true"], [data-compact-viewport="true"]) > .owner-brand-header,
+.owner-cabinet[data-section="chat"]:is([data-keyboard-open="true"], [data-compact-viewport="true"]) .owner-page-heading { display: none; }
+.owner-cabinet[data-section="chat"]:is([data-keyboard-open="true"], [data-compact-viewport="true"]) .cabinet-nav { padding-top: 4px; padding-bottom: 4px; }
+.owner-cabinet[data-section="chat"]:is([data-keyboard-open="true"], [data-compact-viewport="true"]) .cabinet-nav a { min-height: 48px; }

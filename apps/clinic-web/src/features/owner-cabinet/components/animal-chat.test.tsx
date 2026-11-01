@@ -21,8 +21,11 @@ describe("animal chat", () => {
       : json(messages));
     vi.stubGlobal("fetch", fetcher);
     const { container } = render(<AnimalChat path="/owner/animals/animal-1/chat" ownerView />);
-    expect(await screen.findByText("Вы")).toBeInTheDocument();
-    expect(screen.getByText("Доктор Иванова")).toBeInTheDocument();
+    await screen.findByText("<script>alert(1)</script>");
+    expect(screen.queryByText("Вы")).not.toBeInTheDocument();
+    expect(container.querySelector(".owner-chat-bubble time")).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Обновить" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Доктор Иванова")).not.toBeInTheDocument();
     expect(screen.getByText("<script>alert(1)</script>")).toBeInTheDocument();
     expect(container.querySelector("script")).toBeNull();
     const field = screen.getByLabelText("Сообщение");
@@ -44,7 +47,7 @@ describe("animal chat", () => {
     vi.stubGlobal("fetch", fetcher);
     render(<AnimalChat path="/owner/animals/animal-1/chat" ownerView />);
     expect(await screen.findByRole("alert")).toHaveTextContent("Ошибка загрузки");
-    fireEvent.click(screen.getByRole("button", { name: "Обновить" }));
+    fireEvent.click(screen.getByRole("button", { name: "Повторить загрузку" }));
     await screen.findByText("Сообщений пока нет");
     fireEvent.change(screen.getByLabelText("Сообщение"), { target: { value: " \n " } });
     expect(screen.getByRole("button", { name: "Отправить" })).toBeDisabled();

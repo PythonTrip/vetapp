@@ -13,6 +13,7 @@ import { DoctorBlock } from "./doctor-block";
 import { AnimalList } from "./animal-list";
 import { CabinetIcon, type CabinetIconName } from "./cabinet-visuals";
 import { ConnectionStatus } from "./connection-status";
+import { useChatViewport } from "./use-chat-viewport";
 
 const sections = [
   ["home", "Главная"], ["visits", "Консультации"], ["pets", "Питомцы"], ["passport", "Паспорт"], ["results", "Результаты"], ["chat", "Сообщения"], ["profile", "Профиль"],
@@ -32,6 +33,8 @@ export function CabinetHome() {
   function toggleTheme() { const next = !dark; setDark(next); document.documentElement.classList.toggle("dark", next); try { localStorage.setItem("theme", next ? "dark" : "light"); } catch { /* Keep the selected theme for this session. */ } }
   const [telegramPassword, setTelegramPassword] = React.useState("");
   const [section, setSection] = React.useState<CabinetSection>("home");
+  const cabinetRef = React.useRef<HTMLDivElement>(null);
+  useChatViewport(cabinetRef, Boolean(owner && section === "chat"), platform.kind);
   React.useEffect(() => { window.scrollTo(0, 0); setNotice(""); }, [section]);
   const autoAttempted = React.useRef(false);
   const loggedOut = React.useRef(false);
@@ -118,7 +121,7 @@ export function CabinetHome() {
       </form>
     </details>}
   </>;
-  return <div data-owner-cabinet data-section={section} className="owner-cabinet">
+  return <div ref={cabinetRef} data-owner-cabinet data-section={section} className="owner-cabinet">
     <header className={owner && section !== "home" ? "owner-brand-header" : "cabinet-header"}>
       {owner && section !== "home" ? <a href="#home" className="owner-brand" aria-label="На главную" onClick={() => setSection("home")}><span><CabinetIcon name="paw" size={26} /></span>Вет <b>Хелп</b></a> : <div><h1>{owner ? "Привет!" : "Войти в кабинет"}</h1><p>{owner ? "Всё для здоровья ваших питомцев" : "Кабинет владельца животного"}</p></div>}
       {owner && <div className="owner-header-actions">{section !== "home" && <button type="button" className="owner-icon-button" aria-label={dark ? "Включить светлую тему" : "Включить тёмную тему"} onClick={toggleTheme}><CabinetIcon name={dark ? "sun" : "moon"} /></button>}<a className="profile-avatar" href="#profile" aria-label="Мой профиль" onClick={() => setSection("profile")}>{owner.name.trim().slice(0, 1).toLocaleUpperCase("ru")}</a></div>}

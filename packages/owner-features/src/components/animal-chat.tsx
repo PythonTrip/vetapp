@@ -20,6 +20,7 @@ export function AnimalChat({ path, ownerView = true, canReply = true, transport 
   const fileId = React.useId();
   const generation = React.useRef(0);
   const feed = React.useRef<HTMLOListElement>(null);
+  const feedNotice = ownerView ? error : "";
   const load = React.useCallback(async (background = false) => {
     const current = ++generation.current;
     if (!background) { setLoading(true); setError(""); }
@@ -29,7 +30,7 @@ export function AnimalChat({ path, ownerView = true, canReply = true, transport 
   }, [path, ownerView, transport]);
   React.useEffect(() => { void load(); return () => { generation.current++; }; }, [load]);
   React.useEffect(() => { const timer = window.setInterval(() => { if (!document.hidden) void load(true); }, 30_000); return () => window.clearInterval(timer); }, [load]);
-  React.useEffect(() => { const element = feed.current; if (element) element.scrollTop = element.scrollHeight; }, [messages.length]);
+  React.useEffect(() => { const element = feed.current; if (element) element.scrollTop = element.scrollHeight; }, [messages.length, feedNotice]);
   async function send() {
     if (sending || loading || !canReply || (!body.trim() && !pending.length) || body.trim().length > 4000) return;
     setSending(true); setError("");
@@ -51,22 +52,24 @@ export function AnimalChat({ path, ownerView = true, canReply = true, transport 
   return <section aria-labelledby={titleId} className={ownerView ? "owner-chat" : "min-w-0 space-y-3 rounded-md border bg-background p-3 sm:p-4"}>
     <div className={ownerView ? "owner-chat-contact" : "flex flex-wrap items-center justify-between gap-2"}>
       {ownerView && <span className="owner-chat-avatar"><CabinetIcon name="profile" size={24} /></span>}
-      <div><h4 id={titleId} className="font-semibold">{doctorName || "Переписка"}</h4>{animalName && <p>Ветеринар · {animalName}</p>}</div>
-      <Button type="button" size="sm" variant="ghost" disabled={loading || sending} onClick={() => void load()}>Обновить</Button>
+      <div><h4 id={titleId} title={doctorName} className="font-semibold">{doctorName || "Переписка"}</h4>{animalName && <p>Ветеринар{!ownerView && ` · ${animalName}`}</p>}</div>
+      {!ownerView && <Button type="button" size="sm" variant="ghost" disabled={loading || sending} onClick={() => void load()}>Обновить</Button>}
     </div>
     {loading && <p role="status" className="text-sm">Загрузка сообщений…</p>}
-    {error && <p role="alert" className="break-words text-sm text-destructive">{error}</p>}
+    {error && !ownerView && <p role="alert" className="break-words text-sm text-destructive">{error}</p>}
     <ol ref={feed} aria-label="Сообщения" className={ownerView ? "owner-chat-feed" : "max-h-96 space-y-3 overflow-y-auto text-sm"}>
       {!loading && !error && messages.length === 0 && <li className="owner-chat-empty"><span><CabinetIcon name="chat" size={48} /></span><h3>Начните диалог с врачом</h3><p>Сообщений пока нет</p><p>Здесь будет храниться история ваших сообщений о здоровье питомца.</p></li>}
       {messages.map(message => <li key={message.uuid} className={ownerView ? `owner-chat-message ${message.author_kind === "owner" ? "is-own" : ""}` : `min-w-0 rounded-md p-3 ${message.author_kind === "staff" ? "bg-muted" : "border"}`}>
-        <div className="owner-chat-bubble"><span className="owner-chat-author">{ownerView && message.author_kind === "owner" ? "Вы" : message.author_label}</span><p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{message.body}</p>
+        <div className="owner-chat-bubble">{!ownerView && <span className="owner-chat-author">{message.author_label}</span>}<p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{message.body}</p>
           {message.attachments?.map(file => <button type="button" className="owner-chat-file" key={file.uuid} disabled={downloading || !transport.download} onClick={async () => {
             if (!transport.download) return; setDownloading(true); setError("");
             try { await platform.saveFile(await transport.download(path, file.uuid), file.filename); } catch (cause) { setError(ownerError(cause)); } finally { setDownloading(false); }
           }}><CabinetIcon name={file.content_type.startsWith("image/") ? "attach" : "file"} size={18} /><span>{file.filename}<small>{Math.max(1, Math.round(file.byte_size / 1024))} КБ · Скачать</small></span></button>)}
+          {ownerView && <time dateTime={message.created_at} title={new Date(message.created_at).toLocaleString("ru-RU")}>{new Date(message.created_at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}</time>}
         </div>
-        <time dateTime={message.created_at}>{new Date(message.created_at).toLocaleString("ru-RU", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</time>
+        {!ownerView && <time dateTime={message.created_at}>{new Date(message.created_at).toLocaleString("ru-RU", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</time>}
       </li>)}
+      {error && ownerView && <li className="owner-chat-error"><p role="alert" className="break-words text-sm text-destructive">{error}</p><Button type="button" size="sm" variant="ghost" disabled={loading || sending} onClick={() => void load()}>Повторить загрузку</Button></li>}
     </ol>
     {canReply ? <form className={ownerView ? "owner-chat-composer" : "space-y-2"} onSubmit={event => { event.preventDefault(); void send(); }}>
       {pending.length > 0 && <ul className="owner-chat-pending">{pending.map((item, index) => <li key={index}><CabinetIcon name="attach" size={16} /><span>{item.file.name}</span><button type="button" aria-label={`Убрать ${item.file.name}`} disabled={sending} onClick={() => setPending(current => current.filter(value => value !== item))}><CabinetIcon name="close" size={18} /></button></li>)}</ul>}
@@ -82,7 +85,7 @@ export function AnimalChat({ path, ownerView = true, canReply = true, transport 
         <Button type="submit" className={ownerView ? "owner-chat-send" : ""} aria-label={sending ? "Отправка…" : "Отправить"} disabled={loading || sending || (!body.trim() && !pending.length)}>{ownerView ? <CabinetIcon name="send" size={21} /> : sending ? "Отправка…" : "Отправить"}</Button>
       </div>
       {!ownerView && <span className="text-xs text-muted-foreground">{body.length} / 4000</span>}
-      {sending && <p role="status" className="text-sm">Отправка сообщения и вложений…</p>}
+      {sending && <p role="status" className={ownerView ? "sr-only" : "text-sm"}>Отправка сообщения и вложений…</p>}
     </form> : <p className="text-sm text-muted-foreground">Переписка доступна только для чтения.</p>}
   </section>;
 }
