@@ -161,6 +161,10 @@ def require_status(row, status):
 def copy_gallery(db, row, file, keys):
     if row.patient_uuid is None or file.gallery_copied:
         return
+    account = db.get(OwnerAccount, row.owner_account_uuid)
+    code = db.get(JoinCode, account.join_code_uuid) if account and account.join_code_uuid else None
+    if code is None:
+        raise HTTPException(404, "Код не найден")
     try:
         path = storage.resolve_file(file.storage_key)
     except FileNotFoundError:
@@ -170,8 +174,11 @@ def copy_gallery(db, row, file, keys):
         upload = UploadFile(stream, headers=Headers({"content-type": file.content_type}))
         attachment = create_attachment(db, row.patient_uuid, upload,
             AttachmentKind.document if file.content_type == "application/pdf" else AttachmentKind.lesion_photo,
-            None, None, None, None, owner_visible=True, uploaded_by_owner=True, commit=False)
+            None, None, None, None, owner_visible=True, uploaded_by_owner=True,
+            tenant_id=code.tenant_id, created_by=code.doctor_user_id, commit=False)
     keys.append(attachment.storage_key)
+    if attachment.created_by != code.doctor_user_id:
+        raise HTTPException(404, "Файл не найден")
     file.gallery_copied = True
 
 

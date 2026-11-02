@@ -9,8 +9,83 @@ from tests.test_owner_cabinet import cabinet, register  # noqa: F401
 from vetdietderm_api.appointments.models import Appointment
 from vetdietderm_api.attachments import storage
 from vetdietderm_api.attachments.models import Attachment
-from vetdietderm_api.owners.models import OwnerRegistration
-from vetdietderm_api.visits.models import VisitRequest
+from vetdietderm_api.owners.models import OwnerAccount, OwnerRegistration
+from vetdietderm_api.visits.models import VisitRequest, VisitRequestFile
+from vetdietderm_api.visits import repository as visits_repo
+
+
+@pytest.mark.parametrize("workspace", ["personal", "organization"])
+@pytest.mark.parametrize("content_type,payload", [("image/jpeg", b"photo"), ("application/pdf", b"pdf")])
+def test_gallery_copy_uses_invitation_workspace(cabinet, monkeypatch, tmp_path, workspace, content_type, payload):
+    staff, owner, factory, user = cabinet
+    monkeypatch.setattr(storage, "attachment_root", lambda: tmp_path)
+    headers = {"X-Vetapp-Workspace": workspace}
+    code = staff.get("/join-codes/current", headers=headers).json()["code"]
+    doctor_id = UUID(user["user_id"])
+    tenant_id = UUID(user["organization"]["org_id"]) if workspace == "organization" else None
+    assert register(owner, code).status_code == 201
+    animal = owner.post("/owner/animals", json={"name": "Тузик", "species": "dog"}).json()
+    visit = request_visit(owner, animal).json()
+    url = f"/owner/visits/{visit['uuid']}/files"
+    uploaded = owner.post(url, files={"file": ("file", payload, content_type)})
+    assert uploaded.status_code == 201, uploaded.text
+    # In an organization, a colleague can confirm while personal workspace is selected.
+    if workspace == "organization":
+        user["user_id"] = str(uuid4())
+    result = confirm(staff, visit)
+    assert result.status_code == 200, result.text
+    patient = owner.get("/owner/animals").json()[0]
+    gallery_url = f"/patients/{patient['uuid']}/attachments"
+
+    def assert_copy(expected_payload):
+        response = staff.get(gallery_url, headers=headers)
+        assert response.status_code == 200, response.text
+        copies = response.json()
+        matches = []
+        for item in copies:
+            downloaded = staff.get(f"/attachments/{item['uuid']}/file", headers=headers)
+            assert downloaded.status_code == 200, downloaded.text
+            if downloaded.content == expected_payload:
+                matches.append(item)
+        assert len(matches) == 1
+        copy = matches[0]
+        assert copy["owner_visible"] and copy["uploaded_by_owner"]
+        public = owner.get(f"/owner/animals/{patient['uuid']}/files")
+        assert public.status_code == 200, public.text
+        assert copy["uuid"] in [item["uuid"] for item in public.json()]
+        with factory() as db:
+            row = db.get(Attachment, UUID(copy["uuid"]))
+            assert row.tenant_id == tenant_id
+            assert row.created_by == doctor_id
+        return copy
+
+    copy = assert_copy(payload)
+    assert owner.get(f"{url}/{uploaded.json()['uuid']}").content == payload
+    assert confirm(staff, visit).status_code == 409
+    assert len(staff.get(gallery_url, headers=headers).json()) == 1
+    # Uploading to a new request after linking copies immediately, before confirmation.
+    next_visit = request_visit(owner, patient).json()
+    response = owner.post(f"/owner/visits/{next_visit['uuid']}/files",
+                          files={"file": ("next.pdf", b"next", "application/pdf")})
+    assert response.status_code == 201, response.text
+    assert_copy(b"next")
+    assert confirm(staff, next_visit, registration=None).status_code == 200
+    assert len(staff.get(gallery_url, headers=headers).json()) == 2
+    # Ordinary clinical uploads still get the current staff identity from TenantSession.
+    clinical = staff.post(gallery_url, headers=headers,
+                          files={"file": ("clinical.pdf", b"clinical", "application/pdf")})
+    assert clinical.status_code == 201, clinical.text
+    with factory() as db:
+        row = db.get(Attachment, UUID(clinical.json()["uuid"]))
+        assert row.tenant_id == tenant_id
+        assert row.created_by == UUID(user["user_id"])
+    if workspace == "organization":
+        assert staff.get(gallery_url).status_code == 404
+        assert staff.get(f"/attachments/{copy['uuid']}/file").status_code == 404
+    else:
+        user["user_id"] = str(uuid4())
+        assert staff.get(gallery_url, headers=headers).status_code == 404
+        assert staff.get(f"/attachments/{copy['uuid']}/file", headers=headers).status_code == 404
 
 
 @pytest.fixture
@@ -221,6 +296,32 @@ def test_confirmation_rolls_back_acceptance_and_appointment_if_file_missing(visi
         assert db.scalar(select(func.count()).select_from(Appointment)) == 0
         assert db.scalar(select(func.count()).select_from(Attachment)) == 0
     assert staff.get("/patients").json() == []
+
+
+def test_gallery_copy_without_join_code_does_not_write_attachment(visits):
+    from fastapi import HTTPException
+
+    staff, owner, factory, _, animal, root = visits
+    visit = request_visit(owner, animal).json()
+    response = owner.post(f"/owner/visits/{visit['uuid']}/files",
+                          files={"file": ("photo.jpg", b"photo", "image/jpeg")})
+    assert response.status_code == 201, response.text
+    client = staff.post("/clients", json={"name": "Владелец"}).json()
+    patient = staff.post("/patients", json={"name": "Пациент", "species": "dog",
+                                           "client_uuid": client["uuid"]}).json()
+    original_keys = set(root.iterdir())
+    with factory() as db:
+        with pytest.raises(HTTPException) as error:
+            with visits_repo.transaction(db) as keys:
+                row = db.get(VisitRequest, UUID(visit["uuid"]))
+                row.patient_uuid = UUID(patient["uuid"])
+                db.get(OwnerAccount, row.owner_account_uuid).join_code_uuid = None
+                file = db.get(VisitRequestFile, UUID(response.json()["uuid"]))
+                visits_repo.copy_gallery(db, row, file, keys)
+        assert error.value.status_code == 404
+        assert not db.get(VisitRequestFile, UUID(response.json()["uuid"])).gallery_copied
+        assert db.scalar(select(func.count()).select_from(Attachment)) == 0
+    assert set(root.iterdir()) == original_keys
 
 
 def test_observer_and_legacy_appointment_types(visits):

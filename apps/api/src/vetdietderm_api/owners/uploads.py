@@ -1,6 +1,5 @@
 """Private owner media; files are never published as unauthenticated URLs."""
 from pathlib import PurePosixPath
-from uuid import UUID
 
 from fastapi import HTTPException
 from fastapi.responses import FileResponse

@@ -56,6 +56,8 @@ def create_attachment(
     *,
     owner_visible: bool = False,
     uploaded_by_owner: bool = False,
+    tenant_id: UUID | None = None,
+    created_by: UUID | None = None,
     commit: bool = True,
 ) -> Attachment:
     get_patient(session, patient_uuid)
@@ -76,6 +78,8 @@ def create_attachment(
 
     storage_key = write_bytes(content_type, payload)
     attachment = Attachment(
+        tenant_id=tenant_id,
+        created_by=created_by,
         patient_uuid=patient_uuid,
         encounter_uuid=encounter_uuid,
         kind=kind.value,
