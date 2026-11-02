@@ -114,17 +114,6 @@ export function useCreateCommunication(patientId: string) {
   });
 }
 
-export function useUpdateCommunication(patientId: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: Partial<CommunicationWrite> }) =>
-      communicationsApi.update(id, body),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["communications", patientId] });
-    },
-  });
-}
-
 export function useDeleteCommunication(patientId: string) {
   const queryClient = useQueryClient();
   return useMutation({

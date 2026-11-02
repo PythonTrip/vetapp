@@ -58,10 +58,6 @@
   .no-print {
     display: none !important;
   }
-  /* Hide chart interactions in print */
-  .recharts-wrapper, .recharts-surface {
-    overflow: visible !important;
-  }
   /* Avoid breaking sections across pages */
   section, .break-inside-avoid {
     break-inside: avoid;

@@ -22,17 +22,6 @@ export function useCreateEncounterTemplate() {
   });
 }
 
-export function useUpdateEncounterTemplate() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: Partial<EncounterTemplateWrite> }) =>
-      encounterTemplatesApi.update(id, body),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["encounter-templates"] });
-    },
-  });
-}
-
 export function useDeleteEncounterTemplate() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -55,17 +44,6 @@ export function useCreateClinicalCatalogItem() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: ClinicalCatalogItemWrite) => clinicalCatalogApi.create(body),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["clinical-catalog"] });
-    },
-  });
-}
-
-export function useUpdateClinicalCatalogItem() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: Partial<ClinicalCatalogItemWrite> }) =>
-      clinicalCatalogApi.update(id, body),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["clinical-catalog"] });
     },

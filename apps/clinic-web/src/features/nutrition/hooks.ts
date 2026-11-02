@@ -125,16 +125,6 @@ export function useActiveGuidelineQuery(enabled = true) {
   });
 }
 
-export function useGuidelineContextOptions(species: "dog" | "cat" | null) {
-  return useQuery({
-    queryKey: ["guidelines", "context-options", species],
-    queryFn: () => guidelinesApi.contextOptions(species ?? "dog"),
-    enabled: species !== null,
-    staleTime: 5 * 60 * 1000,
-    retry: retryUnlessClientError,
-  });
-}
-
 export function useAssessmentSuggestions(animal: AssessmentAnimal | null) {
   return useQuery({
     queryKey: ["assessment-suggestions", animal],

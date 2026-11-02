@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Toaster } from "@/shared/ui/toaster";
 import { Toaster as SonnerToaster } from "@/shared/ui/sonner";
 import { ThemeProvider } from "@/shared/providers/theme-provider";
 import { QueryProvider } from "@/shared/providers/query-provider";
@@ -42,7 +41,6 @@ export default function RootLayout({
         >
           <QueryProvider>
             <SurfaceBoundary>{children}</SurfaceBoundary>
-            <Toaster />
             <SonnerToaster richColors position="bottom-right" />
           </QueryProvider>
         </ThemeProvider>
