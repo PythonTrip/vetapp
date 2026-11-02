@@ -51,22 +51,22 @@ cp infra/.env.example infra/.env
 # DATABASE_USER, DATABASE_PASSWORD и MODULE_AUTH_URL в infra/.env.
 
 # 3) Сборка и запуск (API + Clinic UI)
-docker compose --project-name vetapp --env-file infra/.env -f infra/compose.yml up -d --build
+docker compose --project-name vetapp --env-file infra/.env -f infra/docker-compose.yml up -d --build
 
 # То же через pnpm-обёртку (нужны Node/pnpm в корне репозитория):
 # pnpm compose up -d --build
 
 # Опционально: owner-web на 127.0.0.1:3004 (профиль owner)
-docker compose --project-name vetapp --env-file infra/.env -f infra/compose.yml --profile owner up -d --build
+docker compose --project-name vetapp --env-file infra/.env -f infra/docker-compose.yml --profile owner up -d --build
 # pnpm compose --profile owner up -d --build
 ```
 
 Полезные команды:
 
 ```bash
-docker compose --project-name vetapp --env-file infra/.env -f infra/compose.yml ps
-docker compose --project-name vetapp --env-file infra/.env -f infra/compose.yml logs -f
-docker compose --project-name vetapp --env-file infra/.env -f infra/compose.yml down
+docker compose --project-name vetapp --env-file infra/.env -f infra/docker-compose.yml ps
+docker compose --project-name vetapp --env-file infra/.env -f infra/docker-compose.yml logs -f
+docker compose --project-name vetapp --env-file infra/.env -f infra/docker-compose.yml down
 # pnpm compose ps | logs -f | down
 ```
 
@@ -175,10 +175,10 @@ API читает `apps/api/.env`; переменные процесса имею
 ## Структура и команды монорепозитория
 
 - `apps/api/` — независимый uv-проект: исходники, Alembic, тесты, фикстуры, операторские скрипты и локальные данные.
-- `apps/clinic-web/` — существующее Next.js приложение, включая текущие экраны владельца.
+- `apps/clinic-web/` — Next.js приложение врача; совместимые маршруты владельца используют общие модули `packages/owner-features/`.
 - `infra/` — Dockerfile, Compose и параметры deployment. Имя Compose-проекта `vetapp`, сервисы, DNS-алиасы и том `vetapp_attachments` сохранены.
 - `packages/api-contract` — типы, генерируемые из FastAPI OpenAPI; `packages/api-client` — общий HTTP-клиент для web и будущего mobile. Генерация: `pnpm api:generate`, проверка актуальности: `pnpm api:check`. [Контракт и настройка платформ](docs/api-contract.md).
-- `apps/owner-web` и `apps/mobile` пока не создаются. Python не входит в pnpm workspace.
+- `apps/owner-web/` — самостоятельное Next.js приложение владельца; `apps/mobile` пока не создано. Python не входит в pnpm workspace.
 
 Из корня: `pnpm dev`, `pnpm dev:api`, `pnpm db:migrate`, `pnpm check`, `pnpm build`, `pnpm test`.
 `pnpm test` запускает все web- и Python-тесты, включая PostgreSQL integration; нужна доступная тестовая БД с правом CREATE SCHEMA.
@@ -192,7 +192,7 @@ API читает `apps/api/.env`; переменные процесса имею
 Старый корневой `.env` при миграции перенесён в `infra/.env`; настройки API перенесены в `apps/api/.env` с сохранением приоритета существующих значений приложения.
 Параметры web из старого корневого env перенесены в `apps/clinic-web/.env.local`, если такого файла ещё не было.
 Для других checkout перенесите значения вручную; старый корневой env больше не загружается.
-CI проверяет frozen lockfiles, web-тесты, типы/lint, standalone-сборку, весь pytest на PostgreSQL и Docker-образы.
+В `.github/workflows/ci.yml` сохранён отключённый (закомментированный) workflow для frozen lockfiles, web-тестов, типов/lint, standalone-сборки, pytest на PostgreSQL и Docker-образов. Сейчас эти проверки нужно запускать вручную.
 
 Для изолированных PostgreSQL-тестов локально: `pnpm test:db up -d --wait`, затем
 задайте `DATABASE_URL=postgresql+psycopg://vetapp:test-only@127.0.0.1:15433/vetapp_test`
