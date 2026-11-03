@@ -68,7 +68,7 @@ def test_org_observer_and_member_labels_before_and_after_acceptance(cabinet):
         assert result.json()["detail"] == "Роль наблюдателя разрешает только просмотр"
     user["organization"]["org_role"] = "member"
     assert staff.post(registration_path, headers=headers, json={"body": "Ответ сотрудника"}).status_code == 201
-    assert owner.get(owner_path).json()[1]["author_label"] == "Доктор Иванова"
+    assert owner.get(owner_path).json()[1]["author_label"] == "Другой сотрудник"
     assert staff.get(registration_path, headers=headers).json()[1]["author_label"] == "Другой сотрудник"
     assert staff.post(f"/owner-registrations/{registration}/accept", json={"mode": "create"}).status_code == 200
     animal = owner.get("/owner/animals").json()[0]
@@ -79,7 +79,7 @@ def test_org_observer_and_member_labels_before_and_after_acceptance(cabinet):
     user["organization"]["org_role"] = "member"
     user["display_name"] = None
     assert staff.post(patient_path, headers=headers, json={"body": "Ответ по почте"}).json()["author_label"] == user["email"]
-    assert owner.get(f"/owner/animals/{animal['uuid']}/chat").json()[-1]["author_label"] == "Доктор Иванова"
+    assert owner.get(f"/owner/animals/{animal['uuid']}/chat").json()[-1]["author_label"] == user["email"]
 
 
 def test_personal_threads_and_cookie_kinds_are_isolated(cabinet):

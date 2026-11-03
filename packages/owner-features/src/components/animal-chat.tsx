@@ -60,7 +60,7 @@ export function AnimalChat({ path, ownerView = true, canReply = true, transport 
     <ol ref={feed} aria-label="Сообщения" className={ownerView ? "owner-chat-feed" : "max-h-96 space-y-3 overflow-y-auto text-sm"}>
       {!loading && !error && messages.length === 0 && <li className="owner-chat-empty"><span><CabinetIcon name="chat" size={48} /></span><h3>Начните диалог с врачом</h3><p>Сообщений пока нет</p><p>Здесь будет храниться история ваших сообщений о здоровье питомца.</p></li>}
       {messages.map(message => <li key={message.uuid} className={ownerView ? `owner-chat-message ${message.author_kind === "owner" ? "is-own" : ""}` : `min-w-0 rounded-md p-3 ${message.author_kind === "staff" ? "bg-muted" : "border"}`}>
-        <div className="owner-chat-bubble">{!ownerView && <span className="owner-chat-author">{message.author_label}</span>}<p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{message.body}</p>
+        <div className="owner-chat-bubble">{(message.author_kind === "staff" || !ownerView) && <span className="owner-chat-author">{message.author_label}</span>}<p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{message.body}</p>
           {message.attachments?.map(file => <button type="button" className="owner-chat-file" key={file.uuid} disabled={downloading || !transport.download} onClick={async () => {
             if (!transport.download) return; setDownloading(true); setError("");
             try { await platform.saveFile(await transport.download(path, file.uuid), file.filename); } catch (cause) { setError(ownerError(cause)); } finally { setDownloading(false); }

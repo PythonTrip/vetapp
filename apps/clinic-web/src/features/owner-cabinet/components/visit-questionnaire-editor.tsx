@@ -106,7 +106,7 @@ export function VisitQuestionnaireEditor() {
 
 function DoctorQuestionnaires() {
   const { user } = useAuth();
-  const canEdit = ["owner", "admin", "member"].includes(user?.organization?.org_role ?? "");
+  const canEdit = ["owner", "admin"].includes(user?.organization?.org_role ?? "");
   const [slots, setSlots] = React.useState<VisitQuestionnaire[] | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
@@ -119,7 +119,7 @@ function DoctorQuestionnaires() {
   React.useEffect(() => { void load(); }, [load]);
   return <Card>
     <CardHeader><CardTitle className="text-base">Анкеты перед визитом</CardTitle>
-      <CardDescription>Ваши вопросы для каждого типа визита. Все вопросы обязательны для владельца. Сохранение публикует анкету.</CardDescription>
+      <CardDescription>Вопросы клиники для каждого типа визита. Все вопросы обязательны для владельца. Сохранение публикует анкету.</CardDescription>
     </CardHeader>
     <CardContent className="space-y-5">
       {loading && <p role="status">Загрузка анкет…</p>}

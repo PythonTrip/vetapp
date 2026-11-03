@@ -25,7 +25,7 @@ describe("animal chat", () => {
     expect(screen.queryByText("Вы")).not.toBeInTheDocument();
     expect(container.querySelector(".owner-chat-bubble time")).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Обновить" })).not.toBeInTheDocument();
-    expect(screen.queryByText("Доктор Иванова")).not.toBeInTheDocument();
+    expect(screen.getByText("Доктор Иванова")).toBeInTheDocument();
     expect(screen.getByText("<script>alert(1)</script>")).toBeInTheDocument();
     expect(container.querySelector("script")).toBeNull();
     const field = screen.getByLabelText("Сообщение");

@@ -21,7 +21,7 @@ describe("owner scenarios in the independent host", () => {
       expect(new Headers(init.headers).get("X-Vetapp-CSRF")).toBe("1");
       expect(new Headers(init.headers).has("X-Vetapp-Workspace")).toBe(false);
       if (url.endsWith("/me")) return json({ detail: "expired" }, 401);
-      if (url.endsWith("/login")) return json({ uuid: "owner", name: "Анна", email: "owner@example.com", phone: "123", linked: false, doctor_name: "Доктор Иванова" });
+      if (url.endsWith("/login")) return json({ uuid: "owner", name: "Анна", email: "owner@example.com", phone: "123", linked: false, doctor_name: "Доктор Иванова", organization_name: "Клиника Ивановой" });
       return json([]);
     }));
     render(<CabinetHome />);
@@ -31,7 +31,8 @@ describe("owner scenarios in the independent host", () => {
     fireEvent.click(screen.getByRole("button", { name: "Войти", exact: true }));
     await screen.findByRole("heading", { name: "Привет!" });
     fireEvent.click(screen.getByRole("link", { name: "Профиль", exact: true }));
-    expect(screen.getByText("Доктор Иванова")).toBeInTheDocument();
+    expect(screen.getAllByText("Клиника Ивановой").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Доктор Иванова")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("link", { name: "Профиль", exact: true }));
   await waitFor(() => expect(screen.getByRole("button", { name: "Выйти из кабинета" })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: "Выйти из кабинета" }));
@@ -45,10 +46,11 @@ describe("owner scenarios in the independent host", () => {
     const platform = createTelegramPlatform({ bridge: { ready, expand }, navigate, saveFile: vi.fn() });
     platform.initialize();
     expect(ready).toHaveBeenCalledOnce(); expect(expand).toHaveBeenCalledOnce();
-    const fetcher = vi.fn(async (_url: string, init: RequestInit) => init.method === "POST" ? json({ uuid: "owner" }) : json({ doctor_name: "Пригласивший врач", organization_name: null }));
+    const fetcher = vi.fn(async (_url: string, init: RequestInit) => init.method === "POST" ? json({ uuid: "owner" }) : json({ doctor_name: "Пригласивший врач", organization_name: "Клиника на связи" }));
     vi.stubGlobal("fetch", fetcher);
     render(<OwnerPlatformProvider value={platform}><JoinForm code="doctor-code" /></OwnerPlatformProvider>);
-    await screen.findByText("Пригласивший врач");
+    await screen.findByText("Клиника на связи");
+    expect(screen.queryByText("Пригласивший врач")).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Ваше имя"), { target: { value: "Анна" } });
     fireEvent.change(screen.getByLabelText("Электронная почта"), { target: { value: "owner@example.com" } });
     fireEvent.change(screen.getByLabelText("Телефон"), { target: { value: "123" } });

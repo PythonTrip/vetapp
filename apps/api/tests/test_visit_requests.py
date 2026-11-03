@@ -109,7 +109,8 @@ def confirm(staff, visit, **changes):
 
 
 def test_snapshot_required_answers_and_no_schedule_entry(visits):
-    staff, owner, factory, _, animal, _ = visits
+    staff, owner, factory, user, animal, _ = visits
+    user["organization"]["org_role"] = "owner"
     result = staff.put("/visit-questionnaires/primary", json={"questions": [
         {"kind": "text", "label": "Причина"},
         {"kind": "single_select", "label": "Аппетит", "options": [
@@ -193,7 +194,8 @@ def test_results_use_exact_encounter_patient_and_explicit_visibility(visits):
     ("date", [], "2026-11-01", ["2026-02-30", "20261101", "", 1]),
 ])
 def test_answer_shapes(visits, kind, options, valid, invalid):
-    staff, owner, _, _, animal, _ = visits
+    staff, owner, _, user, animal, _ = visits
+    user["organization"]["org_role"] = "owner"
     q = staff.put("/visit-questionnaires/primary", json={"questions": [
         {"kind": kind, "label": "Вопрос", "options": options}]}).json()["questions"][0]
     for value in invalid:

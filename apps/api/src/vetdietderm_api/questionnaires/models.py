@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, UniqueConstraint, Uuid
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, UniqueConstraint, Uuid, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -15,10 +15,15 @@ def utc_now() -> datetime:
 
 class VisitQuestionnaire(Base):
     __tablename__ = "visit_questionnaires"
-    __table_args__ = (UniqueConstraint("doctor_user_id", "visit_type"),)
+    __table_args__ = (
+        UniqueConstraint("doctor_user_id", "visit_type"),
+        Index("uq_visit_questionnaires_clinic_type", "tenant_id", "visit_type", unique=True,
+              postgresql_where=text("tenant_id IS NOT NULL"), sqlite_where=text("tenant_id IS NOT NULL")),
+    )
 
     uuid: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid6)
     doctor_user_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    tenant_id: Mapped[UUID | None] = mapped_column(Uuid, nullable=True)
     visit_type: Mapped[str] = mapped_column(String(16), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)

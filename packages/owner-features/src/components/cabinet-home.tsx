@@ -123,7 +123,7 @@ export function CabinetHome() {
   </>;
   return <div ref={cabinetRef} data-owner-cabinet data-section={section} className="owner-cabinet">
     <header className={owner && section !== "home" ? "owner-brand-header" : "cabinet-header"}>
-      {owner && section !== "home" ? <a href="#home" className="owner-brand" aria-label="На главную" onClick={() => setSection("home")}><span><CabinetIcon name="paw" size={26} /></span>Вет <b>Хелп</b></a> : <div><h1>{owner ? "Привет!" : "Войти в кабинет"}</h1><p>{owner ? "Всё для здоровья ваших питомцев" : "Кабинет владельца животного"}</p></div>}
+      {owner && section !== "home" ? <a href="#home" className="owner-brand" aria-label={owner.organization_name ? `На главную: ${owner.organization_name}` : "На главную"} onClick={() => setSection("home")}><span><CabinetIcon name="paw" size={26} /></span><span>Вет <b>Хелп</b>{owner.organization_name ? ` · ${owner.organization_name}` : ""}</span></a> : <div><h1>{owner ? "Привет!" : "Войти в кабинет"}</h1>{owner?.organization_name && <p className="break-words font-semibold">{owner.organization_name}</p>}<p>{owner ? "Всё для здоровья ваших питомцев" : "Кабинет владельца животного"}</p></div>}
       {owner && <div className="owner-header-actions">{section !== "home" && <button type="button" className="owner-icon-button" aria-label={dark ? "Включить светлую тему" : "Включить тёмную тему"} onClick={toggleTheme}><CabinetIcon name={dark ? "sun" : "moon"} /></button>}<a className="profile-avatar" href="#profile" aria-label="Мой профиль" onClick={() => setSection("profile")}>{owner.name.trim().slice(0, 1).toLocaleUpperCase("ru")}</a></div>}
     </header>
     <ConnectionStatus />

@@ -79,9 +79,7 @@ def list_messages(db: Session, target, *, owner_view=False):
         item = MessageRead.model_validate(message)
         item.attachments = [OwnerUploadRead.model_validate(file) for file in db.scalars(
             select(OwnerUpload).where(OwnerUpload.message_uuid == message.uuid).order_by(OwnerUpload.created_at, OwnerUpload.uuid))]
-        if owner_view and message.author_kind == "staff":
-            item.author_label = target[2].doctor_label
-        elif not owner_view and message.author_kind == "owner":
+        if not owner_view and message.author_kind == "owner":
             item.author_label = "Владелец"
         result.append(item)
     return result

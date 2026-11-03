@@ -48,7 +48,6 @@ describe("owner visit request", () => {
     fireEvent.change(screen.getByLabelText("Есть зуд? *"), { target: { value: "no" } });
     fireEvent.click(screen.getByRole("button", { name: "Продолжить" }));
     fireEvent.click(screen.getByRole("button", { name: "Продолжить" }));
-    fireEvent.click(screen.getByRole("button", { name: "Продолжить" }));
     expect(create).not.toHaveBeenCalled();
     expect(screen.getByRole("heading", { name: "Проверьте перед отправкой" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Отправить заявку" }));
@@ -76,7 +75,6 @@ describe("owner visit request", () => {
     fireEvent.change(screen.getByLabelText("Предлагаемые дата и время"), { target: { value: "2026-11-01T10:00" } });
     fireEvent.change(screen.getByLabelText("Фото и документы"), { target: { files: [first, second] } });
     fireEvent.click(screen.getByRole("button", { name: "Продолжить" }));
-    fireEvent.click(screen.getByRole("button", { name: "Продолжить" }));
     fireEvent.click(screen.getByRole("button", { name: "Отправить заявку" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Заявка создана");
     fireEvent.click(screen.getByRole("button", { name: "Повторить загрузку файлов" }));
@@ -94,7 +92,6 @@ describe("owner visit request", () => {
     fireEvent.click(screen.getByRole("button", { name: "Продолжить" }));
     fireEvent.click(screen.getByRole("button", { name: "Продолжить" }));
     fireEvent.change(screen.getByLabelText("Предлагаемые дата и время"), { target: { value: "2026-11-02T12:00" } });
-    fireEvent.click(screen.getByRole("button", { name: "Продолжить" }));
     fireEvent.click(screen.getByRole("button", { name: "Продолжить" }));
     fireEvent.click(screen.getByRole("button", { name: "Отправить заявку" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Не удалось связаться с сервером");

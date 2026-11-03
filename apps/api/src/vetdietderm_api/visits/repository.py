@@ -38,10 +38,12 @@ def transaction(db: Session):
         raise
 
 
-def questions(db: Session, doctor_id: UUID, visit_type: VisitType):
-    # Replacement locks the same row: submission copies one complete publication.
+def questions(db: Session, tenant_id: UUID | None, visit_type: VisitType):
+    # Replacement locks the same clinic row: submission copies one complete publication.
+    if tenant_id is None:
+        return []
     slot = db.scalar(select(VisitQuestionnaire).where(
-        VisitQuestionnaire.doctor_user_id == doctor_id,
+        VisitQuestionnaire.tenant_id == tenant_id,
         VisitQuestionnaire.visit_type == visit_type).with_for_update())
     if slot is None:
         return []
@@ -114,11 +116,11 @@ def read(db: Session, row: VisitRequest):
 
 
 def create(db: Session, owner: OwnerAccount, animal_id: UUID, body):
-    animal_id, patient_id, code = owner_target(db, owner, animal_id)
+    animal_id, patient_id, _ = owner_target(db, owner, animal_id)
     row = VisitRequest(owner_account_uuid=owner.uuid, owner_animal_uuid=animal_id,
                        patient_uuid=patient_id, visit_type=body.visit_type, reason=body.reason,
                        proposed_starts_at=body.proposed_starts_at,
-                       answers=snapshot(questions(db, code.doctor_user_id, body.visit_type), body.answers))
+                       answers=snapshot(questions(db, owner.tenant_id, body.visit_type), body.answers))
     db.add(row)
     db.flush()
     return row

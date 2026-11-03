@@ -12,20 +12,19 @@ const visit: OwnerVisit = {
 };
 
 describe("mobile owner cabinet", () => {
-  it("books the pet selected inside the sheet and shows the actual doctor before choosing a time", async () => {
+  it("books the pet selected inside the sheet without asking for a doctor", async () => {
     vi.spyOn(ownerVisits, "questions").mockResolvedValue([]);
     const create = vi.spyOn(ownerVisits, "create").mockResolvedValue(visit);
     const close = vi.fn();
-    render(<VisitRequestForm animalId="cat" animalName="Луна" doctorName="Врач кабинета" animals={[{ uuid: "cat", name: "Луна", species: "cat" }, { uuid: "dog", name: "Оскар", species: "dog" }]} onChanged={vi.fn()} onClose={close} />);
+    render(<VisitRequestForm animalId="cat" animalName="Луна" animals={[{ uuid: "cat", name: "Луна", species: "cat" }, { uuid: "dog", name: "Оскар", species: "dog" }]} onChanged={vi.fn()} onClose={close} />);
     await screen.findByText("Для этого типа визита анкета не требуется.");
     fireEvent.click(screen.getByRole("radio", { name: "Оскар", exact: true }));
     fireEvent.click(screen.getByRole("button", { name: "Продолжить" }));
     expect(screen.getByRole("heading", { name: "Расскажите о питомце" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Продолжить" }));
-    expect(screen.getByRole("heading", { name: "Выберите ветеринара" })).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: /Врач кабинета/ })).toBeChecked();
+    expect(screen.queryByRole("heading", { name: "Выберите ветеринара" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: /Врач/ })).not.toBeInTheDocument();
     expect(create).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Продолжить" }));
     expect(screen.getByRole("button", { name: "Продолжить" })).toBeDisabled();
     fireEvent.change(screen.getByLabelText("Предлагаемые дата и время"), { target: { value: "2099-11-01T15:00" } });
     fireEvent.click(screen.getByRole("button", { name: "Продолжить" }));
