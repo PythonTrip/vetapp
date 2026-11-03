@@ -5,6 +5,7 @@ import { useTheme } from "next-themes";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
 import { OrganizationSettings } from "@/features/authentication/organization-settings";
+import { ClinicBotSettings } from "@/features/owner-cabinet/components/clinic-bot-settings";
 import { JoinCodeSettings } from "@/features/owner-cabinet/components/join-code-settings";
 import { VisitQuestionnaireEditor } from "@/features/owner-cabinet/components/visit-questionnaire-editor";
 import { cn } from "@/shared/lib/utils";
@@ -26,6 +27,7 @@ export function SettingsModule() {
       </div>
 
       <OrganizationSettings />
+      <ClinicBotSettings />
       <JoinCodeSettings />
       <VisitQuestionnaireEditor />
 

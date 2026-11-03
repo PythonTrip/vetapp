@@ -1,7 +1,7 @@
 from datetime import date, datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import BigInteger, CheckConstraint, Date, DateTime, Float, ForeignKey, Index, String, Uuid, text
+from sqlalchemy import BigInteger, CheckConstraint, Date, DateTime, Float, ForeignKey, Index, String, UniqueConstraint, Uuid, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from vetdietderm_api.db import Base
@@ -94,6 +94,24 @@ class OwnerAnimal(Base):
     birth_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class ClinicBot(Base):
+    __tablename__ = "clinic_bots"
+    __table_args__ = (
+        CheckConstraint("status IN ('connected', 'error')", name="ck_clinic_bots_status"),
+        UniqueConstraint("bot_id", name="uq_clinic_bots_bot_id"),
+    )
+    clinic_id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    token: Mapped[str | None] = mapped_column(String(256))
+    bot_id: Mapped[int | None] = mapped_column(BigInteger)
+    username: Mapped[str | None] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(16))
+    last_error: Mapped[str | None] = mapped_column(String(500))
+
+    def __repr__(self) -> str:
+        return (f"ClinicBot(clinic_id={self.clinic_id!r}, bot_id={self.bot_id!r}, "
+                f"username={self.username!r}, status={self.status!r})")
 
 
 class OwnerUpload(Base):

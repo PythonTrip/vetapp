@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from enum import StrEnum
 from typing import Literal
 from uuid import UUID
 
@@ -155,6 +156,23 @@ class OwnerCredentials(BaseModel):
 
 class OwnerJoin(BaseModel):
     code: str = Field(min_length=1, max_length=64)
+
+
+class ClinicBotStatus(StrEnum):
+    connected = "connected"
+    error = "error"
+
+
+class ClinicBotRead(BaseModel):
+    status: ClinicBotStatus | None = None
+    bot_id: int | None = None
+    username: str | None = None
+    last_error: str | None = None
+
+
+class ClinicBotWrite(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    token: str = Field(min_length=1, max_length=256)
 
 
 class TelegramWidgetLogin(BaseModel):

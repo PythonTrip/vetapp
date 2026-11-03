@@ -21,12 +21,12 @@ from vetdietderm_api.db import get_session_factory
 from vetdietderm_api.ids import uuid6
 from vetdietderm_api.owners import repository as repo
 from vetdietderm_api.owners import uploads
-from vetdietderm_api.owners.models import OwnerAnimal, OwnerUpload, JoinCode, OwnerAccount, OwnerRegistration, OwnerSession, TelegramExchange, TelegramIdentity, utc_now
-from vetdietderm_api.owners.schemas import CurrentJoinCode, DoctorPreview, OwnerLogin, OwnerProfileUpdate, OwnerRead, OwnerRegister
+from vetdietderm_api.owners.models import ClinicBot, OwnerAnimal, OwnerUpload, JoinCode, OwnerAccount, OwnerRegistration, OwnerSession, TelegramExchange, TelegramIdentity, utc_now
+from vetdietderm_api.owners.schemas import ClinicBotRead, ClinicBotStatus, ClinicBotWrite, CurrentJoinCode, DoctorPreview, OwnerLogin, OwnerProfileUpdate, OwnerRead, OwnerRegister
 from vetdietderm_api.owners.schemas import OwnerUploadRead, AnimalCreate, AnimalRead, AnimalUpdate
 from vetdietderm_api.owners.schemas import RegistrationAccept, RegistrationAccepted, RegistrationRead
 from vetdietderm_api.owners.schemas import TelegramLogin, TelegramLink, TelegramWidgetLogin, OwnerCredentials, OwnerJoin
-from vetdietderm_api.owners.telegram import validate_init_data, validate_widget
+from vetdietderm_api.owners.telegram import fetch_bot_identity, validate_init_data, validate_widget
 from vetdietderm_api.patients.models import Patient
 from vetdietderm_api.settings import get_settings
 
@@ -190,6 +190,68 @@ def connect_doctor(body: OwnerJoin, owner: Owner, db: DB):
     owner.updated_at = utc_now()
     db.commit()
     return repo.owner_read(db, owner)
+
+
+DUPLICATE_BOT = "Этот бот уже подключён к другой клинике"
+
+
+def clinic_uuid(request: Request) -> UUID:
+    return UUID(str(request.state.tenant_id))
+
+
+def clinic_bot_read(row: ClinicBot | None) -> ClinicBotRead:
+    if row is None:
+        return ClinicBotRead()
+    return ClinicBotRead(status=ClinicBotStatus(row.status), bot_id=row.bot_id,
+                         username=row.username, last_error=row.last_error)
+
+
+@router.get("/clinic-bot", response_model=ClinicBotRead, dependencies=[Depends(require_clinical_access)])
+def read_clinic_bot(request: Request, db: DB) -> ClinicBotRead:
+    return clinic_bot_read(db.get(ClinicBot, clinic_uuid(request)))
+
+
+@router.put("/clinic-bot", response_model=ClinicBotRead, dependencies=[Depends(require_clinical_access)])
+def save_clinic_bot(body: ClinicBotWrite, request: Request, db: DB) -> ClinicBotRead:
+    org = request.state.user.get("organization") or {}
+    if org.get("org_role") not in {"owner", "admin"}:
+        raise HTTPException(403, "Подключить бота могут владелец и администратор клиники")
+    clinic = clinic_uuid(request)
+    checked = fetch_bot_identity(body.token)
+    row = db.get(ClinicBot, clinic, with_for_update=True)
+    if isinstance(checked, str):
+        if row is not None and row.status == ClinicBotStatus.connected:
+            raise HTTPException(422, checked)
+        if row is None:
+            db.add(ClinicBot(clinic_id=clinic, status=ClinicBotStatus.error, token=None,
+                             bot_id=None, username=None, last_error=checked))
+        else:
+            row.status = ClinicBotStatus.error
+            row.token = None
+            row.last_error = checked
+        db.commit()
+        raise HTTPException(422, checked)
+    bot_id, username = checked
+    taken = db.scalar(select(ClinicBot.clinic_id).where(
+        ClinicBot.bot_id == bot_id, ClinicBot.clinic_id != clinic))
+    if taken is not None:
+        raise HTTPException(409, DUPLICATE_BOT)
+    if row is None:
+        row = ClinicBot(clinic_id=clinic, token=body.token, bot_id=bot_id, username=username,
+                        status=ClinicBotStatus.connected, last_error=None)
+        db.add(row)
+    else:
+        row.token = body.token
+        row.bot_id = bot_id
+        row.username = username
+        row.status = ClinicBotStatus.connected
+        row.last_error = None
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, DUPLICATE_BOT) from None
+    return clinic_bot_read(row)
 
 
 @router.get("/join-codes/current", response_model=CurrentJoinCode, dependencies=[Depends(require_clinical_access)])
