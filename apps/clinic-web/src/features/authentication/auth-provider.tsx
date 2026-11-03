@@ -3,7 +3,7 @@
 import { accountRequest } from "@/features/authentication/api";
 import * as React from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ApiError, registerAuthRecovery, setApiWorkspace, type Workspace } from "@/shared/api/client";
+import { ApiError, registerAuthRecovery } from "@/shared/api/client";
 import type { components } from "@vetdietderm/api-contract";
 
 export type UserProfile = components["schemas"]["UserProfileRead"];
@@ -12,8 +12,6 @@ interface AuthContextValue {
   status: AuthStatus;
   error: string | null;
   user: UserProfile | null;
-  workspace: Workspace;
-  setWorkspace: (workspace: Workspace) => void;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   reload: () => Promise<void>;
@@ -24,9 +22,6 @@ const AuthContext = React.createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = React.useState<AuthStatus>("checking");
   const [user, setUser] = React.useState<UserProfile | null>(null);
-  const [workspace, updateWorkspace] = React.useState<Workspace>("personal");
-  const workspaceRef = React.useRef<Workspace>("personal");
-  const userRef = React.useRef<UserProfile | null>(null);
   const profileVersion = React.useRef(0);
   const [error, setError] = React.useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -36,40 +31,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     profileVersion.current += 1;
     queryClient.clear();
     identity.current = "";
-    userRef.current = null;
-    workspaceRef.current = "personal";
-    setApiWorkspace("personal");
-    updateWorkspace("personal");
     setUser(null);
     setStatus("unauthenticated");
   }, [queryClient]);
+  const showSessionError = React.useCallback((cause: unknown) => {
+    if (cause instanceof ApiError && (cause.status === 429 || cause.status === 503)) setError(cause.message);
+    else if (!(cause instanceof ApiError && cause.status === 401))
+      setError("Не удалось проверить сессию. Проверьте соединение и повторите вход.");
+  }, []);
   const reload = React.useCallback(async () => {
     const version = ++profileVersion.current;
     const profile = await accountRequest<UserProfile>("/me");
     if (version !== profileVersion.current) return;
-    let savedWorkspace: string | null = null;
-    try { savedWorkspace = sessionStorage.getItem(`vetapp.workspace.${profile.user_id}`); } catch { /* storage may be disabled */ }
-    const nextWorkspace = profile.organization?.status === "active" && (
-      userRef.current?.user_id === profile.user_id ? workspaceRef.current === "organization" : savedWorkspace === profile.organization.org_id
-    ) ? "organization" : "personal";
-    workspaceRef.current = nextWorkspace;
-    setApiWorkspace(nextWorkspace);
-    updateWorkspace(nextWorkspace);
-    userRef.current = profile;
     const next = `${profile.user_id}:${profile.organization?.org_id ?? ""}:${profile.organization?.org_role ?? ""}`;
     if (identity.current !== next) queryClient.clear();
     identity.current = next;
     setUser(profile);
     setStatus("authenticated");
     setError(null);
-  }, [queryClient]);
-  const setWorkspace = React.useCallback((next: Workspace) => {
-    if (next === "organization" && userRef.current?.organization?.status !== "active") return;
-    workspaceRef.current = next;
-    setApiWorkspace(next);
-    try { sessionStorage.setItem(`vetapp.workspace.${userRef.current?.user_id}`, next === "organization" ? userRef.current!.organization!.org_id : "personal"); } catch { /* keep selection in memory */ }
-    queryClient.clear();
-    updateWorkspace(next);
   }, [queryClient]);
   React.useEffect(() => registerAuthRecovery({
     // The BFF has already refreshed and retried once. A 401 is terminal.
@@ -79,10 +58,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     if (!bootstrap.current) bootstrap.current = reload().catch((cause) => {
       clear();
-      if (!(cause instanceof ApiError && cause.status === 401))
-        setError("Не удалось проверить сессию. Проверьте соединение и повторите вход.");
+      showSessionError(cause);
     });
-  }, [clear, reload]);
+  }, [clear, reload, showSessionError]);
   // Revalidate after another tab logs out, changes membership, or signs in.
   React.useEffect(() => {
     const check = () => { void reload().catch((cause) => {
@@ -99,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await accountRequest("/auth/logout", "POST");
     clear();
   }, [clear]);
-  return <AuthContext.Provider value={{ status, user, workspace, setWorkspace, error, login, logout, reload }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ status, user, error, login, logout, reload }}>{children}</AuthContext.Provider>;
 }
 export function useAuth(): AuthContextValue {
   const context = React.useContext(AuthContext);

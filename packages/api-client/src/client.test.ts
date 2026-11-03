@@ -29,7 +29,7 @@ describe("platform API client", () => {
     expect(requests.every(request => request.headers.get("Cookie") === "vetapp_owner_session=owner")).toBe(true);
   });
 
-  it("serializes typed path, query and body, retaining native session and workspace", async () => {
+  it("serializes typed path, query and body, retaining the native session", async () => {
     const requests: Request[] = [];
     const fetch = vi.fn(async (input: RequestInfo | URL) => {
       requests.push(input as Request);
@@ -45,7 +45,7 @@ describe("platform API client", () => {
     expect(await request.json()).toEqual({ questions: [] });
     expect(request.headers.get("Cookie")).toBe("vetapp_session=staff");
     expect(request.headers.get("X-Vetapp-CSRF")).toBe("1");
-    expect(request.headers.get("X-Vetapp-Workspace")).toBe("personal");
+    expect(request.headers.has("X-Vetapp-Workspace")).toBe(false);
     expect(request.credentials).toBe("omit");
     expect(request.redirect).toBe("error");
     await client.GET("/patients", { params: { query: { q: "кот & пёс" } } });

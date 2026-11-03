@@ -12,7 +12,7 @@ import { OrganizationSettings } from "@/features/authentication/organization-set
 
 export function InstanceLockScreen({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { status, user, workspace, error: authError, login } = useAuth();
+  const { status, user, error: authError, login } = useAuth();
   const [mode, setMode] = React.useState<"login" | "register" | "verify" | "forgot" | "reset">("login");
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -57,13 +57,13 @@ export function InstanceLockScreen({ children }: { children: React.ReactNode }) 
   }
   if (status === "authenticated" && mode !== "reset") {
     if (invite) return <div className="mx-auto max-w-3xl p-4 sm:p-8"><OrganizationSettings onAccepted={() => { setInvite(false); router.replace("/settings"); }} /><Button variant="link" onClick={() => { setInvite(false); router.replace("/patients"); }}>Продолжить без приглашения</Button></div>;
-    return <React.Fragment key={`${user?.user_id}:${workspace}:${workspace === "organization" ? user?.organization?.org_id : ""}:${workspace === "organization" ? user?.organization?.org_role : ""}`}>{children}</React.Fragment>;
+    return <React.Fragment key={`${user?.user_id}:${user?.organization?.org_id ?? ""}:${user?.organization?.org_role ?? ""}`}>{children}</React.Fragment>;
   }
   const titles = { login: "Войти в VetDietDerm", register: "Создать аккаунт", verify: "Подтвердить почту", forgot: "Восстановить пароль", reset: "Новый пароль" };
   const actions = { login: "Войти", register: "Зарегистрироваться", verify: "Подтвердить", forgot: "Отправить инструкции", reset: "Сохранить пароль" };
   return <main className="flex min-h-dvh items-center justify-center bg-background px-4 py-8">
     <section className="w-full max-w-md space-y-6 rounded-2xl border bg-card p-6 sm:p-8">
-      <div className="space-y-2"><PawPrint className="h-8 w-8 text-primary" /><h1 className="text-2xl font-semibold">{titles[mode]}</h1><p className="text-sm text-muted-foreground">Личное рабочее место. Организацию можно подключить позже в настройках.</p></div>
+      <div className="space-y-2"><PawPrint className="h-8 w-8 text-primary" /><h1 className="text-2xl font-semibold">{titles[mode]}</h1><p className="text-sm text-muted-foreground">Вход для сотрудника клиники.</p></div>
       {status === "checking" ? <p role="status" className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />Проверка сессии…</p> : <>
         <form className="space-y-4" onSubmit={submit}>
           {mode !== "reset" && <div className="space-y-2"><Label htmlFor="auth-email">Электронная почта</Label><Input id="auth-email" type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)} disabled={busy} /></div>}

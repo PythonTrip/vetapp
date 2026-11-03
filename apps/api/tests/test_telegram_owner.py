@@ -88,8 +88,8 @@ def test_link_login_replay_logout_and_doctor_binding(telegram, workspace):
     with factory() as db:
         stored = db.get(OwnerAccount, UUID(account["uuid"]))
         assert stored.doctor_user_id == UUID(user["user_id"])
-        assert stored.workspace == workspace
-        assert stored.tenant_id == (UUID(user["organization"]["org_id"]) if workspace == "organization" else None)
+        assert stored.workspace == "organization"
+        assert stored.tenant_id == UUID(user["organization"]["org_id"])
         assert db.scalar(select(TelegramIdentity)).owner_account_uuid == stored.uuid
 
 

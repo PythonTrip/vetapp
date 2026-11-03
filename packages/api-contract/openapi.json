@@ -18584,18 +18584,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -18774,18 +18762,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -18984,18 +18960,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -19173,18 +19137,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -19370,18 +19322,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -19570,18 +19510,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
@@ -19769,18 +19697,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
@@ -19967,18 +19883,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -20177,18 +20081,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -20366,18 +20258,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -20563,18 +20443,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -20773,18 +20641,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -20973,18 +20829,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -21163,18 +21007,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -21373,18 +21205,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -21569,18 +21389,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -21785,18 +21593,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -21975,18 +21771,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -22185,18 +21969,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -22374,18 +22146,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -22584,18 +22344,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -22773,18 +22521,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -22990,18 +22726,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -23180,18 +22904,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -23390,18 +23102,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -23586,18 +23286,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -23802,18 +23490,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -23992,18 +23668,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -24202,18 +23866,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -24391,18 +24043,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -24601,18 +24241,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -24790,18 +24418,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -24987,18 +24603,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -25251,18 +24855,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -25441,18 +25033,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -25640,18 +25220,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -25937,18 +25505,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -26136,18 +25692,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -26332,18 +25876,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -26542,18 +26074,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
@@ -26745,18 +26265,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -26947,18 +26455,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -27136,18 +26632,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -27323,18 +26807,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -27526,18 +26998,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -27723,18 +27183,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -27910,18 +27358,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -28112,18 +27548,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -28341,18 +27765,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -28546,18 +27958,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -28756,18 +28156,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -28975,18 +28363,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -29177,18 +28553,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -29367,18 +28731,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -29577,18 +28929,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -29773,18 +29113,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -29983,18 +29311,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -30183,18 +29499,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -30393,18 +29697,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -30592,18 +29884,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -30811,18 +30091,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -31006,18 +30274,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -31207,18 +30463,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -31417,18 +30661,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -31618,18 +30850,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
@@ -31816,18 +31036,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -32017,18 +31225,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -32242,18 +31438,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -32443,18 +31627,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],
@@ -32662,18 +31834,6 @@
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
             }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -32860,18 +32020,6 @@
               ],
               "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
               "title": "X-Vetapp-Csrf"
-            }
-          },
-          {
-            "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-            "in": "header",
-            "name": "X-Vetapp-Workspace",
-            "required": false,
-            "schema": {
-              "default": "personal",
-              "description": "Clinical workspace: personal or organization. Organization membership and role are checked by the server.",
-              "title": "X-Vetapp-Workspace",
-              "type": "string"
             }
           }
         ],

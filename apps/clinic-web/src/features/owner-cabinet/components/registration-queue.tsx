@@ -51,7 +51,7 @@ function RegistrationRow({ row }: { row: PendingRegistration }) {
     <header className="space-y-1 break-words">
       <h3 className="font-semibold">{row.name}</h3>
       <p className="text-sm">{row.email} · {row.phone}</p>
-      <p className="text-sm text-muted-foreground">Врач: {row.doctor_name} · {row.organization_name || "Личная практика"}</p>
+      <p className="text-sm text-muted-foreground">Врач: {row.doctor_name} · {row.organization_name}</p>
     </header>
     {row.can_accept && <fieldset disabled={accept.isPending} className="space-y-3">
       <legend className="sr-only">Клиент для регистрации {row.name}</legend>

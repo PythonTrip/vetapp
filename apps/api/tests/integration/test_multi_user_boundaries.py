@@ -27,6 +27,8 @@ def test_tenant_boundaries_and_parallel_refresh(api_app, monkeypatch):
     }
     refresh_calls = []
     def remote(method, path, body=None, token=None):
+        if path == '/organizations' and method == 'POST':
+            return httpx.Response(429, json={'detail': 'Too many organization creation attempts'})
         if path == '/auth/refresh':
             refresh_calls.append(body['refresh_token'])
             assert body['refresh_token'] == 'refresh-a'
@@ -70,13 +72,10 @@ def test_tenant_boundaries_and_parallel_refresh(api_app, monkeypatch):
                 auth.BrowserSession.key_hash == hashlib.sha256(b'a').hexdigest()))
             assert row.refresh_token == 'successor-a'
 
-        # Even a viewer can keep working independently in their personal workspace.
-        own = a.post('/clients', json={'name': 'Personal A'}, headers={'X-Vetapp-Workspace': 'personal'})
-        assert own.status_code == 201
-        personal_id = own.json()['uuid']
-        assert b.get(f'/clients/{personal_id}', headers={'X-Vetapp-Workspace': 'personal'}).status_code == 404
-        assert a.get(f'/clients/{personal_id}').status_code == 404
+        # The personal header does not open another tenant. A viewer stays read-only.
+        denied = a.post('/clients', json={'name': 'Personal A'}, headers={'X-Vetapp-Workspace': 'personal'})
+        assert denied.status_code == 403
         profiles['a']['organization'] = None
-        assert a.get(f'/clients/{personal_id}', headers={'X-Vetapp-Workspace': 'personal'}).status_code == 200
-        assert a.patch(f'/clients/{personal_id}', json={'name': 'Personal updated'},
-                       headers={'X-Vetapp-Workspace': 'personal'}).status_code == 200
+        missing = a.get(f'/clients/{client_id}', headers={'X-Vetapp-Workspace': 'personal'})
+        assert missing.status_code == 429
+        assert missing.json()['detail'] == 'Too many organization creation attempts'

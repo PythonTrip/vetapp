@@ -13654,8 +13654,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path?: never;
             cookie?: never;
@@ -13796,8 +13794,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path?: never;
             cookie?: never;
@@ -13942,8 +13938,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 appointment_id: string;
@@ -14086,8 +14080,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 appointment_id: string;
@@ -14228,8 +14220,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 appointment_id: string;
@@ -14376,8 +14366,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path?: never;
             cookie?: never;
@@ -14522,8 +14510,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path?: never;
             cookie?: never;
@@ -14668,8 +14654,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path?: never;
             cookie?: never;
@@ -14814,8 +14798,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 attachment_id: string;
@@ -14958,8 +14940,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 attachment_id: string;
@@ -15100,8 +15080,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 attachment_id: string;
@@ -15248,8 +15226,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 attachment_id: string;
@@ -15394,8 +15370,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path?: never;
             cookie?: never;
@@ -15536,8 +15510,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path?: never;
             cookie?: never;
@@ -15682,8 +15654,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 client_id: string;
@@ -15826,8 +15796,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 client_id: string;
@@ -15976,8 +15944,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path?: never;
             cookie?: never;
@@ -16118,8 +16084,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path?: never;
             cookie?: never;
@@ -16264,8 +16228,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 item_id: string;
@@ -16406,8 +16368,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 item_id: string;
@@ -16554,8 +16514,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 communication_id: string;
@@ -16696,8 +16654,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 communication_id: string;
@@ -16846,8 +16802,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path?: never;
             cookie?: never;
@@ -16988,8 +16942,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path?: never;
             cookie?: never;
@@ -17134,8 +17086,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 plan_id: string;
@@ -17278,8 +17228,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 plan_id: string;
@@ -17428,8 +17376,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path?: never;
             cookie?: never;
@@ -17570,8 +17516,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path?: never;
             cookie?: never;
@@ -17716,8 +17660,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 template_id: string;
@@ -17858,8 +17800,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 template_id: string;
@@ -18006,8 +17946,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 encounter_id: string;
@@ -18150,8 +18088,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 encounter_id: string;
@@ -18292,8 +18228,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 encounter_id: string;
@@ -18445,8 +18379,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path?: never;
             cookie?: never;
@@ -18587,8 +18519,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path?: never;
             cookie?: never;
@@ -18733,8 +18663,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 food_id: string;
@@ -18877,8 +18805,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 food_id: string;
@@ -19025,8 +18951,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 food_id: string;
@@ -19173,8 +19097,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path?: never;
             cookie?: never;
@@ -19324,8 +19246,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path?: never;
             cookie?: never;
@@ -19466,8 +19386,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path?: never;
             cookie?: never;
@@ -19610,8 +19528,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path?: never;
             cookie?: never;
@@ -19752,8 +19668,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path?: never;
             cookie?: never;
@@ -19894,8 +19808,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path?: never;
             cookie?: never;
@@ -20036,8 +19948,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 org_id: string;
@@ -20180,8 +20090,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 org_id: string;
@@ -20324,8 +20232,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path?: never;
             cookie?: never;
@@ -20466,8 +20372,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 registration_id: string;
@@ -20614,8 +20518,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 animal_id: string;
@@ -20760,8 +20662,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 owner_animal_id: string;
@@ -20905,8 +20805,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 owner_animal_id: string;
@@ -21056,8 +20954,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 registration_id: string;
@@ -21202,8 +21098,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path?: never;
             cookie?: never;
@@ -21344,8 +21238,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path?: never;
             cookie?: never;
@@ -21490,8 +21382,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 patient_id: string;
@@ -21634,8 +21524,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 patient_id: string;
@@ -21782,8 +21670,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 patient_id: string;
@@ -21926,8 +21812,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 patient_id: string;
@@ -22074,8 +21958,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 patient_id: string;
@@ -22218,8 +22100,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 patient_id: string;
@@ -22366,8 +22246,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 file_id: string;
@@ -22511,8 +22389,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 patient_id: string;
@@ -22655,8 +22531,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 patient_id: string;
@@ -22803,8 +22677,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 patient_id: string;
@@ -22947,8 +22819,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 patient_id: string;
@@ -23095,8 +22965,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path?: never;
             cookie?: never;
@@ -23237,8 +23105,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 visit_type: components["schemas"]["vetdietderm_api__questionnaires__schemas__VisitType"];
@@ -23387,8 +23253,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path?: never;
             cookie?: never;
@@ -23529,8 +23393,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 request_id: string;
@@ -23677,8 +23539,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 file_id: string;
@@ -23822,8 +23682,6 @@ export interface operations {
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
-                /** @description Clinical workspace: personal or organization. Organization membership and role are checked by the server. */
-                "X-Vetapp-Workspace"?: string;
             };
             path: {
                 request_id: string;

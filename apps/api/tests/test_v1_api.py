@@ -195,8 +195,11 @@ def test_multiple_client_origins_share_cors_csrf_and_secure_cookie_configuration
 
 
 @pytest.mark.parametrize("prefix", ["", "/v1/staff"])
-def test_versioned_resource_policies_keep_catalog_and_observer_boundaries(prefix):
-    user = {"organization": {"status": "active", "org_id": "org", "org_role": "viewer"}}
+def test_versioned_resource_policies_keep_catalog_and_observer_boundaries(prefix, monkeypatch):
+    monkeypatch.setattr(auth, "ensure_clinic", lambda request, profile: profile)
+    monkeypatch.setattr("vetdietderm_api.tenancy.rehome_personal_rows", lambda *args, **kwargs: None)
+    user = {"user_id": "11111111-1111-4111-8111-111111111111",
+            "organization": {"status": "active", "org_id": "org", "org_role": "viewer"}}
 
     def request(path):
         return Request({"type": "http", "method": "POST", "path": prefix + path,

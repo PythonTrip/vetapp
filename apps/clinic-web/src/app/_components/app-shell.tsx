@@ -83,8 +83,8 @@ function ThemeToggle() {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { user, workspace } = useAuth();
-  const workspaceLabel = workspace === "organization" ? user?.organization?.name : "Личное рабочее место";
+  const { user } = useAuth();
+  const clinicName = user?.organization?.name;
   const pathname = usePathname();
   const activeSection = sectionFromPathname(pathname);
 
@@ -98,7 +98,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="flex flex-col leading-none">
               <span className="font-bold text-[15px] tracking-tight">VetDietDerm</span>
               <span className="text-[10px] font-medium text-muted-foreground">
-                {workspaceLabel}
+                {clinicName}
               </span>
             </div>
           </Link>

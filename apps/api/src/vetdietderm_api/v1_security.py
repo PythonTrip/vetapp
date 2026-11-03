@@ -33,8 +33,6 @@ def owner_session(key: Annotated[str | None, Security(owner_cookie)]) -> None:
 def require_staff_identity(
     _session: Annotated[None, Depends(staff_session)],
     user: Annotated[dict, Depends(auth.require_user)],
-    workspace: Annotated[str, Header(alias="X-Vetapp-Workspace",
-        description="Clinical workspace: personal or organization. Organization membership and role are checked by the server.")] = "personal",
 ) -> dict:
     return user
 

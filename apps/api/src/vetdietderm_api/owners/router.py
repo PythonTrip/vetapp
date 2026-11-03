@@ -194,7 +194,7 @@ def connect_doctor(body: OwnerJoin, owner: Owner, db: DB):
 
 @router.get("/join-codes/current", response_model=CurrentJoinCode, dependencies=[Depends(require_clinical_access)])
 def join_code(request: Request, db: DB):
-    row = repo.current_code(db, request.state.user, request.headers.get("X-Vetapp-Workspace", "personal"))
+    row = repo.current_code(db, request.state.user)
     settings = get_settings()
     owner_origin = settings.OWNER_FRONTEND_URL or settings.FRONTEND_URL
     return dict(code=row.code, link=f"{owner_origin.rstrip('/')}/join/{row.code}",

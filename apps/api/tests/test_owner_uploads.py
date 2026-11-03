@@ -54,8 +54,8 @@ def test_message_attachments_reach_doctor_and_are_scoped_to_thread(cabinet, monk
     path = f"/owner-registrations/{reg['uuid']}/animals/{animal['uuid']}/chat"
     assert staff.get(path).json()[0]['attachments'][0]['filename'] == 'scan.pdf'
     assert staff.get(f"{path}/files/{upload['uuid']}").content == b'%PDF-1.4 data'
-    user['user_id'] = str(uuid4())
-    assert staff.get(f"{path}/files/{upload['uuid']}").status_code == 403
+    user['organization'] = {**user['organization'], 'org_id': str(uuid4())}
+    assert staff.get(f"{path}/files/{upload['uuid']}", headers={'X-Vetapp-Workspace': 'personal'}).status_code == 403
 
 
 def test_upload_limits_and_signature_validation(cabinet, monkeypatch, tmp_path):

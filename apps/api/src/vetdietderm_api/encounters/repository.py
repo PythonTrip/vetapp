@@ -52,6 +52,11 @@ def create_encounter(session: Session, patient_uuid: UUID, data: EncounterWrite)
 def update_encounter(session: Session, encounter_uuid: UUID, data: EncounterUpdate) -> Encounter:
     encounter = get_encounter(session, encounter_uuid)
     payload = data.model_dump(exclude_unset=True)
+    if encounter.status == "completed" and payload.get("status") in {"draft", "in_progress"}:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Завершённый приём нельзя вернуть в черновик",
+        )
     if "anamnesis_data" in payload and payload["anamnesis_data"] is not None:
         payload["anamnesis_data"] = payload["anamnesis_data"]
     if "prescriptions" in payload and payload["prescriptions"] is not None:

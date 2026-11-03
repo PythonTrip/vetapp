@@ -4,7 +4,6 @@ import type { paths } from "@vetdietderm/api-contract";
 export type { paths, components, operations } from "@vetdietderm/api-contract";
 
 export type Audience = "staff" | "owner";
-export type Workspace = "personal" | "organization";
 export interface AuthAdapter<A extends Audience> {
   readonly audience: A;
   /** Native only: credentials from this audience's secure storage. */
@@ -17,7 +16,6 @@ type Options<A extends Audience> = {
   audience: A;
   auth: AuthAdapter<NoInfer<A>>;
   fetch?: typeof globalThis.fetch;
-  workspace?: () => Workspace;
 } & (
   | { platform: "web"; baseUrl?: "/api" }
   | { platform: "native"; baseUrl: string }
@@ -97,8 +95,7 @@ export function createApiClient<A extends Audience>(options: Options<A>) {
           authHeaders.forEach((value, key) => headers.set(key, value));
         }
         headers.set("X-Vetapp-CSRF", "1");
-        if (options.audience === "staff") headers.set("X-Vetapp-Workspace", options.workspace?.() ?? "personal");
-        else headers.delete("X-Vetapp-Workspace");
+        headers.delete("X-Vetapp-Workspace");
         try {
           return await transport(new Request(request.clone(), {
             headers, credentials: web ? "same-origin" : "omit", cache: "no-store", redirect: "error",

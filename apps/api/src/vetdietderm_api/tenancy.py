@@ -2,14 +2,66 @@
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import Uuid, event, inspect, or_
+from sqlalchemy import Uuid, event, inspect, or_, select, update
 from sqlalchemy.orm import Mapped, Session, mapped_column, with_loader_criteria
 
 
 class TenantOwned:
-    # NULL + created_by is personal; NULL + no owner is inaccessible legacy data.
+    # Clinical rows belong to one clinic. NULL without an author stays unread except standard templates.
     tenant_id: Mapped[UUID | None] = mapped_column(Uuid, nullable=True, index=True)
     created_by: Mapped[UUID | None] = mapped_column(Uuid, nullable=True)
+
+
+def rehome_personal_rows(session: Session, user_id, clinic_id, organization_name: str | None = None) -> None:
+    """Move one doctor's null-tenant clinical rows into the clinic. A second call changes none of those rows."""
+    from vetdietderm_api.appointments.models import Appointment
+    from vetdietderm_api.assessments.models import DietPlan
+    from vetdietderm_api.attachments.models import Attachment
+    from vetdietderm_api.clinical_catalog.models import ClinicalCatalogItem
+    from vetdietderm_api.communications.models import Communication
+    from vetdietderm_api.encounter_templates.models import EncounterTemplate
+    from vetdietderm_api.encounters.models import Encounter
+    from vetdietderm_api.owners.models import JoinCode, OwnerAccount
+    from vetdietderm_api.patients.models import Client, Patient
+
+    doctor = UUID(str(user_id))
+    clinic = UUID(str(clinic_id))
+    for model in (
+        Client, Patient, Encounter, EncounterTemplate, ClinicalCatalogItem,
+        Appointment, Attachment, Communication, DietPlan,
+    ):
+        filters = [model.tenant_id.is_(None), model.created_by == doctor]
+        if model.__tablename__ == "encounter_templates":
+            filters.append(model.scope != "standard")
+        session.execute(update(model).where(*filters).values(tenant_id=clinic))
+
+    personal = session.scalar(select(JoinCode).where(
+        JoinCode.doctor_user_id == doctor, JoinCode.tenant_id.is_(None)))
+    clinic_code = session.scalar(select(JoinCode).where(
+        JoinCode.doctor_user_id == doctor, JoinCode.tenant_id == clinic))
+    if personal is not None and clinic_code is not None:
+        session.execute(update(OwnerAccount).where(OwnerAccount.join_code_uuid == personal.uuid).values(
+            join_code_uuid=clinic_code.uuid, tenant_id=clinic, workspace="organization"))
+        session.flush()
+        session.delete(personal)
+        session.flush()
+    elif personal is not None:
+        personal.tenant_id = clinic
+        personal.workspace = "organization"
+        if organization_name:
+            personal.organization_name = organization_name
+        session.execute(update(OwnerAccount).where(OwnerAccount.join_code_uuid == personal.uuid).values(
+            tenant_id=clinic, workspace="organization"))
+    if clinic_code is not None and organization_name and not clinic_code.organization_name:
+        clinic_code.organization_name = organization_name
+    session.execute(update(OwnerAccount).where(
+        OwnerAccount.join_code_uuid.in_(select(JoinCode.uuid).where(
+            JoinCode.doctor_user_id == doctor,
+            or_(JoinCode.tenant_id.is_(None), JoinCode.tenant_id == clinic),
+        )),
+        or_(OwnerAccount.tenant_id.is_(None), OwnerAccount.tenant_id != clinic),
+    ).values(tenant_id=clinic, workspace="organization"))
+    session.commit()
 
 
 class TenantSession(Session):
@@ -21,7 +73,9 @@ def scope_queries(state):
     from vetdietderm_api.db import Base
 
     tenant_value = state.session.info.get("tenant_id")
-    tenant = UUID(str(tenant_value)) if tenant_value else None
+    if not tenant_value:
+        raise HTTPException(403, "Клиника недоступна")
+    tenant = UUID(str(tenant_value))
     user = UUID(str(state.session.info["user_id"]))
     if not state.is_select:
         # Bulk mutations bypass before_flush; do not allow them on tenant tables.
@@ -34,7 +88,7 @@ def scope_queries(state):
         cls = mapper.class_
         if not issubclass(cls, TenantOwned):
             continue
-        condition = cls.tenant_id == tenant if tenant else (cls.tenant_id.is_(None) & (cls.created_by == user))
+        condition = cls.tenant_id == tenant
         if cls.__tablename__ == "encounter_templates":
             condition = or_(condition, cls.tenant_id.is_(None) & cls.created_by.is_(None) & (cls.scope == "standard"))
         if cls.__tablename__ in {"encounter_templates", "clinical_catalog_items"}:
@@ -46,7 +100,9 @@ def scope_queries(state):
 @event.listens_for(TenantSession, "before_flush")
 def scope_writes(session, _context, _instances):
     tenant_value = session.info.get("tenant_id")
-    tenant = UUID(str(tenant_value)) if tenant_value else None
+    if not tenant_value:
+        raise HTTPException(403, "Клиника недоступна")
+    tenant = UUID(str(tenant_value))
     user = UUID(str(session.info["user_id"]))
     for row in session.new | session.dirty | session.deleted:
         if not isinstance(row, TenantOwned):
@@ -54,8 +110,7 @@ def scope_writes(session, _context, _instances):
         if row in session.new:
             row.tenant_id, row.created_by = tenant, user
         elif (row.tenant_id != tenant or inspect(row).attrs.tenant_id.history.has_changes()
-              or inspect(row).attrs.created_by.history.has_changes()
-              or (tenant is None and row.created_by != user)):
+              or inspect(row).attrs.created_by.history.has_changes()):
             raise HTTPException(404, "Запись не найдена")
         if getattr(row, "scope", None) == "doctor" and row.created_by != user:
             raise HTTPException(404, "Запись не найдена")

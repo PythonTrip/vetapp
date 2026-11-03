@@ -116,6 +116,16 @@ def authenticated_call(request: Request, method: str, path: str, body=None,
         return checked(result)
 
 
+def ensure_clinic(request: Request, profile: dict) -> dict:
+    """Create the doctor's single clinic when a verified profile has no organization."""
+    if profile.get("organization"):
+        return profile
+    display_name = profile.get("display_name")
+    name = display_name if isinstance(display_name, str) and display_name != "" else profile["email"]
+    authenticated_call(request, "POST", "/organizations", {"name": name})
+    return authenticated_call(request, "GET", "/me", force_refresh=True)
+
+
 def require_user(request: Request) -> dict:
     csrf(request)
     # Authority validates the token and current membership. No unsigned JWT trust.
@@ -125,23 +135,26 @@ def require_user(request: Request) -> dict:
     from vetdietderm_api.owners.repository import reserve_staff_email
     with get_session_factory()() as db:
         reserve_staff_email(db, profile["email"], profile["user_id"])
+    profile = ensure_clinic(request, profile)
     request.state.user = profile
     return profile
 
 
 def require_clinical_access(request: Request, user: Annotated[dict, Depends(require_user)]) -> None:
-    workspace = request.headers.get("X-Vetapp-Workspace", "personal")
-    if workspace not in {"personal", "organization"}:
-        raise HTTPException(400, "Неизвестное рабочее место")
-    org = user.get("organization") if workspace == "organization" else None
-    if workspace == "organization" and (not org or org.get("status") != "active"):
-        raise HTTPException(403, "Организация недоступна. Выберите личное рабочее место")
-    request.state.tenant_id = org["org_id"] if org else None
+    user = ensure_clinic(request, user)
+    request.state.user = user
+    org = user.get("organization") or {}
+    if org.get("status") != "active" or not org.get("org_id"):
+        raise HTTPException(403, "Клиника недоступна")
+    from vetdietderm_api.tenancy import rehome_personal_rows
+    with get_session_factory()() as db:
+        rehome_personal_rows(db, user["user_id"], org["org_id"], organization_name=org.get("name"))
+    request.state.tenant_id = org["org_id"]
     if request.method not in {"GET", "HEAD", "OPTIONS"}:
         # Apply the same resource policy through the legacy and versioned adapters.
         path = request.url.path.removeprefix("/v1/staff")
         calculation = path.startswith("/assessments/")
-        if org and org.get("org_role") not in {"owner", "admin", "member"} and not calculation:
+        if org.get("org_role") not in {"owner", "admin", "member"} and not calculation:
             raise HTTPException(403, "Роль наблюдателя разрешает только просмотр")
         if path.startswith("/foods") and user.get("role") != "super_admin":
             raise HTTPException(403, "Общий каталог изменяет только администратор сервиса")
@@ -237,7 +250,8 @@ def account_proxy(path: str, request: Request, response: Response, body: dict | 
     if not PROTECTED.fullmatch(path):
         raise HTTPException(404, "Не найдено")
     result = require_user(request) if path == "me" and request.method == "GET" else authenticated_call(request, request.method, "/" + path, body)
-    if (request.method == "POST" and path in {"organizations", "invites/accept"}) or (
+    renamed = request.method == "PATCH" and re.fullmatch(r"organizations/[\w-]+", path)
+    if (request.method == "POST" and path in {"organizations", "invites/accept"}) or renamed or (
         request.method in {"PATCH", "DELETE"} and "/members/" in path):
         authenticated_call(request, "GET", "/me", force_refresh=True)
     return result

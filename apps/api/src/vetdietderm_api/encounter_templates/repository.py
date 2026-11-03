@@ -19,7 +19,7 @@ def _protected() -> HTTPException:
 def list_templates(session: Session, doctor_name: str | None) -> list[EncounterTemplate]:
     stmt = select(EncounterTemplate)
     if session.info.get("user_id"):
-        pass  # TenantSession filters personal rows by immutable user ID.
+        pass  # TenantSession keeps this clinic's rows and unread standard templates.
     elif doctor_name:
         stmt = stmt.where(
             or_(

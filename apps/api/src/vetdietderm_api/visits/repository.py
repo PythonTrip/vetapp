@@ -232,23 +232,23 @@ def upload(db, row, upload, keys):
 
 
 def staff_list(db, user, tenant_id, status):
+    if not tenant_id:
+        raise HTTPException(403, "Клиника недоступна")
     stmt = select(VisitRequest, OwnerAccount, OwnerRegistration, JoinCode).join(
         OwnerAccount, VisitRequest.owner_account_uuid == OwnerAccount.uuid).join(
         OwnerRegistration, OwnerRegistration.owner_account_uuid == OwnerAccount.uuid).join(
-        JoinCode, OwnerAccount.join_code_uuid == JoinCode.uuid)
-    if tenant_id:
-        stmt = stmt.where(JoinCode.tenant_id == UUID(str(tenant_id)))
-    else:
-        stmt = stmt.where(JoinCode.tenant_id.is_(None), JoinCode.doctor_user_id == UUID(str(user["user_id"])))
+        JoinCode, OwnerAccount.join_code_uuid == JoinCode.uuid).where(
+        JoinCode.tenant_id == UUID(str(tenant_id)))
     if status:
         stmt = stmt.where(VisitRequest.status == status)
     result = []
+    editors = {"owner", "admin", "member"}
     for row, account, registration, code in db.execute(stmt.order_by(VisitRequest.created_at, VisitRequest.uuid)):
         owners.authorize_registration(code, user)
         animal = db.get(OwnerAnimal, row.owner_animal_uuid) if row.owner_animal_uuid else db.get(Patient, row.patient_uuid)
         item = read(db, row).model_dump()
         item.update(registration_uuid=registration.uuid, registration_status=registration.status,
                     owner_name=account.name, animal_name=animal.name if animal else "Животное удалено",
-                    can_write=not code.tenant_id or (user.get("organization") or {}).get("org_role") in {"owner", "admin", "member"})
+                    can_write=(user.get("organization") or {}).get("org_role") in editors)
         result.append(item)
     return result

@@ -61,17 +61,47 @@ def register(owner, code, email="owner@example.com"):
                                                    phone="+7 900 111 22 33", password=" password with spaces "))
 
 
+@pytest.mark.parametrize("initial_status", ["draft", "in_progress"])
+def test_completed_encounter_cannot_be_reopened(cabinet, initial_status):
+    staff, _, _, _ = cabinet
+    client = staff.post("/clients", json={"name": "Владелец"})
+    assert client.status_code == 201, client.text
+    patient = staff.post("/patients", json={
+        "client_uuid": client.json()["uuid"], "name": "Бруно", "species": "dog",
+    })
+    assert patient.status_code == 201, patient.text
+    encounter = staff.post(f"/patients/{patient.json()['uuid']}/encounters", json={
+        "specialty": "general", "type": "appointment", "status": initial_status,
+        "chief_complaint": "Original",
+    })
+    assert encounter.status_code == 201, encounter.text
+    path = f"/encounters/{encounter.json()['uuid']}"
+    if initial_status == "draft":
+        assert staff.patch(path, json={"status": "in_progress"}).status_code == 200
+    assert staff.patch(path, json={"status": "completed"}).status_code == 200
+    for status in ("draft", "in_progress"):
+        rejected = staff.patch(path, json={"status": status, "chief_complaint": "Rejected"})
+        assert rejected.status_code == 409, rejected.text
+        assert rejected.json()["detail"] == "Завершённый приём нельзя вернуть в черновик"
+        stored = staff.get(path).json()
+        assert stored["status"] == "completed"
+        assert stored["chief_complaint"] == "Original"
+    assert staff.patch(path, json={"status": "completed", "chief_complaint": "Correction"}).status_code == 200
+    assert staff.patch(path, json={"plan": "Follow-up"}).status_code == 200
+    assert staff.get(path).json()["status"] == "completed"
+
+
 def test_stable_workspace_codes_preview_and_label_refresh(cabinet):
     staff, owner, _, user = cabinet
     personal = staff.get("/join-codes/current").json()
     assert personal["link"] == f"http://testserver/join/{personal['code']}"
+    assert personal["organization_name"] == "Клиника"
     assert personal == staff.get("/join-codes/current").json()
     org = staff.get("/join-codes/current", headers={"X-Vetapp-Workspace": "organization"}).json()
-    assert org["code"] != personal["code"] and org["organization_name"] == "Клиника"
-    assert staff.get("/join-codes/current").json()["code"] == personal["code"]
+    assert org["code"] == personal["code"] and org["organization_name"] == "Клиника"
     user["display_name"] = "Новое имя"
     assert staff.get("/join-codes/current").json()["doctor_name"] == "Новое имя"
-    assert owner.get(f"/owner/join/{personal['code']}").json() == dict(doctor_name="Новое имя", organization_name=None)
+    assert owner.get(f"/owner/join/{personal['code']}").json() == dict(doctor_name="Новое имя", organization_name="Клиника")
     assert owner.get("/owner/join/unknown").json() == {"detail": "Код не найден"}
 
 
@@ -94,7 +124,7 @@ def test_independent_owner_origin_preserves_inviting_doctor(cabinet, monkeypatch
     with factory() as db:
         account = db.scalar(select(OwnerAccount))
         assert account.doctor_user_id == UUID(user["user_id"])
-        assert account.workspace == "personal" and account.tenant_id is None
+        assert account.workspace == "organization" and account.tenant_id == UUID(user["organization"]["org_id"])
     assert owner.post("/owner/logout").status_code == 200
     assert owner.get("/owner/me").status_code == 401
 
@@ -113,7 +143,7 @@ def test_registration_login_profile_binding_and_cookie_boundaries(cabinet):
     with factory() as db:
         account = db.scalar(select(OwnerAccount))
         assert account.doctor_user_id == UUID(user["user_id"])
-        assert account.tenant_id is None and account.workspace == "personal"
+        assert account.tenant_id == UUID(user["organization"]["org_id"]) and account.workspace == "organization"
         assert account.password_hash != " password with spaces " and account.password_salt
         assert db.scalar(select(OwnerRegistration)).status == "pending"
         assert db.scalar(select(func.count()).select_from(Client)) == 0
@@ -204,6 +234,7 @@ def pending_registration(staff, owner, workspace="personal"):
                for name in ("Мурка", "Муся")]
     queue = staff.get("/owner-registrations", headers={"X-Vetapp-Workspace": workspace}).json()
     assert len(queue) == 1 and queue[0]["can_accept"]
+    assert queue[0]["organization_name"] == "Клиника"
     assert queue[0]["email"] == "owner@example.com" and len(queue[0]["animals"]) == 2
     assert staff.get("/patients", params={"q": "Мурка"}).json() == []
     assert staff.get("/patients", params={"q": "Владелец"}).json() == []
@@ -229,7 +260,7 @@ def test_accept_new_invitation_workspace_and_owner_contact(cabinet, workspace):
         client = db.get(Client, client_id)
         assert (client.name, client.email, client.phone) == tuple(profile.values())
         assert client.created_by == UUID(user["user_id"])
-        assert client.tenant_id == (UUID(user["organization"]["org_id"]) if workspace == "organization" else None)
+        assert client.tenant_id == UUID(user["organization"]["org_id"])
         registration_row = db.get(OwnerRegistration, UUID(registration))
         assert registration_row.status == "accepted" and registration_row.accepted_at
         assert len(list(db.scalars(select(Patient)))) == 2
@@ -284,30 +315,38 @@ def test_link_matches_preserve_clinical_data_and_expose_all_passports(cabinet):
 
 def test_registration_permissions_and_cross_workspace_matches(cabinet):
     staff, owner, factory, user = cabinet
-    registration, animals = pending_registration(staff, owner, "organization")
-    headers = {"X-Vetapp-Workspace": "organization"}
-    personal_client = staff.post("/clients", json=dict(name="Личный клиент")).json()
-    org_client = staff.post("/clients", json=dict(name="Клиент организации"), headers=headers).json()
+    registration, _animals = pending_registration(staff, owner, "organization")
+    headers = {"X-Vetapp-Workspace": "personal"}
+    clinic_client = staff.post("/clients", json=dict(name="Клиент клиники"), headers=headers).json()
     user["organization"]["org_role"] = "observer"
     queue = staff.get("/owner-registrations", headers=headers).json()
     assert len(queue) == 1 and not queue[0]["can_accept"]
+    assert queue[0]["organization_name"] == "Клиника"
     for chosen_workspace in ("personal", "organization"):
         assert staff.post(f"/owner-registrations/{registration}/accept", json={"mode": "create"},
             headers={"X-Vetapp-Workspace": chosen_workspace}).status_code == 403
     user["organization"]["org_role"] = "member"
-    assert staff.post(f"/owner-registrations/{registration}/accept", json=dict(mode="link", client_uuid=personal_client["uuid"])).status_code == 404
+    with factory() as db:
+        foreign = Client(name="Чужая клиника", tenant_id=uuid4(), created_by=UUID(user["user_id"]))
+        db.add(foreign)
+        db.commit()
+        foreign_id = str(foreign.uuid)
+    assert staff.post(f"/owner-registrations/{registration}/accept", json=dict(mode="link", client_uuid=foreign_id)).status_code == 404
     with factory() as db:
         assert db.get(OwnerRegistration, UUID(registration)).status == "pending"
-    # An organization peer can accept another doctor's organization invitation.
+    # A colleague in the same clinic can accept the moved invitation. The header does not choose another tenant.
     user["user_id"] = str(uuid4())
-    assert staff.post(f"/owner-registrations/{registration}/accept", json=dict(mode="link", client_uuid=org_client["uuid"])).status_code == 200
+    assert staff.post(f"/owner-registrations/{registration}/accept", json=dict(mode="link", client_uuid=clinic_client["uuid"]),
+                      headers={"X-Vetapp-Workspace": "personal"}).status_code == 200
 
 
-def test_other_doctor_cannot_read_or_accept_personal_registration(cabinet):
+def test_other_clinic_cannot_read_or_accept_registration(cabinet):
     staff, owner, factory, user = cabinet
     registration, _ = pending_registration(staff, owner)
     user["user_id"] = str(uuid4())
-    assert staff.get("/owner-registrations").json() == []
+    assert len(staff.get("/owner-registrations").json()) == 1
+    user["organization"] = {**user["organization"], "org_id": str(uuid4())}
+    assert staff.get("/owner-registrations", headers={"X-Vetapp-Workspace": "personal"}).json() == []
     assert staff.post(f"/owner-registrations/{registration}/accept", json={"mode": "create"}).status_code == 403
     with factory() as db:
         assert db.get(OwnerRegistration, UUID(registration)).status == "pending"

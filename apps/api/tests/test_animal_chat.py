@@ -90,21 +90,21 @@ def test_personal_threads_and_cookie_kinds_are_isolated(cabinet):
     assert staff.post(owner_path, json={"body": "Нет"}).status_code == 401
     assert owner.get(registration_path).status_code == 401
     assert owner.post(registration_path, json={"body": "Нет"}).status_code == 401
-    doctor_id = user["user_id"]
-    user["user_id"] = str(uuid4())
+    home = dict(user["organization"])
+    user["organization"] = {**home, "org_id": str(uuid4())}
     assert staff.get(registration_path).status_code == 403
     assert staff.post(registration_path, json={"body": "Нет"}).status_code == 403
-    user["user_id"] = doctor_id
+    user["organization"] = home
     assert staff.post(f"/owner-registrations/{registration}/accept", json={"mode": "create"}).status_code == 200
     animal = owner.get("/owner/animals").json()[0]
     patient_path = f"/patients/{animal['uuid']}/chat"
     assert owner.get(patient_path).status_code == 401
     assert owner.post(patient_path, json={"body": "Нет"}).status_code == 401
-    user["user_id"] = str(uuid4())
-    assert staff.get(patient_path).status_code == 404
+    user["organization"] = {**home, "org_id": str(uuid4())}
+    assert staff.get(patient_path, headers={"X-Vetapp-Workspace": "personal"}).status_code == 404
     assert staff.post(patient_path, json={"body": "Нет"}).status_code == 404
     owner.post("/owner/logout")
-    user["user_id"] = doctor_id
+    user["organization"] = home
     code = staff.get("/join-codes/current").json()["code"]
     assert register(owner, code, "second@example.com").status_code == 201
     for path in (owner_path, f"/owner/animals/{animal['uuid']}/chat"):

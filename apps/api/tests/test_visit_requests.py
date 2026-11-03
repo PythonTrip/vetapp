@@ -22,7 +22,7 @@ def test_gallery_copy_uses_invitation_workspace(cabinet, monkeypatch, tmp_path, 
     headers = {"X-Vetapp-Workspace": workspace}
     code = staff.get("/join-codes/current", headers=headers).json()["code"]
     doctor_id = UUID(user["user_id"])
-    tenant_id = UUID(user["organization"]["org_id"]) if workspace == "organization" else None
+    tenant_id = UUID(user["organization"]["org_id"])
     assert register(owner, code).status_code == 201
     animal = owner.post("/owner/animals", json={"name": "Тузик", "species": "dog"}).json()
     visit = request_visit(owner, animal).json()
@@ -79,13 +79,12 @@ def test_gallery_copy_uses_invitation_workspace(cabinet, monkeypatch, tmp_path, 
         row = db.get(Attachment, UUID(clinical.json()["uuid"]))
         assert row.tenant_id == tenant_id
         assert row.created_by == UUID(user["user_id"])
-    if workspace == "organization":
-        assert staff.get(gallery_url).status_code == 404
-        assert staff.get(f"/attachments/{copy['uuid']}/file").status_code == 404
-    else:
-        user["user_id"] = str(uuid4())
-        assert staff.get(gallery_url, headers=headers).status_code == 404
-        assert staff.get(f"/attachments/{copy['uuid']}/file", headers=headers).status_code == 404
+    home = dict(user["organization"])
+    user["organization"] = {**home, "org_id": str(uuid4())}
+    assert staff.get(gallery_url, headers=headers).status_code == 404
+    assert staff.get(f"/attachments/{copy['uuid']}/file", headers=headers).status_code == 404
+    user["organization"] = home
+    assert staff.get(gallery_url, headers={"X-Vetapp-Workspace": "personal"}).status_code == 200
 
 
 @pytest.fixture
@@ -221,10 +220,12 @@ def test_files_survive_reject_withdraw_and_private_boundaries(visits):
     assert confirm(staff, visit).status_code == 409
     with factory() as db:
         assert db.scalar(select(func.count()).select_from(Appointment)) == 0
-    # A staff account from another practice has no read or write access.
-    user["user_id"] = str(uuid4())
-    assert staff.get(f"/visit-requests/{visit['uuid']}/files/{file_id}").status_code == 403
+    # A staff account from another clinic has no read or write access. The header does not reopen it.
+    home = dict(user["organization"])
+    user["organization"] = {**home, "org_id": str(uuid4())}
+    assert staff.get(f"/visit-requests/{visit['uuid']}/files/{file_id}", headers={"X-Vetapp-Workspace": "personal"}).status_code == 403
     assert staff.get("/visit-requests").json() == []
+    user["organization"] = home
     owner.post("/owner/logout")
     code = staff.get("/join-codes/current").json()["code"]
     register(owner, code, "other@example.com")

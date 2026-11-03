@@ -84,6 +84,7 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
   const { user } = useAuth();
   const doctorName = user?.display_name || user?.email || "";
   const [editingEncounterId, setEditingEncounterId] = React.useState(initialEncounterId ?? "");
+  const [persistedStatus, setPersistedStatus] = React.useState<EncounterRecord["status"]>("draft");
   const [form, setForm] = React.useState(emptyForm);
   const [formError, setFormError] = React.useState<string | null>(null);
   const [contextQuery, setContextQuery] = React.useState("");
@@ -167,6 +168,7 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
       vasScore: encounter.vas_score,
     };
     setEditingEncounterId(encounter.uuid);
+    setPersistedStatus(encounter.status);
     setForm(nextForm);
     lastPersistedForm.current = JSON.stringify(nextForm);
     setSaveState("saved");
@@ -185,6 +187,7 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
       return;
     }
     setEditingEncounterId("");
+    setPersistedStatus("draft");
     const nextForm = {
       ...emptyForm(),
       type: "appointment" as EncounterType,
@@ -210,6 +213,7 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
     setContextQuery("");
     loadedContext.current = "";
     setEditingEncounterId("");
+    setPersistedStatus("draft");
     const nextForm = emptyForm();
     setForm(nextForm);
     lastPersistedForm.current = JSON.stringify(nextForm);
@@ -221,6 +225,7 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
   function selectPatient(nextPatientId: string) {
     setPatientId(nextPatientId);
     setEditingEncounterId("");
+    setPersistedStatus("draft");
     loadedContext.current = `patient:${nextPatientId}`;
     const nextForm = emptyForm();
     setForm(nextForm);
@@ -244,7 +249,7 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
     const payload: EncounterWrite = {
       specialty: form.specialty,
       type: form.type,
-      status: finalize || editingRecord?.status === "completed" ? "completed" : startConsultation || editingRecord?.status === "in_progress" ? "in_progress" : "draft",
+      status: finalize ? "completed" : startConsultation && persistedStatus === "draft" ? "in_progress" : persistedStatus,
       chief_complaint: form.chiefComplaint.trim() || null,
       anamnesis: form.anamnesisDoc.finalText.trim() || null,
       anamnesis_data: {
@@ -269,6 +274,7 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
         ? await updateEncounter.mutateAsync({ id: editingEncounterId, body: payload })
         : await createEncounter.mutateAsync(payload);
       setEditingEncounterId(saved.uuid);
+      setPersistedStatus(saved.status);
       loadedContext.current = `encounter:${saved.uuid}`;
       lastPersistedForm.current = JSON.stringify(form);
       setSaveState("saved");
@@ -346,7 +352,7 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
                 </Link>
               </Button>
             ) : null}
-            <Button type="button" size="sm" className="bg-emerald-400 text-emerald-950 hover:bg-emerald-300" onClick={() => void saveEncounter(true)} disabled={saveInFlight}>
+            <Button type="button" size="sm" className="bg-emerald-400 text-emerald-950 hover:bg-emerald-300" onClick={() => void saveEncounter(true)} disabled={saveInFlight || persistedStatus === "completed"}>
               {pendingAction === "complete" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Завершить приём
             </Button>
           </div>
@@ -514,11 +520,11 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
               <span className="block">{editingEncounterId ? "Изменения будут сохранены в существующий приём" : "Будет создан новый приём"}</span>
             </p>
             <div className="flex flex-wrap items-center gap-3">
-              {editingRecord?.status === "completed" && selectedPatient && <Button asChild variant="secondary" className="min-h-11"><Link href={`/patients/${selectedPatient.uuid}?tab=gallery`}>Подготовить результаты</Link></Button>}
+              {persistedStatus === "completed" && selectedPatient && <Button asChild variant="secondary" className="min-h-11"><Link href={`/patients/${selectedPatient.uuid}?tab=gallery`}>Подготовить результаты</Link></Button>}
               <span className="hidden text-xs text-emerald-50/70 sm:inline">{saveState === "saving" ? "Сохраняем изменения…" : saveState === "error" ? "Автосохранение не удалось" : "Черновик сохраняется автоматически"}</span>
-              {editingRecord?.status !== "completed" && editingRecord?.status !== "in_progress" && <Button type="button" variant="secondary" className="min-h-11" disabled={saveInFlight} onClick={() => void saveEncounter(false, false, true)}>Начать консультацию</Button>}
-              {editingRecord?.status === "in_progress" && <span className="text-sm text-white">Идёт консультация</span>}
-              <Button type="button" className="flex-1 bg-emerald-400 text-emerald-950 hover:bg-emerald-300 sm:flex-none" onClick={() => void saveEncounter(true)} disabled={saveInFlight}>{pendingAction === "complete" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Завершить</Button>
+              {persistedStatus === "draft" && <Button type="button" variant="secondary" className="min-h-11" disabled={saveInFlight} onClick={() => void saveEncounter(false, false, true)}>Начать консультацию</Button>}
+              {persistedStatus === "in_progress" && <span className="text-sm text-white">Идёт консультация</span>}
+              <Button type="button" className="flex-1 bg-emerald-400 text-emerald-950 hover:bg-emerald-300 sm:flex-none" onClick={() => void saveEncounter(true)} disabled={saveInFlight || persistedStatus === "completed"}>{pendingAction === "complete" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Завершить</Button>
             </div>
           </div>
         </>

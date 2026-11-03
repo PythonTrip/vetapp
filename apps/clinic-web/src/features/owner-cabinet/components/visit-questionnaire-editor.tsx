@@ -105,8 +105,8 @@ export function VisitQuestionnaireEditor() {
 }
 
 function DoctorQuestionnaires() {
-  const { user, workspace } = useAuth();
-  const canEdit = Boolean(user) && (workspace === "personal" || ["owner", "admin", "member"].includes(user?.organization?.org_role ?? ""));
+  const { user } = useAuth();
+  const canEdit = ["owner", "admin", "member"].includes(user?.organization?.org_role ?? "");
   const [slots, setSlots] = React.useState<VisitQuestionnaire[] | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");

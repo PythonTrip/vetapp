@@ -1,13 +1,9 @@
-import { ApiError, ApiConnectionError, type Audience, type Workspace } from "./index";
+import { ApiError, ApiConnectionError, type Audience } from "./index";
 
 export function createHttpClient(options: { audience: Audience }) {
   function getApiBaseUrl(): string {
     return "/api";
   }
-
-  let workspace: Workspace = "personal";
-
-  function setApiWorkspace(value: Workspace): void { workspace = value; }
 
   interface ApiErrorPayload {
     error?: string;
@@ -76,8 +72,7 @@ export function createHttpClient(options: { audience: Audience }) {
   function authenticatedHeaders(headers?: HeadersInit): Headers {
     const requestHeaders = new Headers(headers);
     requestHeaders.set("X-Vetapp-CSRF", "1");
-    if (options.audience === "staff") requestHeaders.set("X-Vetapp-Workspace", workspace);
-    else requestHeaders.delete("X-Vetapp-Workspace");
+    requestHeaders.delete("X-Vetapp-Workspace");
     return requestHeaders;
   }
 
@@ -193,5 +188,5 @@ export function createHttpClient(options: { audience: Audience }) {
       apiRequest<T>(url, { method: "DELETE" }, fallbackMessage),
   };
 
-  return { api, apiRequest, apiBlob, apiUpload, setApiWorkspace, registerAuthRecovery, recoverSession };
+  return { api, apiRequest, apiBlob, apiUpload, registerAuthRecovery, recoverSession };
 }

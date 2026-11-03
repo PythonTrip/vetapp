@@ -38,20 +38,22 @@ def password_hash(password: str, salt: str) -> str:
     return hashlib.scrypt(password.encode(), salt=bytes.fromhex(salt), n=2**14, r=8, p=1).hex()
 
 
-def current_code(db: Session, user: dict, workspace: str) -> JoinCode:
-    org = user.get("organization") if workspace == "organization" else None
-    tenant = UUID(str(org["org_id"])) if org else None
+def current_code(db: Session, user: dict) -> JoinCode:
+    org = user.get("organization") or {}
+    if org.get("status") != "active" or not org.get("org_id"):
+        raise HTTPException(403, "Клиника недоступна")
+    tenant = UUID(str(org["org_id"]))
     doctor = UUID(str(user["user_id"]))
     # Unique partial indexes arbitrate simultaneous first loads across API processes.
     insert = pg_insert if db.get_bind().dialect.name == "postgresql" else sqlite_insert
     db.execute(insert(JoinCode).values(
         code=secrets.token_urlsafe(12), doctor_user_id=doctor,
-        doctor_label=user.get("display_name") or user["email"], workspace=workspace,
-        tenant_id=tenant, organization_name=org["name"] if org else None,
+        doctor_label=user.get("display_name") or user["email"], workspace="organization",
+        tenant_id=tenant, organization_name=org.get("name"),
     ).on_conflict_do_nothing())
     row = db.scalar(select(JoinCode).where(JoinCode.doctor_user_id == doctor, JoinCode.tenant_id == tenant))
     row.doctor_label = user.get("display_name") or user["email"]
-    row.organization_name = org["name"] if org else None
+    row.organization_name = org.get("name")
     db.commit()
     return row
 
@@ -162,20 +164,20 @@ def registration_context(db: Session, registration_id: UUID, *, lock: bool = Fal
 
 
 def registration_queue(db: Session, user: dict, tenant_id: str | None) -> list[dict]:
+    if not tenant_id:
+        raise HTTPException(403, "Клиника недоступна")
     stmt = select(OwnerRegistration, OwnerAccount, JoinCode).join(
         OwnerAccount, OwnerRegistration.owner_account_uuid == OwnerAccount.uuid
-    ).join(JoinCode, OwnerAccount.join_code_uuid == JoinCode.uuid).where(OwnerRegistration.status == "pending")
-    if tenant_id:
-        stmt = stmt.where(JoinCode.tenant_id == UUID(str(tenant_id)))
-    else:
-        stmt = stmt.where(JoinCode.tenant_id.is_(None), JoinCode.doctor_user_id == UUID(str(user["user_id"])))
+    ).join(JoinCode, OwnerAccount.join_code_uuid == JoinCode.uuid).where(
+        OwnerRegistration.status == "pending", JoinCode.tenant_id == UUID(str(tenant_id)))
     result = []
+    org = user.get("organization") or {}
+    clinic_name = org.get("name") if str(org.get("org_id")) == str(tenant_id) else None
     for registration, owner, code in db.execute(stmt.order_by(OwnerRegistration.created_at, OwnerRegistration.uuid)):
         authorize_registration(code, user)
-        org = user.get("organization") or {}
         result.append(dict(uuid=registration.uuid, name=owner.name, email=owner.email or "", phone=owner.phone,
-            doctor_name=code.doctor_label, organization_name=code.organization_name,
-            can_accept=not code.tenant_id or org.get("org_role") in {"owner", "admin", "member"},
+            doctor_name=code.doctor_label, organization_name=clinic_name or code.organization_name,
+            can_accept=org.get("org_role") in {"owner", "admin", "member"},
             animals=[AnimalRead.model_validate(row) for row in db.scalars(select(OwnerAnimal).where(
                 OwnerAnimal.registration_uuid == registration.uuid).order_by(OwnerAnimal.created_at, OwnerAnimal.uuid))]))
     return result

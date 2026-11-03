@@ -44,13 +44,14 @@ def registration_target(db: Session, registration_id: UUID, animal_id: UUID, use
 
 
 def patient_target(db: Session, patient_id: UUID, user: dict, tenant_id: str | None, *, write=False):
-    # Explicit workspace predicate: chat tables deliberately do not use TenantOwned.
-    condition = Patient.tenant_id == UUID(tenant_id) if tenant_id else (
-        Patient.tenant_id.is_(None) & (Patient.created_by == UUID(user["user_id"])))
-    patient = db.scalar(select(Patient).where(Patient.uuid == patient_id, condition).with_for_update())
+    # Chat tables deliberately do not use TenantOwned, so the clinic id is applied here.
+    if not tenant_id:
+        raise HTTPException(403, "Клиника недоступна")
+    patient = db.scalar(select(Patient).where(
+        Patient.uuid == patient_id, Patient.tenant_id == UUID(str(tenant_id))).with_for_update())
     if patient is None:
         raise HTTPException(404, "Пациент не найден")
-    if write and tenant_id and (user.get("organization") or {}).get("org_role") not in {"owner", "admin", "member"}:
+    if write and (user.get("organization") or {}).get("org_role") not in {"owner", "admin", "member"}:
         raise HTTPException(403, "Роль наблюдателя разрешает только просмотр")
     return None, patient.uuid, None
 

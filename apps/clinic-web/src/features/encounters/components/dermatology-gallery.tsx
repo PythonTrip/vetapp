@@ -70,8 +70,8 @@ function AttachmentThumb({ attachment }: { attachment: AttachmentRecord }) {
 }
 
 export function DermatologyGallery({ patientId }: { patientId: string }) {
-  const { user, workspace } = useAuth();
-  const canShare = workspace === "personal" || ["owner", "admin", "member"].includes(user?.organization?.org_role ?? "");
+  const { user } = useAuth();
+  const canShare = ["owner", "admin", "member"].includes(user?.organization?.org_role ?? "");
   const attachments = useAttachmentsQuery(patientId);
   const encounters = useEncountersQuery(patientId);
   const upload = useUploadAttachment(patientId);
