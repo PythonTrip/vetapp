@@ -139,6 +139,7 @@ def test_viewer_cannot_mutate_and_missing_clinic_is_forbidden(monkeypatch):
     from starlette.requests import Request
     monkeypatch.setattr(auth, "ensure_clinic", lambda request, profile: profile)
     monkeypatch.setattr("vetdietderm_api.tenancy.rehome_personal_rows", lambda *args, **kwargs: None)
+    monkeypatch.setattr(auth, "ensure_clinic_link", lambda request, user: None)
     def req(path, method):
         return Request({"type": "http", "path": path, "method": method, "headers": [(b"x-vetapp-workspace", b"personal")]})
     user = {"user_id": str(uuid4()), "organization": {"org_id": str(uuid4()), "status": "active", "org_role": "viewer"}}

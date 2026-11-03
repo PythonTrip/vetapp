@@ -792,23 +792,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/owner/connect-doctor": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Connect Doctor */
-        post: operations["connect_doctor_owner_connect_doctor_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/owner/credentials": {
         parameters: {
             query?: never;
@@ -1630,23 +1613,6 @@ export interface paths {
         put?: never;
         /** V1 Create Visit */
         post: operations["v1_create_visit_v1_owner_animals__animal_id__visits_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/owner/connect-doctor": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** V1 Connect Doctor */
-        post: operations["v1_connect_doctor_v1_owner_connect_doctor_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4289,13 +4255,10 @@ export interface components {
              */
             uuid: string;
         };
-        /** OwnerJoin */
-        OwnerJoin: {
-            /** Code */
-            code: string;
-        };
         /** OwnerLogin */
         OwnerLogin: {
+            /** Code */
+            code: string;
             /** Email */
             email: string;
             /** Password */
@@ -4312,6 +4275,8 @@ export interface components {
         };
         /** OwnerRead */
         OwnerRead: {
+            /** Clinic Code */
+            clinic_code: string | null;
             /** Doctor Name */
             doctor_name: string;
             /** Email */
@@ -4878,6 +4843,8 @@ export interface components {
         };
         /** TelegramLink */
         TelegramLink: {
+            /** Code */
+            code: string;
             /** Email */
             email: string;
             /** Init Data */
@@ -4887,6 +4854,8 @@ export interface components {
         };
         /** TelegramLogin */
         TelegramLogin: {
+            /** Code */
+            code: string;
             /** Init Data */
             init_data: string;
         };
@@ -4894,6 +4863,8 @@ export interface components {
         TelegramWidgetLogin: {
             /** Auth Date */
             auth_date: number;
+            /** Code */
+            code: string;
             /** First Name */
             first_name: string;
             /** Hash */
@@ -7297,39 +7268,6 @@ export interface operations {
             };
         };
     };
-    connect_doctor_owner_connect_doctor_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["OwnerJoin"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OwnerRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     set_credentials_owner_credentials_post: {
         parameters: {
             query?: never;
@@ -7566,7 +7504,9 @@ export interface operations {
     };
     telegram_config_owner_telegram_config_get: {
         parameters: {
-            query?: never;
+            query: {
+                code: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -7580,6 +7520,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -8892,7 +8841,9 @@ export interface operations {
     };
     v1_telegram_config_v1_auth_owner_telegram_config_get: {
         parameters: {
-            query?: never;
+            query: {
+                code: string;
+            };
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
@@ -12061,150 +12012,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VisitRead"];
-                };
-            };
-            /** @description bad request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description unauthenticated */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description method not allowed */
-            405: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description payload too large */
-            413: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description validation error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description rate limited */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description internal error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description bad gateway */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description service unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description gateway timeout */
-            504: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    v1_connect_doctor_v1_owner_connect_doctor_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
-                "X-Vetapp-CSRF"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["OwnerJoin"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OwnerRead"];
                 };
             };
             /** @description bad request */

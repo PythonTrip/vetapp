@@ -30,11 +30,22 @@ class JoinCode(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
 
+class ClinicLink(Base):
+    __tablename__ = "clinic_links"
+    clinic_id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    code: Mapped[str] = mapped_column(ForeignKey("join_codes.code"), unique=True)
+
+
 class OwnerAccount(Base):
     __tablename__ = "owner_accounts"
+    __table_args__ = (
+        Index("uq_owner_accounts_clinic_email", "tenant_id", "email", unique=True,
+              postgresql_where=text("tenant_id IS NOT NULL AND email IS NOT NULL"),
+              sqlite_where=text("tenant_id IS NOT NULL AND email IS NOT NULL")),
+    )
     uuid: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid6)
     name: Mapped[str] = mapped_column(String(255))
-    email: Mapped[str | None] = mapped_column(String(255), unique=True)
+    email: Mapped[str | None] = mapped_column(String(255))
     phone: Mapped[str] = mapped_column(String(64))
     password_hash: Mapped[str | None] = mapped_column(String(128))
     password_salt: Mapped[str | None] = mapped_column(String(64))
@@ -55,8 +66,10 @@ class OwnerSession(Base):
 
 class TelegramIdentity(Base):
     __tablename__ = "owner_telegram_identities"
-    telegram_user_id: Mapped[str] = mapped_column(String(20), primary_key=True)
-    owner_account_uuid: Mapped[UUID] = mapped_column(ForeignKey("owner_accounts.uuid", ondelete="CASCADE"), unique=True)
+    __table_args__ = (UniqueConstraint("tenant_id", "telegram_user_id", name="uq_owner_telegram_clinic_user"),)
+    telegram_user_id: Mapped[str] = mapped_column(String(20))
+    tenant_id: Mapped[UUID | None] = mapped_column(Uuid)
+    owner_account_uuid: Mapped[UUID] = mapped_column(ForeignKey("owner_accounts.uuid", ondelete="CASCADE"), primary_key=True)
 
 
 class TelegramExchange(Base):

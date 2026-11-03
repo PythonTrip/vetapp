@@ -4,15 +4,17 @@ import re
 import secrets
 import time
 from typing import Annotated
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from sqlalchemy import Float, String, Text, select, text
+from sqlalchemy import Float, String, Text, select, text, update
 from sqlalchemy.orm import Mapped, mapped_column
 
 from vetdietderm_api.db import Base, get_session_factory
 from vetdietderm_api.settings import get_settings
+from vetdietderm_api.owners.models import ClinicLink, JoinCode
+from vetdietderm_api.owners.repository import freeze_clinic_link
 from vetdietderm_api.account_schemas import UserProfileRead, OrganizationMembersRead, OrganizationInvitesRead
 
 COOKIE = "vetapp_session"
@@ -148,14 +150,32 @@ def require_user(request: Request) -> dict:
     return profile
 
 
+def organization_members(request: Request) -> list[dict]:
+    payload = authenticated_call(request, "GET", f"/organizations/{request.state.tenant_id}/members")
+    members = payload.get("members") if isinstance(payload, dict) else payload
+    if not isinstance(members, list):
+        raise HTTPException(502, "Не удалось получить состав клиники")
+    return members
+
+
+def ensure_clinic_link(request: Request, user: dict) -> None:
+    org = user["organization"]
+    clinic_id = UUID(str(org["org_id"]))
+    with get_session_factory()() as db:
+        link = db.get(ClinicLink, clinic_id)
+        if link is None:
+            freeze_clinic_link(db, clinic_id, organization_members(request), user)
+        else:
+            db.execute(update(JoinCode).where(JoinCode.code == link.code,
+                                             JoinCode.organization_name.is_distinct_from(org.get("name")))
+                       .values(organization_name=org.get("name")))
+            db.commit()
+
+
 def require_clinical_access(request: Request, user: Annotated[dict, Depends(require_user)]) -> None:
     org = user.get("organization") or {}
     if org.get("status") != "active" or not org.get("org_id"):
         raise HTTPException(403, "Клиника недоступна")
-    from vetdietderm_api.tenancy import rehome_personal_rows
-    with get_session_factory()() as db:
-        rehome_personal_rows(db, user["user_id"], org["org_id"], organization_name=org.get("name"))
-    request.state.tenant_id = org["org_id"]
     if request.method not in {"GET", "HEAD", "OPTIONS"}:
         # Apply the same resource policy through the legacy and versioned adapters.
         path = request.url.path.removeprefix("/v1/staff")
@@ -164,6 +184,13 @@ def require_clinical_access(request: Request, user: Annotated[dict, Depends(requ
             raise HTTPException(403, "Роль наблюдателя разрешает только просмотр")
         if path.startswith("/foods") and user.get("role") != "super_admin":
             raise HTTPException(403, "Общий каталог изменяет только администратор сервиса")
+
+    from vetdietderm_api.tenancy import rehome_personal_rows
+    with get_session_factory()() as db:
+        rehome_personal_rows(db, user["user_id"], org["org_id"], organization_name=org.get("name"))
+    request.state.tenant_id = org["org_id"]
+
+    ensure_clinic_link(request, user)
 
 
 @router.post("/auth/login", dependencies=[Depends(csrf)])

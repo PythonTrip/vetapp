@@ -8,8 +8,8 @@ export interface OwnerPlatform {
   navigate: (path: string, replace?: boolean) => void;
   saveFile: (blob: Blob, filename: string) => Promise<void>;
   telegramAuth?: {
-    login: () => Promise<import("./api").OwnerProfile>;
-    link: (email: string, password: string) => Promise<import("./api").OwnerProfile>;
+    login: (code: string) => Promise<import("./api").OwnerProfile>;
+    link: (code: string, email: string, password: string) => Promise<import("./api").OwnerProfile>;
   };
 }
 

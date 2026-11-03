@@ -46,6 +46,11 @@ def cabinet(monkeypatch):
                                                  expires_in=900, refresh_token_expires_in=3600))
         if path == "/me":
             return httpx.Response(200, json=user)
+        if path == f"/organizations/{user['organization']['org_id']}/members":
+            assert token == "staff-access"
+            return httpx.Response(200, json={"members": [
+                {"user_id": user["user_id"], "org_role": user["organization"]["org_role"]},
+            ]})
         pytest.fail(f"Unexpected authority call: {path}")
     monkeypatch.setattr(auth, "upstream", remote)
     app = create_app()
@@ -61,7 +66,7 @@ def register(owner, code, email="owner@example.com"):
                                                    phone="+7 900 111 22 33", password=" password with spaces "))
 
 
-def test_stable_workspace_codes_preview_and_label_refresh(cabinet):
+def test_stable_clinic_code_preview(cabinet):
     staff, owner, _, user = cabinet
     personal = staff.get("/join-codes/current").json()
     assert personal["link"] == f"http://testserver/join/{personal['code']}"
@@ -69,9 +74,7 @@ def test_stable_workspace_codes_preview_and_label_refresh(cabinet):
     assert personal == staff.get("/join-codes/current").json()
     org = staff.get("/join-codes/current", headers={"X-Vetapp-Workspace": "organization"}).json()
     assert org["code"] == personal["code"] and org["organization_name"] == "Клиника"
-    user["display_name"] = "Новое имя"
-    assert staff.get("/join-codes/current").json()["doctor_name"] == "Новое имя"
-    assert owner.get(f"/owner/join/{personal['code']}").json() == dict(doctor_name="Новое имя", organization_name="Клиника")
+    assert owner.get(f"/owner/join/{personal['code']}").json() == dict(doctor_name=user["display_name"], organization_name="Клиника")
     assert owner.get("/owner/join/unknown").json() == {"detail": "Код не найден"}
 
 
@@ -123,8 +126,8 @@ def test_registration_login_profile_binding_and_cookie_boundaries(cabinet):
     assert owner.patch("/owner/me", json=dict(name="Другое имя", email="changed@example.com", phone="123")).status_code == 200
     assert owner.post("/owner/logout").status_code == 200
     assert owner.get("/owner/me").status_code == 401
-    assert owner.post("/owner/login", json=dict(email="changed@example.com", password="wrong")).status_code == 401
-    assert owner.post("/owner/login", json=dict(email=" Changed@Example.com ", password=" password with spaces ")).status_code == 200
+    assert owner.post("/owner/login", json=dict(code=code, email="changed@example.com", password="wrong")).status_code == 401
+    assert owner.post("/owner/login", json=dict(code=code, email=" Changed@Example.com ", password=" password with spaces ")).status_code == 200
     with factory() as db:
         assert db.scalar(select(OwnerAccount)).join_code_uuid == account.join_code_uuid
         assert db.scalar(select(func.count()).select_from(OwnerSession)) == 1
@@ -346,3 +349,74 @@ def test_invalid_animal_matches_never_partially_accept(cabinet):
     assert staff.get(f"/owner-registrations/{registration}/patients", params={"client_uuid": client["uuid"]}).json() == []
     assert owner.get("/owner-registrations").status_code == 401
     assert owner.post(f"/owner-registrations/{registration}/accept", json={"mode": "create"}).status_code == 401
+
+
+def test_clinic_link_keeps_owner_code_and_existing_cabinet(cabinet):
+    from datetime import timedelta
+
+    from vetdietderm_api.chat.models import ChatMessage, ChatThread
+    from vetdietderm_api.owners.models import JoinCode, OwnerAnimal, utc_now
+
+    staff, owner, factory, user = cabinet
+    clinic = UUID(user["organization"]["org_id"])
+    user["organization"]["org_role"] = "owner"
+    with factory() as db:
+        kept = JoinCode(code="owner-link", doctor_user_id=UUID(user["user_id"]), doctor_label="Владелец",
+                        tenant_id=clinic, workspace="organization", created_at=utc_now() - timedelta(days=1))
+        retired = JoinCode(code="retired-link", doctor_user_id=uuid4(), doctor_label="Врач",
+                           tenant_id=clinic, workspace="organization")
+        db.add_all([kept, retired])
+        db.flush()
+        account = OwnerAccount(name="Клиент", email="existing@example.com", phone="123", tenant_id=clinic,
+                               workspace="organization", join_code_uuid=retired.uuid)
+        db.add(account)
+        db.flush()
+        registration = OwnerRegistration(owner_account_uuid=account.uuid)
+        db.add(registration)
+        db.flush()
+        pet = OwnerAnimal(registration_uuid=registration.uuid, name="Кот", species="cat")
+        db.add(pet)
+        db.flush()
+        thread = ChatThread(owner_animal_uuid=pet.uuid)
+        db.add(thread)
+        db.flush()
+        message = ChatMessage(thread_uuid=thread.uuid, author_kind="owner", author_id=account.uuid,
+                              author_label=account.name, body="Existing chat message")
+        db.add(message)
+        db.commit()
+        message_id = message.uuid
+        account_id, kept_id, pet_id = account.uuid, kept.uuid, pet.uuid
+    assert staff.get("/join-codes/current").json()["code"] == "owner-link"
+    assert staff.get("/join-codes/current").json()["code"] == "owner-link"
+    assert owner.get("/owner/join/retired-link").status_code == 404
+    assert register(owner, "retired-link").status_code == 404
+    with factory() as db:
+        assert list(db.scalars(select(JoinCode.uuid))) == [kept_id]
+        assert db.get(OwnerAccount, account_id).join_code_uuid == kept_id
+        assert db.get(OwnerAnimal, pet_id).registration_uuid == registration.uuid
+        assert db.get(ChatThread, thread.uuid).owner_animal_uuid == pet_id
+        assert db.get(ChatMessage, message_id).body == "Existing chat message"
+        assert db.scalar(select(func.count()).select_from(OwnerAccount)) == 1
+
+
+def test_same_email_has_a_separate_password_and_animals_in_each_clinic(cabinet):
+    staff, owner, _, user = cabinet
+    first = staff.get("/join-codes/current").json()["code"]
+    assert register(owner, first).status_code == 201
+    assert owner.post("/owner/animals", json={"name": "Кот", "species": "cat"}).status_code == 201
+
+    user["organization"]["org_id"] = str(uuid4())
+    second = staff.get("/join-codes/current").json()["code"]
+    assert owner.get("/owner/telegram/config", params={"code": second}).json() == {"bot_username": None}
+    assert register(owner, second, user["email"]).json() == {"detail": repo.TAKEN_EMAIL}
+    result = owner.post("/owner/register", json=dict(code=second, name="Клиент", phone="123",
+        email="owner@example.com", password="a different password"))
+    assert result.status_code == 201, result.text
+    assert result.json()["clinic_code"] == second
+    assert owner.get("/owner/animals").json() == []
+    assert owner.post("/owner/login", json=dict(code=second, email="owner@example.com",
+        password=" password with spaces ")).status_code == 401
+    result = owner.post("/owner/login", json=dict(code=first, email="owner@example.com",
+        password=" password with spaces "))
+    assert result.json()["clinic_code"] == first
+    assert owner.get("/owner/animals").json()[0]["name"] == "Кот"

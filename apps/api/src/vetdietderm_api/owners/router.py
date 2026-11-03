@@ -25,7 +25,7 @@ from vetdietderm_api.owners.models import ClinicBot, OwnerAnimal, OwnerUpload, J
 from vetdietderm_api.owners.schemas import ClinicBotRead, ClinicBotStatus, ClinicBotWrite, CurrentJoinCode, DoctorPreview, OwnerLogin, OwnerProfileUpdate, OwnerRead, OwnerRegister
 from vetdietderm_api.owners.schemas import OwnerUploadRead, AnimalCreate, AnimalRead, AnimalUpdate
 from vetdietderm_api.owners.schemas import RegistrationAccept, RegistrationAccepted, RegistrationRead
-from vetdietderm_api.owners.schemas import TelegramLogin, TelegramLink, TelegramWidgetLogin, OwnerCredentials, OwnerJoin
+from vetdietderm_api.owners.schemas import TelegramLogin, TelegramLink, TelegramWidgetLogin, OwnerCredentials
 from vetdietderm_api.owners.telegram import fetch_bot_identity, validate_init_data, validate_widget
 from vetdietderm_api.patients.models import Patient
 from vetdietderm_api.settings import get_settings
@@ -84,41 +84,48 @@ def telegram_link(body: TelegramLink, request: Request, response: Response, db: 
     return telegram_exchange(body, request, response, db, link=True)
 
 
+def connected_bot(db: Session, code: JoinCode) -> ClinicBot | None:
+    bot = db.get(ClinicBot, code.tenant_id)
+    return bot if bot and bot.status == ClinicBotStatus.connected else None
+
+
 def telegram_exchange(body: TelegramLogin, request: Request, response: Response, db: Session, *, link: bool, verified=None, name="Владелец"):
-    settings = get_settings()
-    identity, digest, expires = verified or validate_init_data(body.init_data, settings.TELEGRAM_BOT_TOKEN,
-                                                  settings.TELEGRAM_INIT_DATA_MAX_AGE)
+    code = repo.code_by_value(db, body.code)
     if verified is None:
+        bot = connected_bot(db, code)
+        verified = validate_init_data(body.init_data, bot.token if bot else None,
+                                      get_settings().TELEGRAM_INIT_DATA_MAX_AGE)
         user = json.loads(parse_qs(body.init_data)["user"][0])
         name = " ".join(str(user.get(key) or "") for key in ("first_name", "last_name")).strip()[:255] or name
-    binding = db.get(TelegramIdentity, identity)
+    identity, digest, expires = verified
+    binding = db.scalar(select(TelegramIdentity).join(OwnerAccount).where(
+        OwnerAccount.tenant_id == code.tenant_id,
+        TelegramIdentity.tenant_id == code.tenant_id, TelegramIdentity.telegram_user_id == identity))
     if link:
-        owner = db.scalar(select(OwnerAccount).where(OwnerAccount.email == repo.normalize_email(body.email)))
-        candidate = repo.password_hash(body.password, owner.password_salt if owner and owner.password_salt else "00" * 16)
-        if owner is None or not secrets.compare_digest(candidate, owner.password_hash or ""):
-            raise HTTPException(401, "Неверная почта или пароль")
+        owner = password_owner(db, body, code)
         session = db.get(OwnerSession, session_digest(request.cookies.get(COOKIE, "")))
         if session and session.expires > time.time() and session.owner_account_uuid != owner.uuid:
             raise HTTPException(409, "Сначала выйдите из другого кабинета владельца")
-        other = db.scalar(select(TelegramIdentity).where(TelegramIdentity.owner_account_uuid == owner.uuid))
+        other = db.get(TelegramIdentity, owner.uuid)
         if (binding and binding.owner_account_uuid != owner.uuid) or (other and other.telegram_user_id != identity):
             raise HTTPException(409, "Telegram или кабинет уже привязан к другому аккаунту")
         if binding is None:
-            db.add(TelegramIdentity(telegram_user_id=identity, owner_account_uuid=owner.uuid))
+            db.add(TelegramIdentity(telegram_user_id=identity, owner_account_uuid=owner.uuid, tenant_id=code.tenant_id))
     else:
         session = db.get(OwnerSession, session_digest(request.cookies.get(COOKIE, "")))
-        if binding is None:
-            if session and session.expires > time.time():
-                raise HTTPException(409, "В кабинете уже выполнен вход. Подтвердите пароль для привязки Telegram")
-            owner = OwnerAccount(uuid=uuid6(), name=name, email=None, phone="", password_salt=None, password_hash=None,
-                                 doctor_user_id=None, join_code_uuid=None, workspace=None)
-            db.add(owner)
-            db.add(OwnerRegistration(owner_account_uuid=owner.uuid))
-            db.add(TelegramIdentity(telegram_user_id=identity, owner_account_uuid=owner.uuid))
-        else:
-            owner = db.get(OwnerAccount, binding.owner_account_uuid)
-        if session and session.expires > time.time() and session.owner_account_uuid != owner.uuid:
+        active_owner = db.get(OwnerAccount, session.owner_account_uuid) if session and session.expires > time.time() else None
+        if active_owner and active_owner.tenant_id == code.tenant_id and (
+            binding is None or binding.owner_account_uuid != active_owner.uuid
+        ):
             raise HTTPException(409, "Сначала выйдите из другого кабинета владельца")
+    if not link and binding:
+        owner = db.get(OwnerAccount, binding.owner_account_uuid)
+    elif not link:
+        owner = OwnerAccount(uuid=uuid6(), name=name, phone="", doctor_user_id=code.doctor_user_id,
+                             join_code_uuid=code.uuid, workspace=code.workspace, tenant_id=code.tenant_id)
+        db.add(owner)
+        db.add(OwnerRegistration(owner_account_uuid=owner.uuid))
+        db.add(TelegramIdentity(telegram_user_id=identity, owner_account_uuid=owner.uuid, tenant_id=code.tenant_id))
     try:
         # Use one cutoff so a token validated just before expiry cannot delete its
         # own replay marker if the clock passes its expiry during this request.
@@ -137,17 +144,17 @@ def telegram_exchange(body: TelegramLogin, request: Request, response: Response,
 
 
 @router.get("/owner/telegram/config")
-def telegram_config(response: Response):
-    response.headers["Cache-Control"] = "no-store"
-    settings = get_settings()
-    return {"bot_username": settings.TELEGRAM_BOT_USERNAME if settings.TELEGRAM_BOT_TOKEN else None}
+def telegram_config(code: str, db: DB):
+    bot = connected_bot(db, repo.code_by_value(db, code))
+    return {"bot_username": bot.username if bot else None}
 
 
 @router.post("/owner/telegram/widget", response_model=OwnerRead)
 def telegram_widget(body: TelegramWidgetLogin, request: Request, response: Response, db: DB):
-    settings = get_settings()
-    verified = validate_widget(body.model_dump(), settings.TELEGRAM_BOT_TOKEN, settings.TELEGRAM_INIT_DATA_MAX_AGE)
-    return telegram_exchange(TelegramLogin(init_data="widget"), request, response, db, link=False,
+    bot = connected_bot(db, repo.code_by_value(db, body.code))
+    verified = validate_widget(body.model_dump(exclude={"code"}), bot.token if bot else None,
+                               get_settings().TELEGRAM_INIT_DATA_MAX_AGE)
+    return telegram_exchange(TelegramLogin(code=body.code, init_data="widget"), request, response, db, link=False,
                              verified=verified, name=(body.first_name + " " + (body.last_name or "")).strip()[:255])
 
 
@@ -158,7 +165,7 @@ def set_credentials(body: OwnerCredentials, owner: Owner, db: DB):
     db.refresh(owner, with_for_update=True)
     if owner.password_hash:
         raise HTTPException(409, "Вход по почте уже настроен")
-    repo.email_available(db, body.email, owner.uuid)
+    repo.email_available(db, body.email, owner.tenant_id, owner.uuid)
     if registration.client_uuid:
         code = db.get(JoinCode, owner.join_code_uuid)
         client = repo.linked_client(db, registration.client_uuid, code)
@@ -173,22 +180,6 @@ def set_credentials(body: OwnerCredentials, owner: Owner, db: DB):
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(409, repo.TAKEN_EMAIL) from exc
-    return repo.owner_read(db, owner)
-
-
-@router.post("/owner/connect-doctor", response_model=OwnerRead)
-def connect_doctor(body: OwnerJoin, owner: Owner, db: DB):
-    repo.registration_for_owner(db, owner, lock=True)
-    db.refresh(owner)
-    if owner.join_code_uuid:
-        raise HTTPException(409, "Врач уже подключён")
-    code = repo.code_by_value(db, body.code)
-    owner.join_code_uuid = code.uuid
-    owner.doctor_user_id = code.doctor_user_id
-    owner.workspace = code.workspace
-    owner.tenant_id = code.tenant_id
-    owner.updated_at = utc_now()
-    db.commit()
     return repo.owner_read(db, owner)
 
 
@@ -256,7 +247,7 @@ def save_clinic_bot(body: ClinicBotWrite, request: Request, db: DB) -> ClinicBot
 
 @router.get("/join-codes/current", response_model=CurrentJoinCode, dependencies=[Depends(require_clinical_access)])
 def join_code(request: Request, db: DB):
-    row = repo.current_code(db, request.state.user)
+    row = repo.current_code(db, clinic_uuid(request))
     settings = get_settings()
     owner_origin = settings.OWNER_FRONTEND_URL or settings.FRONTEND_URL
     return dict(code=row.code, link=f"{owner_origin.rstrip('/')}/join/{row.code}",
@@ -272,10 +263,11 @@ def preview(code: str, db: DB):
 @router.post("/owner/register", response_model=OwnerRead, status_code=201)
 def register(body: OwnerRegister, request: Request, response: Response, db: DB):
     code = repo.code_by_value(db, body.code)
-    existing = db.get(OwnerSession, session_digest(request.cookies.get(COOKIE, "")))
-    if existing and existing.expires > time.time():
-        raise HTTPException(409, "Аккаунт уже привязан к врачу. Повторное присоединение недоступно")
-    repo.email_available(db, body.email)
+    repo.email_available(db, body.email, code.tenant_id)
+    session = db.get(OwnerSession, session_digest(request.cookies.get(COOKIE, "")))
+    active_owner = db.get(OwnerAccount, session.owner_account_uuid) if session and session.expires > time.time() else None
+    if active_owner and active_owner.tenant_id == code.tenant_id:
+        raise HTTPException(409, "В этой клинике уже открыт кабинет владельца")
     salt = secrets.token_hex(16)
     owner = OwnerAccount(name=body.name, email=body.email, phone=body.phone,
                          password_salt=salt, password_hash=repo.password_hash(body.password, salt),
@@ -292,13 +284,19 @@ def register(body: OwnerRegister, request: Request, response: Response, db: DB):
     return repo.owner_read(db, owner)
 
 
-@router.post("/owner/login", response_model=OwnerRead)
-def login(body: OwnerLogin, request: Request, response: Response, db: DB):
-    owner = db.scalar(select(OwnerAccount).where(OwnerAccount.email == repo.normalize_email(body.email)))
+def password_owner(db: Session, body: OwnerLogin, code: JoinCode) -> OwnerAccount:
+    owner = db.scalar(select(OwnerAccount).where(OwnerAccount.email == repo.normalize_email(body.email),
+                                               OwnerAccount.tenant_id == code.tenant_id))
     # Equal expensive work for unknown emails and incorrect passwords.
     candidate = repo.password_hash(body.password, owner.password_salt if owner and owner.password_salt else "00" * 16)
     if owner is None or not secrets.compare_digest(candidate, owner.password_hash or ""):
         raise HTTPException(401, "Неверная почта или пароль")
+    return owner
+
+
+@router.post("/owner/login", response_model=OwnerRead)
+def login(body: OwnerLogin, request: Request, response: Response, db: DB):
+    owner = password_owner(db, body, repo.code_by_value(db, body.code))
     create_session(db, request, response, owner)
     return repo.owner_read(db, owner)
 
@@ -324,7 +322,7 @@ def update_me(body: OwnerProfileUpdate, owner: Owner, db: DB):
     if owner.password_hash and not body.email:
         raise HTTPException(422, "Укажите почту для входа")
     if body.email:
-        repo.email_available(db, body.email, owner.uuid)
+        repo.email_available(db, body.email, owner.tenant_id, owner.uuid)
     if registration.client_uuid:
         code = db.get(JoinCode, owner.join_code_uuid)
         client = repo.linked_client(db, registration.client_uuid, code)

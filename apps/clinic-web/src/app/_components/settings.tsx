@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/sha
 import { Button } from "@/shared/ui/button";
 import { OrganizationSettings } from "@/features/authentication/organization-settings";
 import { ClinicBotSettings } from "@/features/owner-cabinet/components/clinic-bot-settings";
-import { JoinCodeSettings } from "@/features/owner-cabinet/components/join-code-settings";
 import { VisitQuestionnaireEditor } from "@/features/owner-cabinet/components/visit-questionnaire-editor";
 import { cn } from "@/shared/lib/utils";
 
@@ -28,7 +27,6 @@ export function SettingsModule() {
 
       <OrganizationSettings />
       <ClinicBotSettings />
-      <JoinCodeSettings />
       <VisitQuestionnaireEditor />
 
       <Card>

@@ -21,7 +21,7 @@ def rehome_personal_rows(session: Session, user_id, clinic_id, organization_name
     from vetdietderm_api.communications.models import Communication
     from vetdietderm_api.encounter_templates.models import EncounterTemplate
     from vetdietderm_api.encounters.models import Encounter
-    from vetdietderm_api.owners.models import JoinCode, OwnerAccount
+    from vetdietderm_api.owners.models import ClinicLink, JoinCode, OwnerAccount
     from vetdietderm_api.patients.models import Client, Patient
 
     doctor = UUID(str(user_id))
@@ -60,6 +60,8 @@ def rehome_personal_rows(session: Session, user_id, clinic_id, organization_name
     if session.get_bind().dialect.name == "postgresql":
         session.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
                         {"key": f"vetapp:rehome:{doctor}"})
+        session.execute(text("SELECT pg_advisory_xact_lock(:key)"),
+                        {"key": int.from_bytes(clinic.bytes[:8], "big", signed=True)})
         if not session.scalar(needs_rehome):
             return
 
@@ -67,7 +69,9 @@ def rehome_personal_rows(session: Session, user_id, clinic_id, organization_name
         session.execute(update(model).where(*filters).values(tenant_id=clinic))
 
     personal = session.scalar(personal_code)
-    clinic_code = session.scalar(existing_clinic_code)
+    link = session.get(ClinicLink, clinic)
+    clinic_code = (session.scalar(select(JoinCode).where(JoinCode.code == link.code))
+                   if link else session.scalar(existing_clinic_code))
     if personal is not None and clinic_code is not None:
         session.execute(update(OwnerAccount).where(OwnerAccount.join_code_uuid == personal.uuid).values(
             join_code_uuid=clinic_code.uuid, tenant_id=clinic, workspace="organization"))

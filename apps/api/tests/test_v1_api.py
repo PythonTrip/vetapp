@@ -62,11 +62,12 @@ def register_owner(staff, owner, email="owner@example.com"):
     response = owner.post("/v1/auth/owner/register", json=dict(
         code=code, name="Owner", email=email, phone="123", password="a long password here"))
     assert response.status_code == 201, response.text
+    return code
 
 
 def test_versions_share_state_and_realms_do_not_accept_each_others_sessions(cabinet):
     staff, owner, _, _ = cabinet
-    register_owner(staff, owner)
+    code = register_owner(staff, owner)
     assert owner.get("/v1/owner/me").json() == owner.get("/owner/me").json()
     assert owner.get("/v1/owner/animals").json() == []
     created = owner.post("/v1/owner/animals", json={"name": "Pet", "species": "dog"})
@@ -91,7 +92,7 @@ def test_versions_share_state_and_realms_do_not_accept_each_others_sessions(cabi
     assert owner.post("/v1/auth/owner/logout").json() == {"ok": True}
     assert owner.get("/v1/owner/me").status_code == 401
     assert owner.get("/v1/auth/staff/me").status_code == 200
-    assert owner.post("/owner/login", json=dict(email="owner@example.com", password="a long password here")).status_code == 200
+    assert owner.post("/owner/login", json=dict(code=code, email="owner@example.com", password="a long password here")).status_code == 200
     assert owner.get("/v1/owner/me").status_code == 200
 
 
@@ -198,6 +199,7 @@ def test_multiple_client_origins_share_cors_csrf_and_secure_cookie_configuration
 def test_versioned_resource_policies_keep_catalog_and_observer_boundaries(prefix, monkeypatch):
     monkeypatch.setattr(auth, "ensure_clinic", lambda request, profile: profile)
     monkeypatch.setattr("vetdietderm_api.tenancy.rehome_personal_rows", lambda *args, **kwargs: None)
+    monkeypatch.setattr(auth, "ensure_clinic_link", lambda request, user: None)
     user = {"user_id": "11111111-1111-4111-8111-111111111111",
             "organization": {"status": "active", "org_id": "org", "org_role": "viewer"}}
 

@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.orm import Session
 
-from vetdietderm_api.auth import authenticated_call, require_clinical_access
+from vetdietderm_api.auth import organization_members, require_clinical_access
 from vetdietderm_api.db import get_session
 from vetdietderm_api.questionnaires import repository
 from vetdietderm_api.questionnaires.schemas import QuestionnaireRead, QuestionnaireWrite, VisitType
@@ -12,14 +12,6 @@ from vetdietderm_api.questionnaires.schemas import QuestionnaireRead, Questionna
 router = APIRouter(prefix="/visit-questionnaires", tags=["visit-questionnaires"],
                    dependencies=[Depends(require_clinical_access)])
 SessionDep = Annotated[Session, Depends(get_session)]
-
-
-def organization_members(request: Request) -> list[dict]:
-    payload = authenticated_call(request, "GET", f"/organizations/{request.state.tenant_id}/members")
-    members = payload.get("members") if isinstance(payload, dict) else payload
-    if not isinstance(members, list):
-        raise HTTPException(502, "Не удалось получить состав клиники")
-    return members
 
 
 @router.get("", response_model=list[QuestionnaireRead])

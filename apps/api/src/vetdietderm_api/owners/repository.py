@@ -3,12 +3,12 @@ import secrets
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import delete, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
-from vetdietderm_api.owners.models import JoinCode, OwnerAccount, OwnerAnimal, OwnerRegistration, StaffEmailReservation, TelegramIdentity, utc_now
+from vetdietderm_api.owners.models import ClinicLink, JoinCode, OwnerAccount, OwnerAnimal, OwnerRegistration, StaffEmailReservation, TelegramIdentity, utc_now
 from vetdietderm_api.owners.schemas import AnimalCreate, AnimalRead, AnimalUpdate, RegistrationAccept
 from vetdietderm_api.patients.models import Client, Patient
 
@@ -28,8 +28,9 @@ def reserve_staff_email(db: Session, email: str, user_id: str) -> None:
     db.commit()
 
 
-def email_available(db: Session, email: str, owner_id: UUID | None = None) -> None:
-    owner = db.scalar(select(OwnerAccount).where(OwnerAccount.email == normalize_email(email)))
+def email_available(db: Session, email: str, clinic_id: UUID | None, owner_id: UUID | None = None) -> None:
+    owner = db.scalar(select(OwnerAccount).where(OwnerAccount.email == normalize_email(email),
+                                               OwnerAccount.tenant_id == clinic_id).limit(1))
     if (owner and owner.uuid != owner_id) or db.get(StaffEmailReservation, normalize_email(email)):
         raise HTTPException(409, TAKEN_EMAIL)
 
@@ -38,28 +39,44 @@ def password_hash(password: str, salt: str) -> str:
     return hashlib.scrypt(password.encode(), salt=bytes.fromhex(salt), n=2**14, r=8, p=1).hex()
 
 
-def current_code(db: Session, user: dict) -> JoinCode:
-    org = user.get("organization") or {}
-    if org.get("status") != "active" or not org.get("org_id"):
-        raise HTTPException(403, "Клиника недоступна")
-    tenant = UUID(str(org["org_id"]))
-    doctor = UUID(str(user["user_id"]))
-    # Unique partial indexes arbitrate simultaneous first loads across API processes.
-    insert = pg_insert if db.get_bind().dialect.name == "postgresql" else sqlite_insert
-    db.execute(insert(JoinCode).values(
-        code=secrets.token_urlsafe(12), doctor_user_id=doctor,
-        doctor_label=user.get("display_name") or user["email"], workspace="organization",
-        tenant_id=tenant, organization_name=org.get("name"),
-    ).on_conflict_do_nothing())
-    row = db.scalar(select(JoinCode).where(JoinCode.doctor_user_id == doctor, JoinCode.tenant_id == tenant))
-    row.doctor_label = user.get("display_name") or user["email"]
-    row.organization_name = org.get("name")
+def freeze_clinic_link(db: Session, clinic_id: UUID, members: list[dict], user: dict) -> None:
+    if db.get_bind().dialect.name == "postgresql":
+        # Serialize first access even when the clinic has no existing code rows.
+        lock_key = int.from_bytes(clinic_id.bytes[:8], "big", signed=True)
+        db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": lock_key})
+    if db.get(ClinicLink, clinic_id):
+        return
+    org = user["organization"]
+    owners = {str(member.get("user_id")) for member in members
+              if isinstance(member, dict) and member.get("org_role") == "owner"}
+    candidates = list(db.scalars(select(JoinCode).where(JoinCode.tenant_id == clinic_id)
+                                 .order_by(JoinCode.created_at.desc(), JoinCode.uuid.desc())))
+    if candidates:
+        code = next((row for row in candidates if str(row.doctor_user_id) in owners), candidates[0])
+    else:
+        code = JoinCode(code=secrets.token_urlsafe(12), tenant_id=clinic_id, workspace="organization",
+                        doctor_user_id=UUID(str(user["user_id"])),
+                        doctor_label=user.get("display_name") or user["email"])
+        db.add(code)
+    code.organization_name = org.get("name")
+    db.flush()
+    db.execute(update(OwnerAccount).where(OwnerAccount.tenant_id == clinic_id)
+               .values(join_code_uuid=code.uuid))
+    db.execute(delete(JoinCode).where(JoinCode.tenant_id == clinic_id, JoinCode.uuid != code.uuid))
+    db.add(ClinicLink(clinic_id=clinic_id, code=code.code))
     db.commit()
-    return row
+
+
+def current_code(db: Session, clinic_id: UUID) -> JoinCode:
+    link = db.get(ClinicLink, clinic_id)
+    if link is None:
+        raise HTTPException(404, "Код не найден")
+    return code_by_value(db, link.code)
 
 
 def code_by_value(db: Session, code: str) -> JoinCode:
-    row = db.scalar(select(JoinCode).where(JoinCode.code == code))
+    row = db.scalar(select(JoinCode).join(ClinicLink, ClinicLink.code == JoinCode.code)
+                    .where(ClinicLink.code == code))
     if row is None:
         raise HTTPException(404, "Код не найден")
     return row
@@ -68,7 +85,8 @@ def code_by_value(db: Session, code: str) -> JoinCode:
 def owner_read(db: Session, owner: OwnerAccount) -> dict:
     code = db.get(JoinCode, owner.join_code_uuid) if owner.join_code_uuid else None
     registration = db.scalar(select(OwnerRegistration).where(OwnerRegistration.owner_account_uuid == owner.uuid))
-    return dict(uuid=owner.uuid, name=owner.name, email=owner.email or "", phone=owner.phone,
+    link = db.get(ClinicLink, owner.tenant_id) if owner.tenant_id else None
+    return dict(clinic_code=link.code if link else None, uuid=owner.uuid, name=owner.name, email=owner.email or "", phone=owner.phone,
                 telegram_linked=db.scalar(select(TelegramIdentity).where(TelegramIdentity.owner_account_uuid == owner.uuid)) is not None,
                 has_password=bool(owner.password_hash),
                 doctor_name=code.doctor_label if code else "", organization_name=code.organization_name if code else None,

@@ -72,7 +72,9 @@ def api_app(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[FastAPI
     import httpx
     from vetdietderm_api import auth
     monkeypatch.setattr(auth, "upstream", lambda method, path, body=None, token=None:
-        httpx.Response(200, json={
+        httpx.Response(200, json={"members": [{
+            "user_id": "00000000-0000-0000-0000-000000000001", "org_role": "owner",
+        }]}) if path.endswith("/members") else httpx.Response(200, json={
             "user_id": "00000000-0000-0000-0000-000000000001",
             "email": "test@example.com", "email_verified": True,
             "account_status": "active", "role": "super_admin",

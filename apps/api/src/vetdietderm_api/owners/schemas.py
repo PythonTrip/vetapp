@@ -46,12 +46,14 @@ class OwnerRegister(OwnerProfileWrite):
 
 
 class OwnerLogin(BaseModel):
+    code: str = Field(min_length=1, max_length=64)
     email: str = Field(max_length=255)
     password: str = Field(min_length=1, max_length=128)
 
 
 class TelegramLogin(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    code: str = Field(min_length=1, max_length=64)
     init_data: str = Field(min_length=1, max_length=16384)
 
 
@@ -70,6 +72,7 @@ class CurrentJoinCode(DoctorPreview):
 
 
 class OwnerRead(DoctorPreview):
+    clinic_code: str | None
     uuid: UUID
     name: str
     email: str
@@ -154,10 +157,6 @@ class OwnerCredentials(BaseModel):
     _email = field_validator("email")(OwnerProfileWrite.normalize_email.__func__)
 
 
-class OwnerJoin(BaseModel):
-    code: str = Field(min_length=1, max_length=64)
-
-
 class ClinicBotStatus(StrEnum):
     connected = "connected"
     error = "error"
@@ -177,6 +176,7 @@ class ClinicBotWrite(BaseModel):
 
 class TelegramWidgetLogin(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
+    code: str = Field(min_length=1, max_length=64)
     id: int = Field(gt=0, lt=2**52)
     first_name: str = Field(min_length=1, max_length=255)
     last_name: str | None = Field(default=None, max_length=255)
