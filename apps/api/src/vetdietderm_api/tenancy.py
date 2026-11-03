@@ -2,7 +2,7 @@
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import Uuid, event, inspect, or_, select, update
+from sqlalchemy import Uuid, event, inspect, or_, select, text, update
 from sqlalchemy.orm import Mapped, Session, mapped_column, with_loader_criteria
 
 
@@ -26,6 +26,7 @@ def rehome_personal_rows(session: Session, user_id, clinic_id, organization_name
 
     doctor = UUID(str(user_id))
     clinic = UUID(str(clinic_id))
+    clinical_rows = []
     for model in (
         Client, Patient, Encounter, EncounterTemplate, ClinicalCatalogItem,
         Appointment, Attachment, Communication, DietPlan,
@@ -33,12 +34,40 @@ def rehome_personal_rows(session: Session, user_id, clinic_id, organization_name
         filters = [model.tenant_id.is_(None), model.created_by == doctor]
         if model.__tablename__ == "encounter_templates":
             filters.append(model.scope != "standard")
+        clinical_rows.append((model, filters))
+
+    personal_code = select(JoinCode).where(
+        JoinCode.doctor_user_id == doctor, JoinCode.tenant_id.is_(None))
+    existing_clinic_code = select(JoinCode).where(
+        JoinCode.doctor_user_id == doctor, JoinCode.tenant_id == clinic)
+    stale_owners = (
+        OwnerAccount.join_code_uuid.in_(select(JoinCode.uuid).where(
+            JoinCode.doctor_user_id == doctor,
+            or_(JoinCode.tenant_id.is_(None), JoinCode.tenant_id == clinic),
+        )),
+        or_(OwnerAccount.tenant_id.is_(None), OwnerAccount.tenant_id != clinic),
+    )
+    pending = [select(model).where(*filters).exists() for model, filters in clinical_rows]
+    pending.extend((personal_code.exists(), select(OwnerAccount).where(*stale_owners).exists()))
+    if organization_name:
+        pending.append(existing_clinic_code.where(
+            or_(JoinCode.organization_name.is_(None), JoinCode.organization_name == "")
+        ).exists())
+    needs_rehome = select(or_(*pending))
+    if not session.scalar(needs_rehome):
+        return
+
+    if session.get_bind().dialect.name == "postgresql":
+        session.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+                        {"key": f"vetapp:rehome:{doctor}"})
+        if not session.scalar(needs_rehome):
+            return
+
+    for model, filters in clinical_rows:
         session.execute(update(model).where(*filters).values(tenant_id=clinic))
 
-    personal = session.scalar(select(JoinCode).where(
-        JoinCode.doctor_user_id == doctor, JoinCode.tenant_id.is_(None)))
-    clinic_code = session.scalar(select(JoinCode).where(
-        JoinCode.doctor_user_id == doctor, JoinCode.tenant_id == clinic))
+    personal = session.scalar(personal_code)
+    clinic_code = session.scalar(existing_clinic_code)
     if personal is not None and clinic_code is not None:
         session.execute(update(OwnerAccount).where(OwnerAccount.join_code_uuid == personal.uuid).values(
             join_code_uuid=clinic_code.uuid, tenant_id=clinic, workspace="organization"))
@@ -54,13 +83,8 @@ def rehome_personal_rows(session: Session, user_id, clinic_id, organization_name
             tenant_id=clinic, workspace="organization"))
     if clinic_code is not None and organization_name and not clinic_code.organization_name:
         clinic_code.organization_name = organization_name
-    session.execute(update(OwnerAccount).where(
-        OwnerAccount.join_code_uuid.in_(select(JoinCode.uuid).where(
-            JoinCode.doctor_user_id == doctor,
-            or_(JoinCode.tenant_id.is_(None), JoinCode.tenant_id == clinic),
-        )),
-        or_(OwnerAccount.tenant_id.is_(None), OwnerAccount.tenant_id != clinic),
-    ).values(tenant_id=clinic, workspace="organization"))
+    session.execute(update(OwnerAccount).where(*stale_owners).values(
+        tenant_id=clinic, workspace="organization"))
     session.commit()
 
 

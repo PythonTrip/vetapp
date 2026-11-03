@@ -8,7 +8,7 @@ from uuid import uuid4
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from sqlalchemy import Float, String, Text, select
+from sqlalchemy import Float, String, Text, select, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from vetdietderm_api.db import Base, get_session_factory
@@ -120,10 +120,18 @@ def ensure_clinic(request: Request, profile: dict) -> dict:
     """Create the doctor's single clinic when a verified profile has no organization."""
     if profile.get("organization"):
         return profile
-    display_name = profile.get("display_name")
-    name = display_name if isinstance(display_name, str) and display_name != "" else profile["email"]
-    authenticated_call(request, "POST", "/organizations", {"name": name})
-    return authenticated_call(request, "GET", "/me", force_refresh=True)
+    # Serialize provisioning across browser sessions and API processes.
+    lock_key = f"vetapp:clinic:{profile['user_id']}"
+    with get_session_factory()() as db:
+        if db.get_bind().dialect.name == "postgresql":
+            db.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"), {"key": lock_key})
+        profile = authenticated_call(request, "GET", "/me")
+        if profile.get("organization"):
+            return profile
+        display_name = profile.get("display_name")
+        name = display_name if isinstance(display_name, str) and display_name else profile["email"]
+        authenticated_call(request, "POST", "/organizations", {"name": name})
+        return authenticated_call(request, "GET", "/me", force_refresh=True)
 
 
 def require_user(request: Request) -> dict:
@@ -141,8 +149,6 @@ def require_user(request: Request) -> dict:
 
 
 def require_clinical_access(request: Request, user: Annotated[dict, Depends(require_user)]) -> None:
-    user = ensure_clinic(request, user)
-    request.state.user = user
     org = user.get("organization") or {}
     if org.get("status") != "active" or not org.get("org_id"):
         raise HTTPException(403, "Клиника недоступна")

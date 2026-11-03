@@ -156,7 +156,7 @@ def test_viewer_cannot_mutate_and_missing_clinic_is_forbidden(monkeypatch):
     assert missing.value.detail == "Клиника недоступна"
 
 
-def test_personal_rows_move_into_the_clinic_once(engine):
+def test_personal_rows_move_into_the_clinic_once(engine, monkeypatch):
     from vetdietderm_api.db import Base
     from vetdietderm_api.encounter_templates.models import EncounterTemplate
     from vetdietderm_api.ids import uuid6
@@ -193,7 +193,19 @@ def test_personal_rows_move_into_the_clinic_once(engine):
         rehome_personal_rows(db, user, clinic, organization_name="Клиника")
         rehome_personal_rows(db, solo, clinic, organization_name="Клиника Соло")
     with Session(engine) as db:
-        rehome_personal_rows(db, user, clinic, organization_name="Клиника")
+        with monkeypatch.context() as patch:
+            execute = db.execute
+
+            def read_only(statement, *args, **kwargs):
+                assert statement.is_select
+                return execute(statement, *args, **kwargs)
+
+            def unexpected_commit():
+                pytest.fail("A completed rehome must not commit")
+
+            patch.setattr(db, "execute", read_only)
+            patch.setattr(db, "commit", unexpected_commit)
+            rehome_personal_rows(db, user, clinic, organization_name="Клиника")
         assert db.get(Client, personal_id).tenant_id == clinic
         assert db.get(Client, untouched_id).tenant_id is None
         assert db.get(EncounterTemplate, standard_id).tenant_id is None

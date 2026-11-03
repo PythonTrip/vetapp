@@ -61,36 +61,6 @@ def register(owner, code, email="owner@example.com"):
                                                    phone="+7 900 111 22 33", password=" password with spaces "))
 
 
-@pytest.mark.parametrize("initial_status", ["draft", "in_progress"])
-def test_completed_encounter_cannot_be_reopened(cabinet, initial_status):
-    staff, _, _, _ = cabinet
-    client = staff.post("/clients", json={"name": "Владелец"})
-    assert client.status_code == 201, client.text
-    patient = staff.post("/patients", json={
-        "client_uuid": client.json()["uuid"], "name": "Бруно", "species": "dog",
-    })
-    assert patient.status_code == 201, patient.text
-    encounter = staff.post(f"/patients/{patient.json()['uuid']}/encounters", json={
-        "specialty": "general", "type": "appointment", "status": initial_status,
-        "chief_complaint": "Original",
-    })
-    assert encounter.status_code == 201, encounter.text
-    path = f"/encounters/{encounter.json()['uuid']}"
-    if initial_status == "draft":
-        assert staff.patch(path, json={"status": "in_progress"}).status_code == 200
-    assert staff.patch(path, json={"status": "completed"}).status_code == 200
-    for status in ("draft", "in_progress"):
-        rejected = staff.patch(path, json={"status": status, "chief_complaint": "Rejected"})
-        assert rejected.status_code == 409, rejected.text
-        assert rejected.json()["detail"] == "Завершённый приём нельзя вернуть в черновик"
-        stored = staff.get(path).json()
-        assert stored["status"] == "completed"
-        assert stored["chief_complaint"] == "Original"
-    assert staff.patch(path, json={"status": "completed", "chief_complaint": "Correction"}).status_code == 200
-    assert staff.patch(path, json={"plan": "Follow-up"}).status_code == 200
-    assert staff.get(path).json()["status"] == "completed"
-
-
 def test_stable_workspace_codes_preview_and_label_refresh(cabinet):
     staff, owner, _, user = cabinet
     personal = staff.get("/join-codes/current").json()

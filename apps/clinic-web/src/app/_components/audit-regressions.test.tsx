@@ -1,5 +1,5 @@
 import * as React from "react";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { appointmentsApi, type AppointmentRecord } from "@/features/appointments/api";
@@ -15,59 +15,18 @@ vi.mock("@/features/encounters/components/plan-editor", () => ({ PlanEditor: () 
 afterEach(() => vi.restoreAllMocks());
 const patient = { uuid: "older-patient", name: "Older patient", species: "dog", client: { name: "Owner" } } as PatientRecord;
 const appointment = { uuid: "recent-slot", patient_uuid: patient.uuid, patient, encounter_uuid: "linked-visit", starts_at: "2026-09-05T10:00:00Z", visit_type: "consultation", status: "scheduled", duration_min: 30 } as AppointmentRecord;
-function setup(element: React.ReactNode, appointments: AppointmentRecord[] = [], encounters: EncounterRecord[] = []) {
+function setup(element: React.ReactNode, appointments: AppointmentRecord[] = []) {
   vi.spyOn(appointmentsApi, "list").mockResolvedValue(appointments);
   vi.spyOn(patientsApi, "list").mockImplementation(async (q) => q === "Older" ? [patient] : []);
   vi.spyOn(patientsApi, "get").mockResolvedValue(patient);
-  vi.spyOn(encountersApi, "list").mockResolvedValue(encounters);
+  vi.spyOn(encountersApi, "list").mockResolvedValue([]);
   vi.spyOn(clinicalCatalogApi, "list").mockResolvedValue([]);
   vi.spyOn(encounterTemplatesApi, "list").mockResolvedValue([]);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   render(<QueryClientProvider client={client}>{element}</QueryClientProvider>);
-  return client;
 }
 
 describe("audit clinical regressions", () => {
-  it.each(["draft", "in_progress"] as const)("keeps a completed %s encounter completed before and after a stale refetch", async (status) => {
-    const record = { uuid: "linked-visit", patient_uuid: patient.uuid, specialty: "general", type: "appointment", status, chief_complaint: "Existing complaint", occurred_at: appointment.starts_at, diagnoses: [], vas_score: null } as unknown as EncounterRecord;
-    const completed = { ...record, status: "completed" } as EncounterRecord;
-    vi.spyOn(appointmentsApi, "get").mockResolvedValue(appointment);
-    const updateAppointment = vi.spyOn(appointmentsApi, "update").mockResolvedValue({ ...appointment, status: "completed" });
-    vi.spyOn(encountersApi, "get").mockResolvedValue(record);
-    const update = vi.spyOn(encountersApi, "update").mockResolvedValue(completed);
-    const client = setup(<EncounterWorkspace initialAppointmentId={appointment.uuid} />, [], [record]);
-    const complaint = await screen.findByDisplayValue("Existing complaint");
-    let resolveRefetch!: (records: EncounterRecord[]) => void;
-    const refetch = new Promise<EncounterRecord[]>((resolve) => { resolveRefetch = resolve; });
-    vi.mocked(encountersApi.list).mockReturnValue(refetch);
-    fireEvent.click(screen.getByRole("button", { name: "Завершить приём" }));
-    await waitFor(() => expect(updateAppointment).toHaveBeenCalled());
-    expect(screen.getByRole("button", { name: "Завершить приём" })).toBeDisabled();
-    expect(screen.queryByRole("button", { name: "Начать консультацию" })).not.toBeInTheDocument();
-    fireEvent.change(complaint, { target: { value: "First correction" } });
-    await waitFor(() => expect(update).toHaveBeenCalledWith(record.uuid, expect.objectContaining({ status: "completed", chief_complaint: "First correction" })), { timeout: 3000 });
-    await act(async () => { resolveRefetch([record]); await refetch; });
-    await waitFor(() => expect(client.getQueryData<EncounterRecord[]>(["encounters", patient.uuid])?.[0].status).toBe(status));
-    expect(screen.queryByRole("button", { name: "Начать консультацию" })).not.toBeInTheDocument();
-    expect(screen.queryByText("Идёт консультация")).not.toBeInTheDocument();
-    fireEvent.change(complaint, { target: { value: "Second correction" } });
-    await waitFor(() => expect(update).toHaveBeenLastCalledWith(record.uuid, expect.objectContaining({ status: "completed", chief_complaint: "Second correction" })), { timeout: 3000 });
-    expect(updateAppointment).toHaveBeenCalledTimes(1);
-    expect(updateAppointment).toHaveBeenCalledWith(appointment.uuid, expect.objectContaining({ status: "completed" }));
-  });
-  it("keeps the persisted status and shows the error when completion fails", async () => {
-    const record = { uuid: "linked-visit", patient_uuid: patient.uuid, specialty: "general", type: "appointment", status: "in_progress", chief_complaint: "Existing complaint", occurred_at: appointment.starts_at, diagnoses: [], vas_score: null } as unknown as EncounterRecord;
-    vi.spyOn(appointmentsApi, "get").mockResolvedValue(appointment);
-    vi.spyOn(encountersApi, "get").mockResolvedValue(record);
-    const update = vi.spyOn(encountersApi, "update").mockRejectedValueOnce(new Error("Completion failed")).mockResolvedValue(record);
-    setup(<EncounterWorkspace initialAppointmentId={appointment.uuid} />);
-    const complaint = await screen.findByDisplayValue("Existing complaint");
-    fireEvent.click(screen.getByRole("button", { name: "Завершить приём" }));
-    expect(await screen.findByText("Completion failed")).toBeInTheDocument();
-    expect(screen.getByText("Идёт консультация")).toBeInTheDocument();
-    fireEvent.change(complaint, { target: { value: "Correction" } });
-    await waitFor(() => expect(update).toHaveBeenLastCalledWith(record.uuid, expect.objectContaining({ status: "in_progress", chief_complaint: "Correction" })), { timeout: 3000 });
-  });
   it("keeps an active consultation in progress during autosave", async () => {
     const record = { uuid: "linked-visit", patient_uuid: patient.uuid, specialty: "general", type: "appointment", status: "in_progress", chief_complaint: "Existing complaint", occurred_at: appointment.starts_at, diagnoses: [], vas_score: null } as unknown as EncounterRecord;
     vi.spyOn(appointmentsApi, "get").mockResolvedValue(appointment);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { attachmentsApi, communicationsApi, encountersApi, type AttachmentPatch, type CommunicationWrite, type EncounterRecord, type EncounterWrite } from "@/features/encounters/api";
+import { attachmentsApi, communicationsApi, encountersApi, type AttachmentPatch, type CommunicationWrite, type EncounterWrite } from "@/features/encounters/api";
 import { retryUnlessClientError } from "@/shared/api/query";
 
 export function useEncountersQuery(patientId: string) {
@@ -26,15 +26,8 @@ export function useCreateEncounter(patientId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: EncounterWrite) => encountersApi.create(patientId, body),
-    onSuccess: (saved) => {
-      queryClient.setQueryData(["encounter", saved.uuid], saved);
-      queryClient.setQueryData<EncounterRecord[]>(["encounters", patientId], (records) =>
-        records?.some((record) => record.uuid === saved.uuid)
-          ? records.map((record) => record.uuid === saved.uuid ? saved : record)
-          : [saved, ...(records ?? [])]);
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["encounters", patientId] });
-      void queryClient.invalidateQueries({ queryKey: ["encounter", saved.uuid] });
-      void queryClient.invalidateQueries({ queryKey: ["appointments"] });
     },
   });
 }
@@ -45,9 +38,6 @@ export function useUpdateEncounter(patientId: string) {
     mutationFn: ({ id, body }: { id: string; body: Partial<EncounterWrite> }) =>
       encountersApi.update(id, body),
     onSuccess: (saved) => {
-      queryClient.setQueryData(["encounter", saved.uuid], saved);
-      queryClient.setQueryData<EncounterRecord[]>(["encounters", patientId], (records) =>
-        records?.map((record) => record.uuid === saved.uuid ? saved : record));
       void queryClient.invalidateQueries({ queryKey: ["encounters", patientId] });
       void queryClient.invalidateQueries({ queryKey: ["encounter", saved.uuid] });
       void queryClient.invalidateQueries({ queryKey: ["appointments"] });
