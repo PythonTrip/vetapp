@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import HTTPException
 from sqlalchemy import Uuid, event, inspect, or_, select, text, update
-from sqlalchemy.orm import Mapped, Session, mapped_column, with_loader_criteria
+from sqlalchemy.orm import Mapped, Session, aliased, mapped_column, with_loader_criteria
 
 
 class TenantOwned:
@@ -13,7 +13,7 @@ class TenantOwned:
 
 
 def rehome_personal_rows(session: Session, user_id, clinic_id, organization_name: str | None = None) -> None:
-    """Move one doctor's null-tenant clinical rows into the clinic. A second call changes none of those rows."""
+    """Move one doctor's null-tenant clinical rows and Telegram bindings into the clinic. A second call changes none of those rows."""
     from vetdietderm_api.appointments.models import Appointment
     from vetdietderm_api.assessments.models import DietPlan
     from vetdietderm_api.attachments.models import Attachment
@@ -21,7 +21,7 @@ def rehome_personal_rows(session: Session, user_id, clinic_id, organization_name
     from vetdietderm_api.communications.models import Communication
     from vetdietderm_api.encounter_templates.models import EncounterTemplate
     from vetdietderm_api.encounters.models import Encounter
-    from vetdietderm_api.owners.models import ClinicLink, JoinCode, OwnerAccount
+    from vetdietderm_api.owners.models import ClinicLink, JoinCode, OwnerAccount, TelegramIdentity
     from vetdietderm_api.patients.models import Client, Patient
 
     doctor = UUID(str(user_id))
@@ -40,15 +40,31 @@ def rehome_personal_rows(session: Session, user_id, clinic_id, organization_name
         JoinCode.doctor_user_id == doctor, JoinCode.tenant_id.is_(None))
     existing_clinic_code = select(JoinCode).where(
         JoinCode.doctor_user_id == doctor, JoinCode.tenant_id == clinic)
+    attached_to_doctor = (
+        JoinCode.doctor_user_id == doctor,
+        or_(JoinCode.tenant_id.is_(None), JoinCode.tenant_id == clinic),
+    )
     stale_owners = (
-        OwnerAccount.join_code_uuid.in_(select(JoinCode.uuid).where(
-            JoinCode.doctor_user_id == doctor,
-            or_(JoinCode.tenant_id.is_(None), JoinCode.tenant_id == clinic),
-        )),
+        OwnerAccount.join_code_uuid.in_(select(JoinCode.uuid).where(*attached_to_doctor)),
         or_(OwnerAccount.tenant_id.is_(None), OwnerAccount.tenant_id != clinic),
     )
+    claimed = aliased(TelegramIdentity)
+    open_bindings = (
+        TelegramIdentity.tenant_id.is_(None),
+        TelegramIdentity.owner_account_uuid.in_(select(OwnerAccount.uuid).where(
+            OwnerAccount.join_code_uuid.in_(select(JoinCode.uuid).where(*attached_to_doctor)),
+        )),
+        ~select(claimed.owner_account_uuid).where(
+            claimed.tenant_id == clinic,
+            claimed.telegram_user_id == TelegramIdentity.telegram_user_id,
+        ).exists(),
+    )
     pending = [select(model).where(*filters).exists() for model, filters in clinical_rows]
-    pending.extend((personal_code.exists(), select(OwnerAccount).where(*stale_owners).exists()))
+    pending.extend((
+        personal_code.exists(),
+        select(OwnerAccount).where(*stale_owners).exists(),
+        select(TelegramIdentity).where(*open_bindings).exists(),
+    ))
     if organization_name:
         pending.append(existing_clinic_code.where(
             or_(JoinCode.organization_name.is_(None), JoinCode.organization_name == "")
@@ -89,6 +105,33 @@ def rehome_personal_rows(session: Session, user_id, clinic_id, organization_name
         clinic_code.organization_name = organization_name
     session.execute(update(OwnerAccount).where(*stale_owners).values(
         tenant_id=clinic, workspace="organization"))
+    session.execute(update(TelegramIdentity).where(*open_bindings).values(tenant_id=clinic))
+    session.commit()
+
+
+def move_empty_clinic(session: Session, invitee_id, source_id, destination_id) -> None:
+    """Move one doctor's reusable rows into the inviting clinic and drop the source bot."""
+    from vetdietderm_api.assessments.models import DietPlan
+    from vetdietderm_api.clinical_catalog.models import ClinicalCatalogItem
+    from vetdietderm_api.encounter_templates.models import EncounterTemplate
+    from vetdietderm_api.owners.models import ClinicBot
+
+    invitee = UUID(str(invitee_id))
+    source = UUID(str(source_id))
+    destination = UUID(str(destination_id))
+    for model in (EncounterTemplate, ClinicalCatalogItem):
+        owned = (model.tenant_id == source, model.created_by == invitee, model.scope != "standard")
+        session.execute(update(model).where(*owned, model.scope == "doctor").values(
+            tenant_id=destination, scope="clinic"))
+        session.execute(update(model).where(*owned, model.scope != "doctor").values(tenant_id=destination))
+    session.execute(update(DietPlan).where(
+        DietPlan.tenant_id == source,
+        DietPlan.created_by == invitee,
+        DietPlan.patient_uuid.is_(None),
+    ).values(tenant_id=destination))
+    bot = session.get(ClinicBot, source)
+    if bot is not None:
+        session.delete(bot)
     session.commit()
 
 

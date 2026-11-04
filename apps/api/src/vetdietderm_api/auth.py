@@ -158,6 +158,55 @@ def organization_members(request: Request) -> list[dict]:
     return members
 
 
+EMPTY_CLINIC_REFUSAL = (
+    "В вашей клинике уже есть пациенты или владельцы. "
+    "Приглашение нельзя принять, пока они остаются в этой клинике."
+)
+OWNER_REQUIRED = "Закрыть прежнюю клинику может только её владелец"
+INVITE_CLINIC_UNAVAILABLE = "Не удалось открыть клинику приглашения"
+
+
+def accept_clinic_invite(request: Request, body: dict | None):
+    """Close an empty source clinic, then move that doctor's reusable rows."""
+    from sqlalchemy import func
+
+    from vetdietderm_api.owners.models import OwnerAccount
+    from vetdietderm_api.patients.models import Patient
+    from vetdietderm_api.tenancy import move_empty_clinic
+
+    profile = authenticated_call(request, "GET", "/me")
+    org = profile.get("organization") if isinstance(profile, dict) else None
+    source_id = org.get("org_id") if isinstance(org, dict) else None
+    if not source_id:
+        accepted = authenticated_call(request, "POST", "/invites/accept", body)
+        authenticated_call(request, "GET", "/me", force_refresh=True)
+        return accepted
+
+    source = UUID(str(source_id))
+    with get_session_factory()() as db:
+        patients = db.scalar(select(func.count()).select_from(Patient).where(Patient.tenant_id == source)) or 0
+        owners = db.scalar(select(func.count()).select_from(OwnerAccount).where(OwnerAccount.tenant_id == source)) or 0
+    if patients or owners:
+        raise HTTPException(409, EMPTY_CLINIC_REFUSAL)
+    if org.get("org_role") != "owner" and profile.get("role") != "super_admin":
+        raise HTTPException(409, OWNER_REQUIRED)
+
+    accepted = authenticated_call(request, "POST", "/invites/accept", body)
+    authenticated_call(request, "DELETE", f"/organizations/{source_id}")
+    refreshed = authenticated_call(request, "GET", "/me", force_refresh=True)
+    refreshed_org = refreshed.get("organization") if isinstance(refreshed, dict) else None
+    destination = refreshed_org.get("org_id") if isinstance(refreshed_org, dict) else None
+    try:
+        destination_id = UUID(str(destination))
+    except (TypeError, ValueError):
+        destination_id = None
+    if destination_id is None or destination_id == source:
+        raise HTTPException(502, INVITE_CLINIC_UNAVAILABLE)
+    with get_session_factory()() as db:
+        move_empty_clinic(db, profile["user_id"], source, destination_id)
+    return accepted
+
+
 def ensure_clinic_link(request: Request, user: dict) -> None:
     org = user["organization"]
     clinic_id = UUID(str(org["org_id"]))
@@ -282,9 +331,11 @@ def account_proxy(path: str, request: Request, response: Response, body: dict | 
         return authenticated_call(request, "GET", "/me", force_refresh=True)
     if not PROTECTED.fullmatch(path):
         raise HTTPException(404, "Не найдено")
+    if request.method == "POST" and path == "invites/accept":
+        return accept_clinic_invite(request, body)
     result = require_user(request) if path == "me" and request.method == "GET" else authenticated_call(request, request.method, "/" + path, body)
     renamed = request.method == "PATCH" and re.fullmatch(r"organizations/[\w-]+", path)
-    if (request.method == "POST" and path in {"organizations", "invites/accept"}) or renamed or (
+    if (request.method == "POST" and path == "organizations") or renamed or (
         request.method in {"PATCH", "DELETE"} and "/members/" in path):
         authenticated_call(request, "GET", "/me", force_refresh=True)
     return result
