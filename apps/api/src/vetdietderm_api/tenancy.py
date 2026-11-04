@@ -2,7 +2,7 @@
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import Uuid, event, inspect, or_, select, text, update
+from sqlalchemy import Uuid, delete, event, inspect, or_, select, text, update
 from sqlalchemy.orm import Mapped, Session, aliased, mapped_column, with_loader_criteria
 
 
@@ -110,11 +110,17 @@ def rehome_personal_rows(session: Session, user_id, clinic_id, organization_name
 
 
 def move_empty_clinic(session: Session, invitee_id, source_id, destination_id) -> None:
-    """Move one doctor's reusable rows into the inviting clinic and drop the source bot."""
+    """Move one doctor's reusable rows into the inviting clinic and drop the source bot.
+
+    Questionnaire rows still published on the closed clinic are removed for this doctor.
+    The destination list stays, and that doctor can edit it. The public clinic link is
+    removed so owner registration cannot resolve the closed clinic.
+    """
     from vetdietderm_api.assessments.models import DietPlan
     from vetdietderm_api.clinical_catalog.models import ClinicalCatalogItem
     from vetdietderm_api.encounter_templates.models import EncounterTemplate
-    from vetdietderm_api.owners.models import ClinicBot
+    from vetdietderm_api.owners.models import ClinicBot, ClinicLink
+    from vetdietderm_api.questionnaires.models import VisitQuestion, VisitQuestionnaire
 
     invitee = UUID(str(invitee_id))
     source = UUID(str(source_id))
@@ -129,9 +135,21 @@ def move_empty_clinic(session: Session, invitee_id, source_id, destination_id) -
         DietPlan.created_by == invitee,
         DietPlan.patient_uuid.is_(None),
     ).values(tenant_id=destination))
+    closed_lists = select(VisitQuestionnaire.uuid).where(
+        VisitQuestionnaire.doctor_user_id == invitee,
+        VisitQuestionnaire.tenant_id == source,
+    )
+    session.execute(delete(VisitQuestion).where(VisitQuestion.questionnaire_uuid.in_(closed_lists)))
+    session.execute(delete(VisitQuestionnaire).where(
+        VisitQuestionnaire.doctor_user_id == invitee,
+        VisitQuestionnaire.tenant_id == source,
+    ))
     bot = session.get(ClinicBot, source)
     if bot is not None:
         session.delete(bot)
+    link = session.get(ClinicLink, source)
+    if link is not None:
+        session.delete(link)
     session.commit()
 
 
