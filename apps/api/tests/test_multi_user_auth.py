@@ -238,6 +238,158 @@ def test_personal_rows_move_into_the_clinic_once(engine, monkeypatch):
             db.commit()
 
 
+def test_telegram_cabinet_survives_when_clinic_link_belongs_to_another_doctor(engine, monkeypatch):
+    from datetime import datetime, timezone
+
+    from fastapi import Request
+    from sqlalchemy import func
+    from starlette.responses import Response
+
+    from vetdietderm_api.chat import repository as chat
+    from vetdietderm_api.chat.models import ChatMessage, ChatThread
+    from vetdietderm_api.ids import uuid6
+    from vetdietderm_api.owners import repository as owners
+    from vetdietderm_api.owners.models import (
+        ClinicLink, JoinCode, OwnerAccount, OwnerAnimal, OwnerRegistration, TelegramIdentity,
+    )
+    from vetdietderm_api.owners.router import telegram_exchange
+    from vetdietderm_api.owners.schemas import TelegramLogin
+    from vetdietderm_api.settings import Settings
+    from vetdietderm_api.tenancy import rehome_personal_rows
+    from vetdietderm_api.visits import repository as visits
+    from vetdietderm_api.visits.models import VisitRequest
+
+    monkeypatch.setattr("vetdietderm_api.owners.router.get_settings",
+                        lambda: Settings(DATABASE_URL="sqlite://", FRONTEND_URL="http://testserver"))
+    doctor, other, stranger = uuid4(), uuid4(), uuid4()
+    clinic, elsewhere = uuid4(), uuid4()
+    personal_code_id, clinic_code_id, stranger_code_id = uuid6(), uuid6(), uuid6()
+    account_id, conflict_id, kept_id, stranger_id = uuid6(), uuid6(), uuid6(), uuid6()
+    animal_id, registration_id, thread_id = uuid6(), uuid6(), uuid6()
+    message_id, visit_id, elsewhere_id = uuid6(), uuid6(), uuid6()
+    with Session(engine) as db:
+        db.add_all([
+            JoinCode(uuid=personal_code_id, code="personal-code", doctor_user_id=doctor, doctor_label="Doc",
+                     workspace="personal", tenant_id=None),
+            JoinCode(uuid=clinic_code_id, code="clinic-code", doctor_user_id=other, doctor_label="Other",
+                     workspace="organization", tenant_id=clinic, organization_name="Клиника"),
+            ClinicLink(clinic_id=clinic, code="clinic-code"),
+            OwnerAccount(uuid=account_id, name="Owner", phone="1", doctor_user_id=doctor,
+                         join_code_uuid=personal_code_id, workspace="personal", tenant_id=None),
+            OwnerRegistration(uuid=registration_id, owner_account_uuid=account_id),
+            OwnerAnimal(uuid=animal_id, registration_uuid=registration_id, name="Кот", species="cat"),
+            ChatThread(uuid=thread_id, owner_animal_uuid=animal_id),
+            ChatMessage(uuid=message_id, thread_uuid=thread_id, author_kind="owner", author_id=account_id,
+                        author_label="Owner", body="Раньше чесался"),
+            VisitRequest(uuid=visit_id, owner_account_uuid=account_id, owner_animal_uuid=animal_id,
+                         visit_type="primary", reason="Осмотр", proposed_starts_at=datetime.now(timezone.utc),
+                         answers=[]),
+            TelegramIdentity(telegram_user_id="111", tenant_id=None, owner_account_uuid=account_id),
+            OwnerAccount(uuid=conflict_id, name="Conflict", phone="2", doctor_user_id=doctor,
+                         join_code_uuid=personal_code_id, workspace="personal", tenant_id=None),
+            TelegramIdentity(telegram_user_id="333", tenant_id=None, owner_account_uuid=conflict_id),
+            OwnerAccount(uuid=kept_id, name="Kept", phone="3", doctor_user_id=other,
+                         join_code_uuid=clinic_code_id, workspace="organization", tenant_id=clinic),
+            TelegramIdentity(telegram_user_id="333", tenant_id=clinic, owner_account_uuid=kept_id),
+            JoinCode(uuid=stranger_code_id, code="stranger-code", doctor_user_id=stranger, doctor_label="Stranger",
+                     workspace="personal", tenant_id=None),
+            OwnerAccount(uuid=stranger_id, name="Stranger", phone="4", doctor_user_id=stranger,
+                         join_code_uuid=stranger_code_id, workspace="personal", tenant_id=None),
+            TelegramIdentity(telegram_user_id="777", tenant_id=None, owner_account_uuid=stranger_id),
+            Client(uuid=elsewhere_id, name="Elsewhere", tenant_id=elsewhere, created_by=other),
+        ])
+        db.commit()
+
+    def population(db):
+        return (
+            db.scalar(select(func.count()).select_from(OwnerAccount)),
+            db.scalar(select(func.count()).select_from(TelegramIdentity)),
+        )
+
+    with Session(engine) as db:
+        rehome_personal_rows(db, doctor, clinic, organization_name="Клиника")
+        moved = db.get(OwnerAccount, account_id)
+        assert moved.uuid == account_id
+        assert moved.join_code_uuid == clinic_code_id
+        assert moved.tenant_id == clinic and moved.workspace == "organization"
+        assert db.get(TelegramIdentity, account_id).tenant_id == clinic
+        assert db.get(JoinCode, personal_code_id) is None
+        link = db.get(ClinicLink, clinic)
+        canonical = db.scalar(select(JoinCode).where(JoinCode.code == link.code))
+        assert link.code == "clinic-code"
+        assert canonical.uuid == clinic_code_id and canonical.doctor_user_id == other
+        assert db.get(OwnerAccount, conflict_id).tenant_id == clinic
+        conflict = db.get(TelegramIdentity, conflict_id)
+        assert conflict.owner_account_uuid == conflict_id and conflict.tenant_id is None
+        kept = db.get(TelegramIdentity, kept_id)
+        assert kept.owner_account_uuid == kept_id and kept.tenant_id == clinic and kept.telegram_user_id == "333"
+        assert db.get(OwnerAccount, stranger_id).tenant_id is None
+        assert db.get(OwnerAccount, stranger_id).join_code_uuid == stranger_code_id
+        assert db.get(TelegramIdentity, stranger_id).tenant_id is None
+        assert db.get(Client, elsewhere_id).tenant_id == elsewhere
+        before = population(db)
+        result = telegram_exchange(
+            TelegramLogin(code="clinic-code", init_data="signed"),
+            Request({"type": "http", "path": "/owner/telegram/login", "headers": [], "method": "POST"}),
+            Response(), db, link=False, verified=("111", "digest-cabinet", time.time() + 60))
+        assert result["uuid"] == account_id
+        owner = db.get(OwnerAccount, account_id)
+        assert [animal.name for animal in owners.list_animals(db, owner)] == ["Кот"]
+        messages = chat.list_messages(db, chat.owner_target(db, owner, animal_id), owner_view=True)
+        assert messages[0].body == "Раньше чесался" and messages[0].uuid == message_id
+        assert visits.owner_list(db, owner, animal_id)[0].reason == "Осмотр"
+        assert population(db) == before
+        rehome_personal_rows(db, doctor, clinic, organization_name="Клиника")
+        assert population(db) == before
+        assert db.get(TelegramIdentity, kept_id).owner_account_uuid == kept_id
+        assert db.get(TelegramIdentity, stranger_id).tenant_id is None
+        assert db.get(OwnerAccount, stranger_id).join_code_uuid == stranger_code_id
+        assert db.get(Client, elsewhere_id).tenant_id == elsewhere
+        assert db.get(ClinicLink, clinic).code == "clinic-code"
+
+
+def test_promoted_personal_code_keeps_the_telegram_identity(engine):
+    from sqlalchemy import func
+
+    from vetdietderm_api.ids import uuid6
+    from vetdietderm_api.owners.models import JoinCode, OwnerAccount, TelegramIdentity
+    from vetdietderm_api.tenancy import rehome_personal_rows
+
+    doctor, clinic = uuid4(), uuid4()
+    code_id, account_id = uuid6(), uuid6()
+    with Session(engine) as db:
+        db.add_all([
+            JoinCode(uuid=code_id, code="solo-code", doctor_user_id=doctor, doctor_label="Solo",
+                     workspace="personal", tenant_id=None),
+            OwnerAccount(uuid=account_id, name="Solo owner", phone="1", doctor_user_id=doctor,
+                         join_code_uuid=code_id, workspace="personal", tenant_id=None),
+            TelegramIdentity(telegram_user_id="111", tenant_id=None, owner_account_uuid=account_id),
+        ])
+        db.commit()
+    with Session(engine) as db:
+        rehome_personal_rows(db, doctor, clinic, organization_name="Соло")
+        code = db.get(JoinCode, code_id)
+        assert code.tenant_id == clinic and code.workspace == "organization"
+        assert code.organization_name == "Соло"
+        owner = db.get(OwnerAccount, account_id)
+        assert owner.join_code_uuid == code_id and owner.tenant_id == clinic
+        identity = db.get(TelegramIdentity, account_id)
+        assert identity.tenant_id == clinic and identity.telegram_user_id == "111"
+        before = (
+            db.scalar(select(func.count()).select_from(OwnerAccount)),
+            db.scalar(select(func.count()).select_from(TelegramIdentity)),
+            db.scalar(select(func.count()).select_from(JoinCode)),
+        )
+        rehome_personal_rows(db, doctor, clinic, organization_name="Соло")
+        assert (
+            db.scalar(select(func.count()).select_from(OwnerAccount)),
+            db.scalar(select(func.count()).select_from(TelegramIdentity)),
+            db.scalar(select(func.count()).select_from(JoinCode)),
+        ) == before
+        assert db.get(TelegramIdentity, account_id).owner_account_uuid == account_id
+        assert db.get(OwnerAccount, account_id).uuid == account_id
+
+
 def test_verified_doctor_receives_one_clinic_named_from_the_profile(bff, monkeypatch):
     calls = []
     profile = {"user_id": "11111111-1111-4111-8111-111111111111", "email": "solo@example.com",

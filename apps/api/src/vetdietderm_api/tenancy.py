@@ -81,6 +81,12 @@ def rehome_personal_rows(session: Session, user_id, clinic_id, organization_name
         if not session.scalar(needs_rehome):
             return
 
+    # The clinic link may belong to another doctor. Remember these owners before
+    # their join codes change, or the later identity update can no longer see them.
+    migrating_owner_ids = session.scalars(select(OwnerAccount.uuid).where(
+        OwnerAccount.join_code_uuid.in_(select(JoinCode.uuid).where(*attached_to_doctor)),
+    )).all()
+
     for model, filters in clinical_rows:
         session.execute(update(model).where(*filters).values(tenant_id=clinic))
 
@@ -105,7 +111,15 @@ def rehome_personal_rows(session: Session, user_id, clinic_id, organization_name
         clinic_code.organization_name = organization_name
     session.execute(update(OwnerAccount).where(*stale_owners).values(
         tenant_id=clinic, workspace="organization"))
-    session.execute(update(TelegramIdentity).where(*open_bindings).values(tenant_id=clinic))
+    if migrating_owner_ids:
+        session.execute(update(TelegramIdentity).where(
+            TelegramIdentity.tenant_id.is_(None),
+            TelegramIdentity.owner_account_uuid.in_(migrating_owner_ids),
+            ~select(claimed.owner_account_uuid).where(
+                claimed.tenant_id == clinic,
+                claimed.telegram_user_id == TelegramIdentity.telegram_user_id,
+            ).exists(),
+        ).values(tenant_id=clinic))
     session.commit()
 
 

@@ -4,13 +4,13 @@ prd_id: 2026-11-03-clinic-bot
 cycle_id: 2026-11-03-clinic-bot
 cycle_slug: clinic-bot
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 ---
 
 # Preserve Telegram Cabinets During Clinic Migration
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 Review finding P1: `rehome_personal_rows` replaces a personal owner's join code before evaluating the Telegram binding selection. When the canonical clinic link belongs to another doctor, the selection no longer finds that owner, leaving the identity tenant-null. Subsequent Telegram login can create a new cabinet instead of restoring the existing animals and history. This repairs the PRD's Entering the clinic migration guarantee.
@@ -40,10 +40,10 @@ None. Existing clinic link selection and Telegram owner login are the integratio
 - `apps/api/tests/test_telegram_owner.py`
 
 ## Implementation Steps
-- [ ] Step 1: Inspect `rehome_personal_rows`, the identity uniqueness constraints, and clinic Telegram login resolution.
-- [ ] Step 2: Capture affected owner IDs or move eligible identity bindings before replacing join codes, preserving the existing destination conflict predicate.
-- [ ] Step 3: Keep owner reassignment and identity migration atomic and idempotent without changing canonical link selection.
-- [ ] Step 4: Verify migration and subsequent login for a link owned by another doctor, code promotion, repeated migration, and an identity conflict.
+- [x] Step 1: Inspect `rehome_personal_rows`, the identity uniqueness constraints, and clinic Telegram login resolution.
+- [x] Step 2: Capture affected owner IDs or move eligible identity bindings before replacing join codes, preserving the existing destination conflict predicate.
+- [x] Step 3: Keep owner reassignment and identity migration atomic and idempotent without changing canonical link selection.
+- [x] Step 4: Verify migration and subsequent login for a link owned by another doctor, code promotion, repeated migration, and an identity conflict.
 
 ## Verification
 - With isolated database fixtures, seed a personal owner, animal, chat history, and tenant-null Telegram binding, plus a canonical clinic link owned by another doctor. Run migration and inspect owner/identity tenant IDs; authenticate as the same Telegram user and confirm the original owner ID and history.
