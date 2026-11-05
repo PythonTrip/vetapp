@@ -440,3 +440,291 @@ def test_empty_display_name_uses_email_and_creation_errors_stay_upstream(bff, mo
     denied = bff.get("/auth-service/me")
     assert denied.status_code == 429
     assert denied.json()["detail"] == "Too many organization creation attempts"
+
+
+@pytest.fixture
+def clinic_transfer(bff, engine, monkeypatch):
+    from vetdietderm_api.assessments.models import DietPlan
+    from vetdietderm_api.clinical_catalog.models import ClinicalCatalogItem
+    from vetdietderm_api.encounter_templates.models import EncounterTemplate
+    from vetdietderm_api.owners.models import ClinicBot, ClinicLink, JoinCode
+
+    user, source, destination, other = uuid4(), uuid4(), uuid4(), uuid4()
+    state = dict(user=user, source=source, destination=destination, other=other,
+                 accepted=False, closed=False, fault=None, missing=False, changed=False, calls=[])
+
+    def remote(method, path, body=None, token=None):
+        state["calls"].append((method, path))
+        if path == "/auth/login":
+            return httpx.Response(200, json=pair())
+        if path == "/auth/refresh":
+            if state["fault"] == "refresh":
+                state["fault"] = None
+                return httpx.Response(503, json={"detail": "offline"})
+            return httpx.Response(200, json=pair("new-access", "new-refresh"))
+        if path == "/me":
+            org = destination if state["closed"] else source
+            return httpx.Response(200, json={
+                "user_id": str(state["user"]), "email": f"{state['user']}@example.com",
+                "email_verified": True, "account_status": "active",
+                "organization": {"org_id": str(org), "name": "Clinic", "status": "active",
+                                 "org_role": "member" if state["closed"] else "owner"}})
+        if path == "/me/organizations":
+            rows = []
+            if not state["closed"]:
+                rows.append(dict(organization_id=str(source), status="active", org_role="owner"))
+            if state["accepted"] and not state["missing"]:
+                rows.append(dict(organization_id=str(other if state["changed"] else destination),
+                                 status="active", org_role="member"))
+            return httpx.Response(200, json={"organizations": rows})
+        if path == "/invites/accept":
+            assert not state["accepted"], "A consumed invitation must never be accepted again"
+            state["accepted"] = True
+            if state["fault"] == "accept":
+                state["fault"] = None
+                raise HTTPException(503, "lost acceptance response")
+            return httpx.Response(200, json={"user_id": str(user), "org_role": "member"})
+        if method == "DELETE" and path == f"/organizations/{source}":
+            if state["fault"] == "close":
+                state["fault"] = None
+                return httpx.Response(503, json={"detail": "offline"})
+            state["closed"] = True
+            if state["fault"] == "close_response":
+                state["fault"] = None
+                raise HTTPException(503, "lost close response")
+            return httpx.Response(204)
+        pytest.fail(f"Unexpected upstream call: {method} {path}")
+
+    monkeypatch.setattr(auth, "upstream", remote)
+    ids = {}
+    with Session(engine) as db:
+        for name, tenant, author, scope in [
+            ("template", source, user, "doctor"), ("standard", None, None, "standard"),
+            ("destination_template", destination, other, "clinic"), ("other_template", source, other, "clinic"),
+        ]:
+            row = EncounterTemplate(title=name, body="body", section="history", specialty="derm",
+                                    scope=scope, tenant_id=tenant, created_by=author)
+            db.add(row)
+            db.flush()
+            ids[name] = row.uuid
+        item = ClinicalCatalogItem(kind="field", scope="doctor", key="custom", label="Custom",
+                                   tenant_id=source, created_by=user)
+        plan = DietPlan(name="Reusable", ration_json=[], assessment_snapshot_json={},
+                        tenant_id=source, created_by=user)
+        db.add_all([item, plan])
+        for clinic, author, code in [(source, user, "source"), (destination, other, "destination")]:
+            db.add(JoinCode(code=code, doctor_user_id=author, doctor_label="Doctor",
+                            workspace="organization", tenant_id=clinic))
+            db.flush()
+            db.add_all([ClinicBot(clinic_id=clinic, token=f"fixture-{code}", status="connected"),
+                        ClinicLink(clinic_id=clinic, code=code)])
+        db.commit()
+        ids.update(item=item.uuid, plan=plan.uuid)
+    state["ids"] = ids
+    assert bff.post("/auth-service/auth/login", json={}).status_code == 200
+    return state
+
+
+def assert_transfer_rows(engine, state, *, complete):
+    from vetdietderm_api.assessments.models import DietPlan
+    from vetdietderm_api.clinical_catalog.models import ClinicalCatalogItem
+    from vetdietderm_api.encounter_templates.models import EncounterTemplate
+    from vetdietderm_api.owners.models import ClinicBot, ClinicLink
+
+    ids, source, destination = state["ids"], state["source"], state["destination"]
+    with Session(engine) as db:
+        transfer = db.scalar(select(auth.ClinicInviteTransfer))
+        assert transfer.phase == "done" if complete else transfer.phase != "done"
+        for model, name in [(EncounterTemplate, "template"), (ClinicalCatalogItem, "item"), (DietPlan, "plan")]:
+            row = db.get(model, ids[name])
+            assert row.tenant_id == (destination if complete else source)
+            if hasattr(row, "scope"):
+                assert row.scope == ("clinic" if complete else "doctor")
+        assert db.get(EncounterTemplate, ids["standard"]).tenant_id is None
+        assert db.get(EncounterTemplate, ids["destination_template"]).tenant_id == destination
+        assert db.get(EncounterTemplate, ids["other_template"]).tenant_id == source
+        for model in (ClinicBot, ClinicLink):
+            assert (db.get(model, source) is None) == complete
+            assert db.get(model, destination) is not None
+        # Only a one-way digest is retained; neither request nor credential is stored.
+        values = str(transfer.__dict__)
+        assert "invite-secret" not in values and "refresh-1" not in values and "access-1" not in values
+
+
+@pytest.mark.parametrize("fault", ["accept", "close", "close_response", "refresh", "commit"])
+@pytest.mark.parametrize("recovery", ["session", "request"])
+def test_clinic_transfer_recovers_after_restart(bff, engine, monkeypatch, clinic_transfer, fault, recovery):
+    from sqlalchemy.exc import OperationalError
+
+    state = clinic_transfer
+    state["fault"] = fault
+    original_commit = Session.commit
+
+    def failing_commit(db):
+        if state["fault"] == "commit" and any(
+            isinstance(row, auth.ClinicInviteTransfer) and row.phase == "done" for row in db.dirty
+        ):
+            state["fault"] = None
+            raise OperationalError("injected commit failure", {}, Exception("offline"))
+        return original_commit(db)
+
+    monkeypatch.setattr(Session, "commit", failing_commit)
+    result = bff.post("/auth-service/invites/accept", json={"token": "invite-secret"})
+    assert result.status_code == 503
+    assert_transfer_rows(engine, state, complete=False)
+    # Fresh application, session factory and browser session: no process-local progress.
+    monkeypatch.setattr(auth, "get_session_factory", lambda: sessionmaker(bind=engine, expire_on_commit=False))
+    app = FastAPI()
+    app.include_router(auth.router)
+    with TestClient(app, headers={"X-Vetapp-CSRF": "1"}) as restarted:
+        assert restarted.post("/auth-service/auth/login", json={}).status_code == 200
+        recovered = (restarted.get("/auth-service/me") if recovery == "session" else
+                     restarted.post("/auth-service/invites/accept", json={"token": "invite-secret"}))
+        assert recovered.status_code == 200, recovered.text
+        assert restarted.get("/auth-service/me").json()["organization"]["org_id"] == str(state["destination"])
+        assert_transfer_rows(engine, state, complete=True)
+        assert restarted.post("/auth-service/invites/accept", json={"token": "invite-secret"}).status_code == 200
+    assert state["calls"].count(("POST", "/invites/accept")) == 1
+
+
+def test_clinic_transfer_does_not_trust_a_client_destination(bff, engine, clinic_transfer):
+    state = clinic_transfer
+    result = bff.post("/auth-service/invites/accept", json={
+        "token": "invite-secret", "destination_id": str(state["other"]), "tenant_id": str(state["other"])})
+    assert result.status_code == 200
+    assert_transfer_rows(engine, state, complete=True)
+
+
+def test_clinic_transfer_requires_durable_progress_before_accept(bff, engine, monkeypatch, clinic_transfer):
+    from sqlalchemy.exc import OperationalError
+
+    original = Session.commit
+
+    def fail_progress(db):
+        if any(isinstance(row, auth.ClinicInviteTransfer) for row in db.new):
+            raise OperationalError("injected progress failure", {}, Exception("offline"))
+        return original(db)
+
+    monkeypatch.setattr(Session, "commit", fail_progress)
+    assert bff.post("/auth-service/invites/accept", json={"token": "invite-secret"}).status_code == 503
+    assert not clinic_transfer["accepted"] and not clinic_transfer["closed"]
+    with Session(engine) as db:
+        assert db.scalar(select(auth.ClinicInviteTransfer)) is None
+
+
+def test_clinic_transfer_waits_for_unambiguous_acceptance_evidence(bff, engine, monkeypatch, clinic_transfer):
+    state = clinic_transfer
+    state["fault"] = "accept"
+    assert bff.post("/auth-service/invites/accept", json={"token": "invite-secret"}).status_code == 503
+    original = auth.upstream
+
+    def ambiguous(*args, **kwargs):
+        result = original(*args, **kwargs)
+        if args[1] == "/me/organizations":
+            data = result.json()
+            data["organizations"].append(dict(organization_id=str(state["other"]), status="active", org_role="member"))
+            return httpx.Response(200, json=data)
+        return result
+
+    monkeypatch.setattr(auth, "upstream", ambiguous)
+    assert bff.get("/auth-service/me").status_code == 503
+    assert not state["closed"]
+    assert_transfer_rows(engine, state, complete=False)
+    monkeypatch.setattr(auth, "upstream", original)
+    assert bff.get("/auth-service/me").status_code == 200
+    assert_transfer_rows(engine, state, complete=True)
+
+
+def test_clinic_transfer_requires_membership_api_before_mutation(bff, engine, monkeypatch, clinic_transfer):
+    original = auth.upstream
+
+    def unavailable(*args, **kwargs):
+        if args[1] == "/me/organizations":
+            return httpx.Response(404, json={"detail": "Not Found"})
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(auth, "upstream", unavailable)
+    assert bff.post("/auth-service/invites/accept", json={"token": "invite-secret"}).status_code == 503
+    assert not clinic_transfer["accepted"] and not clinic_transfer["closed"]
+    with Session(engine) as db:
+        assert db.scalar(select(auth.ClinicInviteTransfer)) is None
+
+
+@pytest.mark.parametrize("change", ["missing", "changed", "user"])
+def test_clinic_transfer_cannot_be_redirected(bff, engine, clinic_transfer, change):
+    state = clinic_transfer
+    state["fault"] = "refresh"
+    assert bff.post("/auth-service/invites/accept", json={"token": "invite-secret"}).status_code == 503
+    if change == "user":
+        state["user"] = uuid4()
+    else:
+        state[change] = True
+    assert bff.post("/auth-service/auth/login", json={}).status_code == 200
+    result = bff.get("/auth-service/me")
+    assert result.status_code == (200 if change == "user" else 503)
+    assert_transfer_rows(engine, state, complete=False)
+    assert state["calls"].count(("POST", "/invites/accept")) == 1
+
+
+@pytest.mark.parametrize("populated", ["patient", "owner", "authority"])
+def test_clinic_transfer_refuses_before_acceptance(bff, engine, monkeypatch, clinic_transfer, populated):
+    from vetdietderm_api.owners.models import OwnerAccount
+
+    state = clinic_transfer
+    with Session(engine) as db:
+        if populated == "patient":
+            client = Client(name="Owner", tenant_id=state["source"], created_by=state["user"])
+            db.add(client)
+            db.flush()
+            db.add(Patient(name="Patient", species="dog", client_uuid=client.uuid, tenant_id=state["source"]))
+        elif populated == "owner":
+            db.add(OwnerAccount(name="Owner", phone="1", tenant_id=state["source"]))
+        db.commit()
+    if populated == "authority":
+        upstream = auth.upstream
+
+        def viewer(*args, **kwargs):
+            result = upstream(*args, **kwargs)
+            if args[1] == "/me/organizations":
+                payload = result.json()
+                payload["organizations"][0]["org_role"] = "admin"
+                return httpx.Response(200, json=payload)
+            return result
+
+        monkeypatch.setattr(auth, "upstream", viewer)
+    result = bff.post("/auth-service/invites/accept", json={"token": "invite-secret"})
+    assert result.status_code == 409
+    assert not state["accepted"] and not state["closed"]
+    with Session(engine) as db:
+        assert db.scalar(select(auth.ClinicInviteTransfer)) is None
+
+
+def test_clinic_transfer_migration_persists_without_original_engine(tmp_path):
+    import importlib.util
+    from pathlib import Path
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+
+    path = Path(__file__).parents[1] / "alembic/versions/0038_clinic_invite_transfers.py"
+    spec = importlib.util.spec_from_file_location("transfer_migration", path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+    url = f"sqlite:///{tmp_path / 'transfer.db'}"
+    first = create_engine(url)
+    with first.begin() as connection:
+        migration.op = Operations(MigrationContext.configure(connection))
+        migration.upgrade()
+    user, source = uuid4(), uuid4()
+    with Session(first) as db:
+        db.add(auth.ClinicInviteTransfer(user_id=user, invite_hash="a" * 64, source_id=source,
+                                        membership_ids=[str(source)], phase="accepting"))
+        db.commit()
+    first.dispose()
+    second = create_engine(url)
+    with Session(second) as db:
+        row = db.get(auth.ClinicInviteTransfer, (user, "a" * 64))
+        assert row.source_id == source and row.membership_ids == [str(source)] and row.phase == "accepting"
+    with second.begin() as connection:
+        migration.op = Operations(MigrationContext.configure(connection))
+        migration.downgrade()
+    second.dispose()

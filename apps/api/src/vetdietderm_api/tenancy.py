@@ -123,7 +123,7 @@ def rehome_personal_rows(session: Session, user_id, clinic_id, organization_name
     session.commit()
 
 
-def move_empty_clinic(session: Session, invitee_id, source_id, destination_id) -> None:
+def move_empty_clinic(session: Session, invitee_id, source_id, destination_id, *, commit: bool = True) -> None:
     """Move one doctor's reusable rows into the inviting clinic and drop the source bot.
 
     Questionnaire rows still published on the closed clinic are removed for this doctor.
@@ -139,6 +139,8 @@ def move_empty_clinic(session: Session, invitee_id, source_id, destination_id) -
     invitee = UUID(str(invitee_id))
     source = UUID(str(source_id))
     destination = UUID(str(destination_id))
+    if source == destination:
+        raise ValueError("Source and destination clinics must differ")
     for model in (EncounterTemplate, ClinicalCatalogItem):
         owned = (model.tenant_id == source, model.created_by == invitee, model.scope != "standard")
         session.execute(update(model).where(*owned, model.scope == "doctor").values(
@@ -164,7 +166,8 @@ def move_empty_clinic(session: Session, invitee_id, source_id, destination_id) -
     link = session.get(ClinicLink, source)
     if link is not None:
         session.delete(link)
-    session.commit()
+    if commit:
+        session.commit()
 
 
 class TenantSession(Session):

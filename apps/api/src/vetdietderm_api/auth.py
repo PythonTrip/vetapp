@@ -8,7 +8,8 @@ from uuid import UUID, uuid4
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from sqlalchemy import Float, String, Text, select, text, update
+from sqlalchemy import CheckConstraint, Float, JSON, String, Text, Uuid, select, text, update
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, mapped_column
 
 from vetdietderm_api.db import Base, get_session_factory
@@ -28,6 +29,20 @@ class BrowserSession(Base):
     refresh_token: Mapped[str] = mapped_column(Text)
     access_expires: Mapped[float] = mapped_column(Float)
     expires: Mapped[float] = mapped_column(Float, index=True)
+
+
+class ClinicInviteTransfer(Base):
+    """Recovery evidence only; never persist invite secrets or session credentials."""
+    __tablename__ = "clinic_invite_transfers"
+    __table_args__ = (CheckConstraint(
+        "phase IN ('accepting', 'accepted', 'closing', 'closed', 'done')",
+        name="ck_clinic_invite_transfers_phase"),)
+    user_id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    invite_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    source_id: Mapped[UUID] = mapped_column(Uuid)
+    membership_ids: Mapped[list[str]] = mapped_column(JSON)
+    destination_id: Mapped[UUID | None] = mapped_column(Uuid, nullable=True)
+    phase: Mapped[str] = mapped_column(String(16))
 
 
 def csrf(request: Request) -> None:
@@ -142,6 +157,11 @@ def require_user(request: Request) -> dict:
     profile = authenticated_call(request, "GET", "/me")
     if profile.get("account_status") != "active" or not profile.get("email_verified"):
         raise HTTPException(401, "Войдите в активный аккаунт")
+    # Recover before provisioning a clinic or exposing clinical records. This also
+    # works after re-login when an ambiguous refresh invalidated the old session.
+    recovered = clinic_invite_transfer(request, profile)
+    if recovered is not None:
+        profile = authenticated_call(request, "GET", "/me")
     from vetdietderm_api.owners.repository import reserve_staff_email
     with get_session_factory()() as db:
         reserve_staff_email(db, profile["email"], profile["user_id"])
@@ -163,48 +183,149 @@ EMPTY_CLINIC_REFUSAL = (
     "Приглашение нельзя принять, пока они остаются в этой клинике."
 )
 OWNER_REQUIRED = "Закрыть прежнюю клинику может только её владелец"
-INVITE_CLINIC_UNAVAILABLE = "Не удалось открыть клинику приглашения"
+TRANSFER_RETRY = "Перенос клиники не завершён. Повторите запрос после восстановления доступа к клинике приглашения"
+
+
+def check_empty_clinic(db, source: UUID) -> None:
+    from sqlalchemy import func
+    from vetdietderm_api.owners.models import OwnerAccount
+    from vetdietderm_api.patients.models import Patient
+
+    patients = db.scalar(select(func.count()).select_from(Patient).where(Patient.tenant_id == source)) or 0
+    owners = db.scalar(select(func.count()).select_from(OwnerAccount).where(OwnerAccount.tenant_id == source)) or 0
+    if patients or owners:
+        raise HTTPException(409, EMPTY_CLINIC_REFUSAL)
+
+
+def transfer_memberships(request: Request) -> dict[UUID, dict]:
+    # Unlike /organizations or /me, this is the complete, current membership
+    # list, independent of the access token's selected clinic (module-auth).
+    try:
+        payload = authenticated_call(request, "GET", "/me/organizations")
+    except HTTPException as exc:
+        if exc.status_code == 401:
+            raise
+        raise HTTPException(503, TRANSFER_RETRY) from exc
+    try:
+        return {UUID(item["organization_id"]): item for item in payload["organizations"]
+                if item["status"] == "active"}
+    except (KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(503, TRANSFER_RETRY) from exc
+
+
+def clinic_invite_transfer(request: Request, profile: dict, body: dict | None = None):
+    """Serialize one invitee's workflow, with commits at every remote boundary."""
+    from vetdietderm_api.tenancy import move_empty_clinic
+
+    user = UUID(profile["user_id"])
+    token = (body or {}).get("token")
+    fingerprint = hashlib.sha256(token.encode()).hexdigest() if isinstance(token, str) and token else None
+    try:
+        # Keep this transaction separate from progress commits and token rotation.
+        # Share the provisioning lock so recovery cannot create a replacement clinic.
+        with get_session_factory()() as guard, get_session_factory()() as db:
+            if guard.get_bind().dialect.name == "postgresql":
+                guard.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+                              {"key": f"vetapp:clinic:{user}"})
+            transfer = db.scalar(select(ClinicInviteTransfer).where(
+                ClinicInviteTransfer.user_id == user, ClinicInviteTransfer.phase != "done").with_for_update())
+            if transfer is None and fingerprint:
+                transfer = db.get(ClinicInviteTransfer, (user, fingerprint))
+            if transfer is None and body is None:
+                return None
+            if transfer is not None and transfer.phase == "done":
+                return {"user_id": str(user), "email": profile["email"],
+                        "display_name": profile.get("display_name"),
+                        "org_role": transfer_memberships(request).get(transfer.destination_id, {}).get("org_role")}
+
+            memberships = transfer_memberships(request)
+            if transfer is None:
+                if not fingerprint:
+                    raise HTTPException(422, "Не указан токен приглашения")
+                org = profile.get("organization") or {}
+                source = UUID(org["org_id"]) if org.get("org_id") else None
+                if source is None and memberships:
+                    if len(memberships) != 1:
+                        raise HTTPException(503, TRANSFER_RETRY)
+                    source = next(iter(memberships))
+                if source is None:
+                    # First membership has no source data to transfer.
+                    accepted = authenticated_call(request, "POST", "/invites/accept", {"token": token})
+                    authenticated_call(request, "GET", "/me", force_refresh=True)
+                    return accepted
+                check_empty_clinic(db, source)
+                if source not in memberships or (memberships[source]["org_role"] != "owner"
+                                                  and profile.get("role") != "super_admin"):
+                    raise HTTPException(409, OWNER_REQUIRED)
+                transfer = ClinicInviteTransfer(user_id=user, invite_hash=fingerprint, source_id=source,
+                                               membership_ids=sorted(map(str, memberships)), phase="accepting")
+                db.add(transfer)
+                db.commit()  # Durable before the invite can be consumed.
+                try:
+                    authenticated_call(request, "POST", "/invites/accept", {"token": token})
+                except HTTPException as exc:
+                    if exc.status_code in {400, 403, 404, 409, 422, 429}:
+                        # These responses guarantee no membership was created.
+                        db.delete(transfer)
+                        db.commit()
+                        raise
+                    raise HTTPException(503, TRANSFER_RETRY) from exc
+                transfer.phase = "accepted"
+                db.commit()
+                memberships = transfer_memberships(request)
+
+            if transfer.destination_id is None:
+                added = set(memberships) - {UUID(value) for value in transfer.membership_ids}
+                if len(added) != 1:
+                    raise HTTPException(503, TRANSFER_RETRY)
+                transfer.destination_id = added.pop()
+                transfer.phase = "accepted"
+                db.commit()
+            destination = transfer.destination_id
+            if destination not in memberships or destination == transfer.source_id:
+                raise HTTPException(503, TRANSFER_RETRY)
+
+            if transfer.phase in {"accepted", "closing"}:
+                check_empty_clinic(db, transfer.source_id)
+                if transfer.source_id in memberships:
+                    if (memberships[transfer.source_id]["org_role"] != "owner"
+                            and profile.get("role") != "super_admin"):
+                        raise HTTPException(409, OWNER_REQUIRED)
+                    transfer.phase = "closing"
+                    db.commit()  # A lost DELETE response can be reconciled on retry.
+                    authenticated_call(request, "DELETE", f"/organizations/{transfer.source_id}")
+                elif transfer.phase != "closing":
+                    # Source access was lost before we attempted an authorized close.
+                    raise HTTPException(503, TRANSFER_RETRY)
+                memberships = transfer_memberships(request)
+                if transfer.source_id in memberships or destination not in memberships:
+                    raise HTTPException(503, TRANSFER_RETRY)
+                transfer.phase = "closed"
+                db.commit()
+
+            refreshed = authenticated_call(request, "GET", "/me", force_refresh=True)
+            # Recheck both current membership and selected context after rotation.
+            memberships = transfer_memberships(request)
+            org = refreshed.get("organization") or {}
+            if (str(refreshed.get("user_id")) != str(user) or destination not in memberships
+                    or org.get("org_id") != str(destination) or org.get("status") != "active"
+                    or transfer.source_id in memberships):
+                raise HTTPException(503, TRANSFER_RETRY)
+            check_empty_clinic(db, transfer.source_id)
+            move_empty_clinic(db, user, transfer.source_id, destination, commit=False)
+            transfer.phase = "done"
+            db.commit()  # Rows, source-resource cleanup and completion are atomic.
+            return {"user_id": str(user), "email": refreshed["email"],
+                    "display_name": refreshed.get("display_name"), "org_role": org["org_role"]}
+    except SQLAlchemyError as exc:
+        raise HTTPException(503, TRANSFER_RETRY) from exc
 
 
 def accept_clinic_invite(request: Request, body: dict | None):
-    """Close an empty source clinic, then move that doctor's reusable rows."""
-    from sqlalchemy import func
-
-    from vetdietderm_api.owners.models import OwnerAccount
-    from vetdietderm_api.patients.models import Patient
-    from vetdietderm_api.tenancy import move_empty_clinic
-
     profile = authenticated_call(request, "GET", "/me")
-    org = profile.get("organization") if isinstance(profile, dict) else None
-    source_id = org.get("org_id") if isinstance(org, dict) else None
-    if not source_id:
-        accepted = authenticated_call(request, "POST", "/invites/accept", body)
-        authenticated_call(request, "GET", "/me", force_refresh=True)
-        return accepted
-
-    source = UUID(str(source_id))
-    with get_session_factory()() as db:
-        patients = db.scalar(select(func.count()).select_from(Patient).where(Patient.tenant_id == source)) or 0
-        owners = db.scalar(select(func.count()).select_from(OwnerAccount).where(OwnerAccount.tenant_id == source)) or 0
-    if patients or owners:
-        raise HTTPException(409, EMPTY_CLINIC_REFUSAL)
-    if org.get("org_role") != "owner" and profile.get("role") != "super_admin":
-        raise HTTPException(409, OWNER_REQUIRED)
-
-    accepted = authenticated_call(request, "POST", "/invites/accept", body)
-    authenticated_call(request, "DELETE", f"/organizations/{source_id}")
-    refreshed = authenticated_call(request, "GET", "/me", force_refresh=True)
-    refreshed_org = refreshed.get("organization") if isinstance(refreshed, dict) else None
-    destination = refreshed_org.get("org_id") if isinstance(refreshed_org, dict) else None
-    try:
-        destination_id = UUID(str(destination))
-    except (TypeError, ValueError):
-        destination_id = None
-    if destination_id is None or destination_id == source:
-        raise HTTPException(502, INVITE_CLINIC_UNAVAILABLE)
-    with get_session_factory()() as db:
-        move_empty_clinic(db, profile["user_id"], source, destination_id)
-    return accepted
+    if profile.get("account_status") != "active" or not profile.get("email_verified"):
+        raise HTTPException(401, "Войдите в активный аккаунт")
+    return clinic_invite_transfer(request, profile, body or {})
 
 
 def ensure_clinic_link(request: Request, user: dict) -> None:

@@ -4,13 +4,13 @@ prd_id: 2026-11-03-clinic-bot
 cycle_id: 2026-11-03-clinic-bot
 cycle_slug: clinic-bot
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 ---
 
 # Recover Clinic Transfers After Invite Acceptance
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 Review finding P1: `accept_clinic_invite` accepts the upstream invite and closes the source organization before refreshing the session and moving local records. If refresh fails, the invite is consumed but reusable records remain inaccessible under the closed clinic, and its bot and public link remain stored. A retry starts with the consumed invite and cannot finish. This repairs the PRD's Joining another doctor's clinic transfer guarantee.
@@ -42,15 +42,26 @@ None. Existing module-auth invite, membership, and organization-close APIs are i
 - `apps/api/tests/test_multi_user_auth.py`
 
 ## Implementation Steps
-- [ ] Step 1: Inspect module-auth accept, membership refresh, and organization-close semantics plus current local auth persistence; identify recoverable evidence for each upstream operation.
-- [ ] Step 2: Add durable transfer progress and its migration with source, authenticated invitee, verified destination, and resumable phase; exclude credentials and invite secrets.
-- [ ] Step 3: Refactor acceptance to persist progress before upstream mutations and reconcile ambiguous outcomes from authoritative state.
-- [ ] Step 4: Wire authenticated retries or session recovery to finish migration and cleanup without consuming the invite again.
-- [ ] Step 5: Make local migration and completion atomic and idempotent, retaining incomplete progress on failures.
-- [ ] Step 6: Verify refresh failure, lost upstream responses, close failure, local commit failure, process restart, unauthorized resume, and successful repeated completion.
+- [x] Step 1: Inspect module-auth accept, membership refresh, and organization-close semantics plus current local auth persistence; identify recoverable evidence for each upstream operation.
+- [x] Step 2: Add durable transfer progress and its migration with source, authenticated invitee, verified destination, and resumable phase; exclude credentials and invite secrets.
+- [x] Step 3: Refactor acceptance to persist progress before upstream mutations and reconcile ambiguous outcomes from authoritative state.
+- [x] Step 4: Wire authenticated retries or session recovery to finish migration and cleanup without consuming the invite again.
+- [x] Step 5: Make local migration and completion atomic and idempotent, retaining incomplete progress on failures.
+- [x] Step 6: Verify refresh failure, lost upstream responses, close failure, local commit failure, process restart, unauthorized resume, and successful repeated completion.
 
 ## Verification
 - With isolated persistence and controlled upstream responses, fail forced refresh after successful acceptance and source closure; restart the application flow and verify recovery without a second accept call.
 - Inject lost acceptance responses, source-close errors, and local commit failures separately; inspect progress state and retry to completion, checking record counts, scope, bot deletion, and source-link removal.
 - Exercise recovery as another user and with mismatched destination membership; confirm no record movement.
 - Run `uv run --directory apps/api python -m py_compile src/vetdietderm_api/auth.py src/vetdietderm_api/tenancy.py` and, if a migration is added, apply it to an isolated database and verify progress survives a new session.
+
+## Implementation Evidence
+- Added revision `0038_clinic_invite_transfers`. Progress stores the authenticated user, source clinic, pre-accept membership IDs, verified destination, phase, and a one-way invite digest for idempotency. Raw invite and session credentials are excluded.
+- Phases are `accepting`, `accepted`, `closing`, `closed`, and `done`. An invitee/provisioning advisory lock serializes the workflow across API processes. Progress commits precede remote mutations; reusable-row moves, source bot/link cleanup, and `done` commit together.
+- Repeated invite requests and `require_user` resume incomplete progress before clinic provisioning. An uncertain refresh may invalidate the browser session; re-login resumes the same durable transfer.
+- Integration prerequisite: module-auth must support authenticated `GET /me/organizations` with current `organizations[].organization_id`, `status`, and `org_role`. Verified against the newer local module-auth API and schemas; the bundled integration skill describes an older contract. An unavailable membership endpoint refuses before accepting or closing anything.
+- The accept response contains no destination ID. Recovery compares authoritative memberships against the saved baseline, pins exactly one new active membership, and rechecks it after source closure and forced refresh. Missing or ambiguous evidence returns 503 without re-accepting or redirecting the transfer.
+- `uv run --cache-dir F:/Projects/vetapp/apps/api/.tmp/uv-cache --directory apps/api python -m pytest tests/test_multi_user_auth.py -q -o faulthandler_timeout=30`: 32 passed. Includes lost accept/close responses, close failure, refresh failure, final commit failure, fresh app/session recovery through both routes, authorization, destination validation, populated-clinic refusal, and pre-accept persistence failure.
+- The new migration was applied and rolled back on an isolated SQLite database. Progress survived disposal of the original engine and reopening through a new session.
+- Python compilation passed for `auth.py`, `tenancy.py`, and the new migration. FastAPI TestClient tests ran outside the sandbox because its Windows loopback socket restriction blocks asyncio startup. The global uv cache was inaccessible, so checks used the workspace cache.
+- Live module-auth integration and PostgreSQL advisory-lock contention were not run: verification used controlled authority responses and isolated SQLite persistence. Deploy revision `0038` with the membership endpoint prerequisite. Clinic Bot remains In Progress while its other issues are open.
