@@ -4,13 +4,13 @@ prd_id: 2026-11-01-clinical-state
 cycle_id: 2026-11-01-clinical-state
 cycle_slug: clinical-state
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 ---
 
 # Canonical Nutrient Value
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 A food can store more than one `FoodNutrientValue` for the same nutrient and basis because uniqueness includes `source_uuid`. The catalog matrix keeps the newest `updated_at`. Assessment loads those rows without an order and lets the last row overwrite the dictionary, so a ration can use an older value than the matrix shows. The food-detail energy line has the same split: it keeps the first matching ME row from an unordered list. Display, energy preview, and assessment need one shared choice, and saved plan snapshots stay frozen.
@@ -42,13 +42,20 @@ None. This cycle is the clinical-state slice of `docs/audit/2026-11-01-audit.md`
 - `apps/api/tests/catalog/test_nutrient_source_selection.py`
 
 ## Implementation Steps
-- [ ] Step 1: Add one shared selector used by the matrix sort subquery, the matrix value query, and `serialize_nutrient_values`: order by `updated_at DESC`, `uuid DESC`, and keep a single row per food, nutrient, and basis.
-- [ ] Step 2: Apply the same order in `load_foods` and ignore a later row for a code that already has a winner.
-- [ ] Step 3: Check `ration-add-dialog.tsx`. Leave the ME `find` in place when detail returns one `ME` / `per_100g_as_fed` row. If it can return more than one, select the row the API marks as the only serialized value for that pair.
-- [ ] Step 4: Add `apps/api/tests/catalog/test_nutrient_source_selection.py` on a `sqlite://` engine. Insert the newer CP 12 row before the older CP 3 row, then assert matrix, `serialize_nutrient_values`, and `load_foods` return 12. Add the equal-`updated_at` uuid tie case. Assert the older row is still stored.
-- [ ] Step 5: Run the verification command below.
+- [x] Step 1: Add one shared selector used by the matrix sort subquery, the matrix value query, and `serialize_nutrient_values`: order by `updated_at DESC`, `uuid DESC`, and keep a single row per food, nutrient, and basis.
+- [x] Step 2: Apply the same order in `load_foods` and ignore a later row for a code that already has a winner.
+- [x] Step 3: Check `ration-add-dialog.tsx`. Leave the ME `find` in place when detail returns one `ME` / `per_100g_as_fed` row. If it can return more than one, select the row the API marks as the only serialized value for that pair.
+- [x] Step 4: Add `apps/api/tests/catalog/test_nutrient_source_selection.py` on a `sqlite://` engine. Insert the newer CP 12 row before the older CP 3 row, then assert matrix, `serialize_nutrient_values`, and `load_foods` return 12. Add the equal-`updated_at` uuid tie case. Assert the older row is still stored.
+- [x] Step 5: Run the verification command below.
 
 ## Verification
 - `uv run --directory apps/api pytest tests/catalog/test_nutrient_source_selection.py tests/catalog/test_food_energy.py -q` passes.
 - The new test fails if the selector result changes when the two source rows are inserted in the opposite order.
 - `uv run --directory apps/api pytest tests/assessments/test_plan_provider_snapshot.py tests/assessments/test_plan_legacy_snapshot.py -q` passes, showing stored plan reads are not recomputed by this selector.
+
+## Verification Results
+- TDD: observed 8 regression failures before implementation, including stale matrix values, duplicate detail values, and assessment timestamp ties.
+- Required targeted checks: 61 passed. Catalog and assessment suites: 63 passed.
+- Used an explicit workspace uv cache because the default C:/uv/cache is not writable.
+- SQLite emits the existing SQLAlchemy DISTINCT ON deprecation warning; the ordered first-winner fallback is covered. Live PostgreSQL verification was not run; the PostgreSQL DISTINCT / ORDER BY query is preserved and extended with uuid DESC.
+- Cycle remains open: booked-visit-type-sync is Not Started. No matching clinical-state roadmap row exists in docs/PROJECT.md.

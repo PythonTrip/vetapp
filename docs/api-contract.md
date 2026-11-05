@@ -21,7 +21,7 @@ Clients can migrate one feature at a time, using the same session in both versio
 | `/join-codes/current`, `/owner-registrations`, `/visit-questionnaires`, `/visit-requests` | `/v1/staff` + existing path | Staff |
 | Patient/registration chat and nested clinical resources | `/v1/staff` + existing path | Staff |
 | `/owner/me`, `/owner/animals`, `/owner/files`, `/owner/visits`, `/owner/visit-questions` and nested owner resources | `/v1` + existing path | Owner |
-| `/owner/login`, `/owner/register`, `/owner/logout`, `/owner/join/{code}` | `/v1/auth` + existing path | Public onboarding/session operations |
+| `/owner/login`, `/owner/register`, `/owner/logout`, `/owner/join/{code}`, `/owner/telegram/*` | `/v1/auth` + existing path | Public onboarding/session operations |
 | `/auth-service/auth/login`, `/logout`, `/refresh` | `/v1/auth/staff/login`, `/logout`, `/refresh` | Staff session for refresh |
 | `/auth-service/auth/register`, `/email/*`, `/password/*` | `/v1/auth/staff/register`, `/email/*`, `/password/*` | Public onboarding/recovery |
 | `/auth-service/me` (GET) | `/v1/auth/staff/me` | Staff |
@@ -197,3 +197,14 @@ Pydantic response contracts. Its generic proxy still covers provider endpoints
 without precise payload schemas; those responses remain unknown rather than
 claiming a fabricated type. Clinical JSON document fields remain unknown where
 the backend declares free-form JSON, and consumers narrow them before use.
+
+### Clinic entry
+
+`GET /owner/join/{code}` previews the clinic name. Only the permanent code returned by
+`GET /join-codes/current` resolves. Superseded doctor codes return 404.
+
+Email registration and sign-in and Telegram login, widget, and account linking
+accept the clinic `code` in the request body. Telegram configuration accepts it
+as a query parameter and returns a null username until the clinic bot is connected.
+Owner profiles return `clinic_code` so the join page can match the active session
+to the clinic. The staff email reservation applies across clinics.
