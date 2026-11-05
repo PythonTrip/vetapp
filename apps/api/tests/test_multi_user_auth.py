@@ -463,13 +463,19 @@ def clinic_transfer(bff, engine, monkeypatch):
                 return httpx.Response(503, json={"detail": "offline"})
             return httpx.Response(200, json=pair("new-access", "new-refresh"))
         if path == "/me":
-            org = destination if state["closed"] else source
-            return httpx.Response(200, json={
+            profile = {
                 "user_id": str(state["user"]), "email": f"{state['user']}@example.com",
                 "email_verified": True, "account_status": "active",
-                "organization": {"org_id": str(org), "name": "Clinic", "status": "active",
-                                 "org_role": "member" if state["closed"] else "owner"}})
+            }
+            if not state.get("no_source"):
+                org = destination if state["closed"] else source
+                profile["organization"] = {
+                    "org_id": str(org), "name": "Clinic", "status": "active",
+                    "org_role": "member" if state["closed"] else "owner"}
+            return httpx.Response(200, json=profile)
         if path == "/me/organizations":
+            if state.get("no_source"):
+                return httpx.Response(200, json={"organizations": []})
             rows = []
             if not state["closed"]:
                 rows.append(dict(organization_id=str(source), status="active", org_role="owner"))
@@ -697,6 +703,135 @@ def test_clinic_transfer_refuses_before_acceptance(bff, engine, monkeypatch, cli
     assert not state["accepted"] and not state["closed"]
     with Session(engine) as db:
         assert db.scalar(select(auth.ClinicInviteTransfer)) is None
+
+
+def add_attributed_personal_record(engine, state, kind):
+    from vetdietderm_api.owners.models import JoinCode, OwnerAccount
+
+    with Session(engine) as db:
+        if kind == "patient":
+            client = Client(name="Personal client", tenant_id=None, created_by=state["user"])
+            db.add(client)
+            db.flush()
+            row = Patient(name="Personal pet", species="dog", client_uuid=client.uuid,
+                          tenant_id=None, created_by=state["user"])
+        else:
+            code = JoinCode(code="personal-legacy", doctor_user_id=state["user"], doctor_label="Doc",
+                            workspace="personal", tenant_id=None)
+            db.add(code)
+            db.flush()
+            row = OwnerAccount(name="Personal owner", phone="9", doctor_user_id=state["user"],
+                               join_code_uuid=code.uuid, workspace="personal", tenant_id=None)
+        db.add(row)
+        db.commit()
+        return row.uuid
+
+
+@pytest.mark.parametrize("kind", ["patient", "owner"])
+@pytest.mark.parametrize("no_source", [False, True])
+def test_personal_records_refuse_invite_before_clinical_request(bff, engine, clinic_transfer, kind, no_source):
+    from starlette.requests import Request
+    from vetdietderm_api.owners.models import ClinicBot, ClinicLink, OwnerAccount
+
+    state = clinic_transfer
+    state["no_source"] = no_source
+    row_id = add_attributed_personal_record(engine, state, kind)
+    result = bff.post("/auth-service/invites/accept", json={"token": "invite-secret"})
+    assert result.status_code == 409
+    assert result.json()["detail"] == auth.EMPTY_CLINIC_REFUSAL
+    assert ("POST", "/invites/accept") not in state["calls"]
+    assert not any(method == "DELETE" for method, _path in state["calls"])
+    assert not state["accepted"] and not state["closed"]
+    with Session(engine) as db:
+        assert db.scalar(select(auth.ClinicInviteTransfer)) is None
+        if kind == "patient":
+            row = db.get(Patient, row_id)
+            assert row.tenant_id is None and row.created_by == state["user"]
+        else:
+            assert db.get(OwnerAccount, row_id).tenant_id is None
+        if not no_source:
+            assert db.get(ClinicBot, state["source"]).token == "fixture-source"
+            assert db.get(ClinicLink, state["source"]) is not None
+            assert db.get(ClinicBot, state["destination"]).token == "fixture-destination"
+    if no_source:
+        return
+    # The refused invite leaves the source clinic selected, so the next clinical read stays there.
+    auth.require_clinical_access(Request({
+        "type": "http", "path": "/patients", "method": "GET", "headers": [],
+    }), {
+        "user_id": str(state["user"]),
+        "organization": {"org_id": str(state["source"]), "name": "Clinic", "status": "active", "org_role": "owner"},
+    })
+    kept = Patient if kind == "patient" else OwnerAccount
+    with Session(engine) as db:
+        assert db.get(kept, row_id).tenant_id == state["source"]
+    assert ("POST", "/invites/accept") not in state["calls"]
+    assert not any(method == "DELETE" for method, _path in state["calls"])
+
+
+def test_invite_without_source_accepts_when_personal_workspace_is_empty(bff, engine, clinic_transfer):
+    state = clinic_transfer
+    state["no_source"] = True
+    result = bff.post("/auth-service/invites/accept", json={"token": "invite-secret"})
+    assert result.status_code == 200
+    assert state["accepted"] and not state["closed"]
+    assert state["calls"].count(("POST", "/invites/accept")) == 1
+    assert not any(method == "DELETE" for method, _path in state["calls"])
+    with Session(engine) as db:
+        assert db.scalar(select(auth.ClinicInviteTransfer)) is None
+
+
+def test_unrelated_personal_records_do_not_block_invite(bff, engine, clinic_transfer):
+    from vetdietderm_api.owners.models import JoinCode, OwnerAccount
+
+    state = clinic_transfer
+    other = state["other"]
+    with Session(engine) as db:
+        client = Client(name="Other client", tenant_id=None, created_by=other)
+        db.add(client)
+        db.flush()
+        patient = Patient(name="Other pet", species="dog", client_uuid=client.uuid,
+                          tenant_id=None, created_by=other)
+        code = JoinCode(code="other-personal", doctor_user_id=other, doctor_label="Other",
+                        workspace="personal", tenant_id=None)
+        db.add(code)
+        db.flush()
+        owner = OwnerAccount(name="Other owner", phone="8", doctor_user_id=other,
+                             join_code_uuid=code.uuid, workspace="personal", tenant_id=None)
+        db.add_all([patient, owner])
+        db.commit()
+        patient_id, owner_id = patient.uuid, owner.uuid
+    result = bff.post("/auth-service/invites/accept", json={"token": "invite-secret"})
+    assert result.status_code == 200
+    assert_transfer_rows(engine, state, complete=True)
+    with Session(engine) as db:
+        assert db.get(Patient, patient_id).tenant_id is None
+        assert db.get(OwnerAccount, owner_id).tenant_id is None
+        assert db.get(Patient, patient_id).created_by == other
+
+
+def test_reusable_personal_records_pass_emptiness_check(bff, engine, clinic_transfer):
+    from vetdietderm_api.assessments.models import DietPlan
+    from vetdietderm_api.clinical_catalog.models import ClinicalCatalogItem
+    from vetdietderm_api.encounter_templates.models import EncounterTemplate
+
+    state = clinic_transfer
+    with Session(engine) as db:
+        template = EncounterTemplate(title="Personal template", body="body", section="history", specialty="derm",
+                                     scope="doctor", tenant_id=None, created_by=state["user"])
+        item = ClinicalCatalogItem(kind="field", scope="doctor", key="personal-field", label="Field",
+                                   tenant_id=None, created_by=state["user"])
+        plan = DietPlan(name="Patientless", ration_json=[], assessment_snapshot_json={},
+                        tenant_id=None, created_by=state["user"])
+        db.add_all([template, item, plan])
+        db.commit()
+        ids = (template.uuid, item.uuid, plan.uuid)
+    result = bff.post("/auth-service/invites/accept", json={"token": "invite-secret"})
+    assert result.status_code == 200
+    assert_transfer_rows(engine, state, complete=True)
+    with Session(engine) as db:
+        for model, row_id in zip((EncounterTemplate, ClinicalCatalogItem, DietPlan), ids, strict=True):
+            assert db.get(model, row_id).tenant_id is None
 
 
 def test_clinic_transfer_migration_persists_without_original_engine(tmp_path):

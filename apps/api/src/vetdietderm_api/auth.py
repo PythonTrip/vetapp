@@ -186,14 +186,30 @@ OWNER_REQUIRED = "Закрыть прежнюю клинику может тол
 TRANSFER_RETRY = "Перенос клиники не завершён. Повторите запрос после восстановления доступа к клинике приглашения"
 
 
-def check_empty_clinic(db, source: UUID) -> None:
-    from sqlalchemy import func
-    from vetdietderm_api.owners.models import OwnerAccount
+def check_empty_clinic(db, source: UUID | None, invitee: UUID) -> None:
+    """Read-only refusal for a populated source clinic or this doctor's personal rows.
+
+    Personal patients use the legacy author and null-tenant rule. Personal owners are
+    those still unassigned and connected through this doctor's own join codes. Other
+    people's null-tenant rows, templates, catalog items, and patient-less plans do not count.
+    """
+    from sqlalchemy import and_, func, or_
+    from vetdietderm_api.owners.models import JoinCode, OwnerAccount
     from vetdietderm_api.patients.models import Patient
 
-    patients = db.scalar(select(func.count()).select_from(Patient).where(Patient.tenant_id == source)) or 0
-    owners = db.scalar(select(func.count()).select_from(OwnerAccount).where(OwnerAccount.tenant_id == source)) or 0
-    if patients or owners:
+    personal_patients = and_(Patient.tenant_id.is_(None), Patient.created_by == invitee)
+    patients = personal_patients if source is None else or_(Patient.tenant_id == source, personal_patients)
+    code_scope = JoinCode.tenant_id.is_(None) if source is None else or_(
+        JoinCode.tenant_id.is_(None), JoinCode.tenant_id == source)
+    personal_owners = and_(
+        OwnerAccount.tenant_id.is_(None),
+        OwnerAccount.join_code_uuid.in_(select(JoinCode.uuid).where(
+            JoinCode.doctor_user_id == invitee, code_scope)),
+    )
+    owners = personal_owners if source is None else or_(OwnerAccount.tenant_id == source, personal_owners)
+    patient_count = db.scalar(select(func.count()).select_from(Patient).where(patients)) or 0
+    owner_count = db.scalar(select(func.count()).select_from(OwnerAccount).where(owners)) or 0
+    if patient_count or owner_count:
         raise HTTPException(409, EMPTY_CLINIC_REFUSAL)
 
 
@@ -249,11 +265,12 @@ def clinic_invite_transfer(request: Request, profile: dict, body: dict | None = 
                         raise HTTPException(503, TRANSFER_RETRY)
                     source = next(iter(memberships))
                 if source is None:
-                    # First membership has no source data to transfer.
+                    # No source clinic yet, but legacy personal patients and owners still refuse.
+                    check_empty_clinic(db, None, user)
                     accepted = authenticated_call(request, "POST", "/invites/accept", {"token": token})
                     authenticated_call(request, "GET", "/me", force_refresh=True)
                     return accepted
-                check_empty_clinic(db, source)
+                check_empty_clinic(db, source, user)
                 if source not in memberships or (memberships[source]["org_role"] != "owner"
                                                   and profile.get("role") != "super_admin"):
                     raise HTTPException(409, OWNER_REQUIRED)
@@ -286,7 +303,7 @@ def clinic_invite_transfer(request: Request, profile: dict, body: dict | None = 
                 raise HTTPException(503, TRANSFER_RETRY)
 
             if transfer.phase in {"accepted", "closing"}:
-                check_empty_clinic(db, transfer.source_id)
+                check_empty_clinic(db, transfer.source_id, user)
                 if transfer.source_id in memberships:
                     if (memberships[transfer.source_id]["org_role"] != "owner"
                             and profile.get("role") != "super_admin"):
@@ -311,7 +328,7 @@ def clinic_invite_transfer(request: Request, profile: dict, body: dict | None = 
                     or org.get("org_id") != str(destination) or org.get("status") != "active"
                     or transfer.source_id in memberships):
                 raise HTTPException(503, TRANSFER_RETRY)
-            check_empty_clinic(db, transfer.source_id)
+            check_empty_clinic(db, transfer.source_id, user)
             move_empty_clinic(db, user, transfer.source_id, destination, commit=False)
             transfer.phase = "done"
             db.commit()  # Rows, source-resource cleanup and completion are atomic.
