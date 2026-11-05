@@ -10,6 +10,7 @@ from vetdietderm_api.catalog.models import (
     FoodNutrientValue,
     Nutrient,
 )
+from vetdietderm_api.catalog.nutrient_selection import nutrient_value_order
 from vetdietderm_api.standards.contract import FoodSnapshot, FoodValue
 
 
@@ -29,8 +30,11 @@ def load_foods(session: Session, food_uuids: list[UUID]) -> dict[UUID, FoodSnaps
             FoodNutrientValue.food_uuid.in_(food_uuids),
             FoodNutrientValue.basis == "per_100g_as_fed",
         )
+        .order_by(*nutrient_value_order())
     ).all()
     for value, code in rows:
+        if code in values[value.food_uuid]:
+            continue
         numeric = float(value.value) if isinstance(value.value, Decimal) else value.value
         values[value.food_uuid][code] = FoodValue(
             value=numeric,

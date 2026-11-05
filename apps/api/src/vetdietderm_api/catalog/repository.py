@@ -6,6 +6,7 @@ from sqlalchemy import and_, case, delete, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from vetdietderm_api.catalog.models import Food, FoodNutrientValue, Nutrient, utc_now
+from vetdietderm_api.catalog.nutrient_selection import canonical_nutrient_values, nutrient_value_order
 from vetdietderm_api.catalog.schemas import (
     FoodCreate,
     FoodCategoryGroup,
@@ -145,7 +146,7 @@ def list_food_matrix(
                 FoodNutrientValue.basis == AS_FED_BASIS,
                 FoodNutrientValue.nutrient_uuid == sort_nutrient_uuid,
             )
-            .order_by(FoodNutrientValue.updated_at.desc())
+            .order_by(*nutrient_value_order())
             .limit(1)
             .scalar_subquery()
         )
@@ -180,11 +181,13 @@ def list_food_matrix(
             .order_by(
                 FoodNutrientValue.food_uuid,
                 FoodNutrientValue.nutrient_uuid,
-                FoodNutrientValue.updated_at.desc(),
+                *nutrient_value_order(),
             )
         ).all()
         for food_uuid, code, value in value_rows:
-            values_by_food[food_uuid][code] = float(value) if value is not None else None
+            # DISTINCT ON selects the winner on PostgreSQL. SQLite retains all
+            # ordered source rows, so preserve the first (also for null values).
+            values_by_food[food_uuid].setdefault(code, float(value) if value is not None else None)
 
     items = [
         FoodMatrixRow(
@@ -274,7 +277,7 @@ def replace_nutrient_values(
 
 def serialize_nutrient_values(food: Food) -> list[FoodNutrientValueRead]:
     rows = sorted(
-        food.nutrient_values,
+        canonical_nutrient_values(food.nutrient_values),
         key=lambda item: (item.nutrient.sort_order, item.nutrient.code),
     )
     return [
