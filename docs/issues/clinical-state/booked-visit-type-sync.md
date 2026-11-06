@@ -4,13 +4,13 @@ prd_id: 2026-11-01-clinical-state
 cycle_id: 2026-11-01-clinical-state
 cycle_slug: clinical-state
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 ---
 
 # Booked Visit Type Sync
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 A confirmed owner request and its calendar appointment are one booking. `update_appointment` copies time, duration, status, and `updated_at` onto the linked `VisitRequest`, and skips `visit_type`. The owner cabinet labels the visit from `VisitRequest.visit_type`, so after the clinician changes the booked service the owner still sees the previous type. Questionnaire answers on the request are a snapshot and must stay as submitted.
@@ -40,12 +40,17 @@ None. This cycle is the clinical-state slice of `docs/audit/2026-11-01-audit.md`
 - `apps/api/tests/test_visit_requests.py`
 
 ## Implementation Steps
-- [ ] Step 1: After `update_appointment` copies `starts_at`, `duration_min`, and `status` onto `linked`, also copy `visit_type` when the new appointment value is one of `primary`, `secondary`, `consultation`, or `supervision`.
-- [ ] Step 2: Leave `linked.answers` out of that assignment. Leave the linked type untouched when the appointment value is `recheck`, `procedure`, or `telemedicine`.
-- [ ] Step 3: Extend `apps/api/tests/test_visit_requests.py`: confirm `supervision`, patch the appointment to `primary`, and assert the owner `GET /owner/animals/{animal_id}/visits` item and the staff appointment both return `primary` while `answers` stay unchanged. Assert a starts-at-only patch does not change type, and a legacy `recheck` patch does not overwrite a linked request type.
-- [ ] Step 4: Run the verification command below. Do not change `VISIT_TYPE_LABELS` in `visit-request-form.tsx` unless the owner response still shows the pre-patch type after the API returns the new one.
+- [x] Step 1: After `update_appointment` copies `starts_at`, `duration_min`, and `status` onto `linked`, also copy `visit_type` when the new appointment value is one of `primary`, `secondary`, `consultation`, or `supervision`.
+- [x] Step 2: Leave `linked.answers` out of that assignment. Leave the linked type untouched when the appointment value is `recheck`, `procedure`, or `telemedicine`.
+- [x] Step 3: Extend `apps/api/tests/test_visit_requests.py`: confirm `supervision`, patch the appointment to `primary`, and assert the owner `GET /owner/animals/{animal_id}/visits` item and the staff appointment both return `primary` while `answers` stay unchanged. Assert a starts-at-only patch does not change type, and a legacy `recheck` patch does not overwrite a linked request type.
+- [x] Step 4: Run the verification command below. Do not change `VISIT_TYPE_LABELS` in `visit-request-form.tsx` unless the owner response still shows the pre-patch type after the API returns the new one.
 
 ## Verification
 - `uv run --directory apps/api pytest tests/test_visit_requests.py -q` passes, including the supervision-to-primary owner list assertion.
 - The owner visit JSON `visit_type` equals the patched appointment `visit_type`, and `answers` equals the pre-patch snapshot.
 - `pnpm --dir apps/owner-web exec vitest run src/visit-request-form.test.tsx --maxWorkers=1` passes without a label change when the API fixture already uses the updated type.
+
+## Verification Results
+- `uv run --directory apps/api pytest tests/test_visit_requests.py -q`: 24 passed, 1 skipped.
+- `pnpm --dir apps/owner-web exec vitest run src/visit-request-form.test.tsx --maxWorkers=1`: 6 passed. `VISIT_TYPE_LABELS` was not changed.
+- Both cycle issues are Done. `docs/PROJECT.md` has no clinical-state roadmap row, so none was marked Done.

@@ -106,6 +106,9 @@ def update_appointment(session: Session, appointment_uuid: UUID, data: Appointme
         linked.confirmed_starts_at = appointment.starts_at
         linked.duration_min = appointment.duration_min
         linked.status = appointment.status
+        # Bookable type follows the calendar booking. Answers stay the submitted snapshot.
+        if "visit_type" in payload and appointment.visit_type in set(BookableVisitType):
+            linked.visit_type = appointment.visit_type
         linked.updated_at = utc_now()
     session.commit()
     return get_appointment(session, appointment.uuid)

@@ -286,6 +286,61 @@ def test_confirmation_acceptance_transfer_and_appointment_sync(visits):
     assert request_visit(owner, patient, duration_min=20).status_code == 422
 
 
+def test_booked_visit_type_syncs_onto_owner_request(visits):
+    staff, owner, factory, user, animal, _ = visits
+    user["organization"]["org_role"] = "owner"
+    published = staff.put("/visit-questionnaires/supervision", json={"questions": [
+        {"kind": "text", "label": "Жалоба"}]})
+    assert published.status_code == 200, published.text
+    question_id = owner.get("/owner/visit-questions/supervision").json()[0]["uuid"]
+    submitted = request_visit(owner, animal, answers=[{"question_id": question_id, "value": "  зуд  "}])
+    assert submitted.status_code == 201, submitted.text
+    visit = submitted.json()
+    answers = visit["answers"]
+    confirmed = confirm(staff, visit)
+    assert confirmed.status_code == 200, confirmed.text
+    assert confirmed.json()["visit_type"] == "supervision"
+    with factory() as db:
+        appointment_id = str(db.scalar(select(Appointment.uuid)))
+        stored_answers = db.get(VisitRequest, UUID(visit["uuid"])).answers
+    assert stored_answers == answers
+    patient = owner.get("/owner/animals").json()[0]
+    listing = f"/owner/animals/{patient['uuid']}/visits"
+
+    moved = staff.patch(f"/appointments/{appointment_id}", json={"starts_at": "2026-11-04T09:00:00Z"})
+    assert moved.status_code == 200, moved.text
+    assert moved.json()["visit_type"] == "supervision"
+    assert owner.get(listing).json()[0]["visit_type"] == "supervision"
+    assert owner.get(listing).json()[0]["answers"] == answers
+
+    rejected = staff.patch(f"/appointments/{appointment_id}", json={"visit_type": "procedure"})
+    assert rejected.status_code == 422
+    assert staff.get(f"/appointments/{appointment_id}").json()["visit_type"] == "supervision"
+    assert owner.get(listing).json()[0]["visit_type"] == "supervision"
+    assert owner.get(listing).json()[0]["answers"] == answers
+
+    patched = staff.patch(f"/appointments/{appointment_id}", json={"visit_type": "primary"})
+    assert patched.status_code == 200, patched.text
+    assert staff.get(f"/appointments/{appointment_id}").json()["visit_type"] == "primary"
+    owner_row = owner.get(listing).json()[0]
+    assert owner_row["visit_type"] == "primary"
+    assert owner_row["answers"] == answers
+    staff_row = next(item for item in staff.get("/visit-requests").json() if item["uuid"] == visit["uuid"])
+    assert staff_row["visit_type"] == "primary"
+    assert staff_row["answers"] == answers
+    with factory() as db:
+        assert db.get(VisitRequest, UUID(visit["uuid"])).answers == answers
+
+    with factory() as db:
+        db.get(Appointment, UUID(appointment_id)).visit_type = "recheck"
+        db.commit()
+    kept = staff.patch(f"/appointments/{appointment_id}", json={"visit_type": "recheck"})
+    assert kept.status_code == 200, kept.text
+    assert kept.json()["visit_type"] == "recheck"
+    assert owner.get(listing).json()[0]["visit_type"] == "primary"
+    assert owner.get(listing).json()[0]["answers"] == answers
+
+
 def test_confirmation_rolls_back_acceptance_and_appointment_if_file_missing(visits):
     staff, owner, factory, _, animal, root = visits
     visit = request_visit(owner, animal).json()
