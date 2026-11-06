@@ -22,7 +22,9 @@ clinical = APIRouter(dependencies=[Depends(require_clinical_access)])
 
 @router.get("/owner/visit-questions/{visit_type}", response_model=list[QuestionRead])
 def owner_questions(visit_type: VisitType, owner: Owner, db: DB):
-    return repo.questions(db, owner.tenant_id, visit_type)
+    rows = repo.questions(db, owner.tenant_id, visit_type)
+    db.commit()
+    return rows
 
 
 @router.get("/owner/animals/{animal_id}/visits", response_model=list[VisitRead])

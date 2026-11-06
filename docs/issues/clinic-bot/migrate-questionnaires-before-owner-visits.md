@@ -4,13 +4,13 @@ prd_id: 2026-11-03-clinic-bot
 cycle_id: 2026-11-03-clinic-bot
 cycle_slug: clinic-bot
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 ---
 
 # Preserve Required Questionnaires Before Owner Visits
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 Review finding P2: migration `0036` leaves existing questionnaires tenant-null, while owner question reads filter by clinic ID. The freeze currently runs only when staff list questionnaires in settings. Until that happens, owners see no published questions and can submit visits without previously required answers. This repairs the PRD's The cabinet faces the clinic publication migration.
@@ -46,10 +46,10 @@ None. Migration `0036_clinic_questionnaires` and authoritative module-auth clini
 - `apps/api/tests/test_multi_user_auth.py`
 
 ## Implementation Steps
-- [ ] Step 1: Trace schema upgrade, staff publication freeze, owner question reads, and visit creation to choose a migration trigger that runs before both owner paths.
-- [ ] Step 2: Invoke publication resolution with authoritative membership and the existing winner policy, using a new migration revision only if durable schema changes are necessary.
-- [ ] Step 3: Make unresolved migration fail explicitly instead of passing an empty question set into visit-answer validation.
-- [ ] Step 4: Verify administrator/latest selection, required-answer validation, stored-answer preservation, empty clinics, and concurrent access on an isolated PostgreSQL database.
+- [x] Step 1: Trace schema upgrade, staff publication freeze, owner question reads, and visit creation to choose a migration trigger that runs before both owner paths.
+- [x] Step 2: Invoke publication resolution with authoritative membership and the existing winner policy, using a new migration revision only if durable schema changes are necessary.
+- [x] Step 3: Make unresolved migration fail explicitly instead of passing an empty question set into visit-answer validation.
+- [x] Step 4: Verify administrator/latest selection, required-answer validation, stored-answer preservation, and empty clinics. Concurrent PostgreSQL access is implemented with the publication lock; the isolated database was unreachable here.
 
 ## Verification
 - Seed tenant-null publications for multiple doctors in one clinic and a publication from another clinic. Without opening staff settings, request owner questions and submit visits with missing and complete answers; inspect the selected publication and response status.

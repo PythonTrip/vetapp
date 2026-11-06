@@ -406,3 +406,271 @@ def test_confirm_link_payload_is_atomic_and_invalid_duration_does_not_accept(vis
     assert result.status_code == 200, result.text
     assert result.json()["patient_uuid"] == patient["uuid"]
     assert len(staff.get("/clients").json()) == 1
+
+
+def _publication(db, doctor, visit_type, labels, updated, tenant_id=None, questionnaire_id=None):
+    from vetdietderm_api.questionnaires.models import VisitQuestion, VisitQuestionnaire
+
+    row = VisitQuestionnaire(uuid=questionnaire_id or uuid4(), doctor_user_id=doctor, tenant_id=tenant_id,
+                             visit_type=visit_type, created_at=updated, updated_at=updated)
+    db.add(row)
+    db.flush()
+    for position, label in enumerate(labels):
+        db.add(VisitQuestion(questionnaire_uuid=row.uuid, position=position, kind="text", label=label, options=[]))
+    return row
+
+
+def test_empty_publication_does_not_require_membership(visits):
+    from sqlalchemy import delete
+
+    from vetdietderm_api.auth import BrowserSession
+
+    _, owner, factory, *_ = visits
+    with factory() as db:
+        db.execute(delete(BrowserSession))
+        db.commit()
+    listed = owner.get("/owner/visit-questions/consultation")
+    assert listed.status_code == 200, listed.text
+    assert listed.json() == []
+
+
+def test_unresolved_membership_does_not_accept_an_empty_publication(visits):
+    from datetime import datetime, timezone
+
+    from sqlalchemy import delete
+
+    from vetdietderm_api.auth import BrowserSession
+    from vetdietderm_api.questionnaires.models import VisitQuestionnaire
+    from vetdietderm_api.questionnaires.repository import PUBLICATION_RETRY
+
+    _, owner, factory, user, animal, _ = visits
+    clinic_id = UUID(user["organization"]["org_id"])
+    with factory() as db:
+        db.execute(delete(BrowserSession))
+        _publication(db, uuid4(), "primary", ["Обязательный"], datetime(2026, 1, 1, tzinfo=timezone.utc))
+        db.commit()
+    listed = owner.get("/owner/visit-questions/primary")
+    assert listed.status_code == 503, listed.text
+    assert listed.json()["detail"] == PUBLICATION_RETRY
+    refused = request_visit(owner, animal, visit_type="primary", answers=[])
+    assert refused.status_code == 503, refused.text
+    with factory() as db:
+        row = db.scalar(select(VisitQuestionnaire).where(VisitQuestionnaire.visit_type == "primary"))
+        assert row.tenant_id is None
+        assert db.scalars(select(VisitQuestionnaire).where(VisitQuestionnaire.tenant_id == clinic_id)).all() == []
+
+
+def test_owner_receives_legacy_questions_before_settings(visits, monkeypatch):
+    from datetime import datetime, timezone
+
+    import httpx
+
+    from vetdietderm_api import auth
+    from vetdietderm_api.owners.models import OwnerAccount
+    from vetdietderm_api.questionnaires.models import VisitQuestion, VisitQuestionnaire
+
+    _staff, owner, factory, user, animal, _ = visits
+    clinic_id = UUID(user["organization"]["org_id"])
+    other_clinic = uuid4()
+    owner_doctor, admin_doctor, member_doctor, outsider = uuid4(), uuid4(), uuid4(), uuid4()
+    early = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    later = datetime(2026, 2, 1, tzinfo=timezone.utc)
+    newest = datetime(2026, 3, 1, tzinfo=timezone.utc)
+    tied = datetime(2026, 4, 1, tzinfo=timezone.utc)
+    first_tie, second_tie = uuid4(), uuid4()
+    calls = []
+
+    def remote(method, path, body=None, token=None):
+        if path == f"/organizations/{clinic_id}/members":
+            assert token == "staff-access"
+            calls.append(path)
+            return httpx.Response(200, json={"members": [
+                {"user_id": str(owner_doctor), "org_role": "owner"},
+                {"user_id": str(admin_doctor), "org_role": "admin"},
+                {"user_id": str(member_doctor), "org_role": "member"},
+            ]})
+        pytest.fail(f"Unexpected authority call: {path}")
+
+    monkeypatch.setattr(auth, "upstream", remote)
+    with factory() as db:
+        account = db.scalar(select(OwnerAccount))
+        stored = [{"question_id": str(uuid4()), "label": "Старое", "kind": "text", "value": "как было", "options": []}]
+        previous = VisitRequest(owner_account_uuid=account.uuid, owner_animal_uuid=UUID(animal["uuid"]),
+                                 visit_type="supervision", proposed_starts_at=early, answers=stored)
+        db.add(previous)
+        _publication(db, owner_doctor, "primary", ["Старый владелец"], early)
+        admin_primary = _publication(db, admin_doctor, "primary", ["Актуально", "Уточнение"], later)
+        _publication(db, member_doctor, "primary", ["Новее сотрудника"], newest)
+        _publication(db, outsider, "primary", ["Другая клиника"], newest, tenant_id=other_clinic)
+        _publication(db, member_doctor, "secondary", ["Только сотрудник"], newest)
+        stranger = _publication(db, outsider, "secondary", ["Чужая новая"], newest)
+        tie_rows = [
+            _publication(db, owner_doctor, "consultation", ["Первая"], tied, questionnaire_id=first_tie),
+            _publication(db, admin_doctor, "consultation", ["Вторая"], tied, questionnaire_id=second_tie),
+        ]
+        db.commit()
+        previous_id = previous.uuid
+        admin_question_ids = list(db.scalars(select(VisitQuestion.uuid).where(
+            VisitQuestion.questionnaire_uuid == admin_primary.uuid).order_by(VisitQuestion.position)))
+        expected_tie = max(tie_rows, key=lambda row: row.uuid).uuid
+        stranger_id = stranger.uuid
+
+    assert owner.get("/visit-questionnaires").status_code == 401
+    selected = owner.get("/owner/visit-questions/primary")
+    assert selected.status_code == 200, selected.text
+    assert [item["label"] for item in selected.json()] == ["Актуально", "Уточнение"]
+    assert [UUID(item["uuid"]) for item in selected.json()] == admin_question_ids
+    missing = request_visit(owner, animal, visit_type="primary", answers=[
+        {"question_id": selected.json()[0]["uuid"], "value": "зуд"}])
+    assert missing.status_code == 422, missing.text
+    accepted = request_visit(owner, animal, visit_type="primary", answers=[
+        {"question_id": item["uuid"], "value": "зуд"} for item in selected.json()])
+    assert accepted.status_code == 201, accepted.text
+    again = owner.get("/owner/visit-questions/primary")
+    assert [item["uuid"] for item in again.json()] == [item["uuid"] for item in selected.json()]
+    secondary = owner.get("/owner/visit-questions/secondary")
+    assert [item["label"] for item in secondary.json()] == ["Только сотрудник"]
+    consultation = owner.get("/owner/visit-questions/consultation")
+    assert consultation.json()[0]["label"] == ("Первая" if expected_tie == first_tie else "Вторая")
+    assert owner.get("/owner/visit-questions/supervision").json() == []
+    assert calls == [f"/organizations/{clinic_id}/members"]
+    kept = owner.get(f"/owner/animals/{animal['uuid']}/visits").json()
+    historical = next(item for item in kept if item["uuid"] == str(previous_id))
+    assert historical["answers"] == stored
+    with factory() as db:
+        slots = db.scalars(select(VisitQuestionnaire).where(VisitQuestionnaire.tenant_id == clinic_id)).all()
+        assert sorted(row.visit_type for row in slots) == ["consultation", "primary", "secondary"]
+        assert db.get(VisitQuestionnaire, stranger_id).tenant_id is None
+        assert db.get(VisitQuestionnaire, expected_tie).tenant_id == clinic_id
+        foreign = db.scalar(select(VisitQuestionnaire).where(VisitQuestionnaire.doctor_user_id == outsider,
+                                                             VisitQuestionnaire.visit_type == "primary"))
+        assert foreign.tenant_id == other_clinic
+        assert db.scalar(select(func.count()).select_from(VisitQuestion).where(
+            VisitQuestion.questionnaire_uuid == foreign.uuid)) == 1
+        assert db.get(VisitRequest, previous_id).answers == stored
+
+
+def test_concurrent_publication_is_complete():
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+
+    from sqlalchemy import create_engine, event, text
+    from sqlalchemy.engine import make_url
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import NullPool
+
+    from vetdietderm_api.db import sqlalchemy_url
+    from vetdietderm_api.questionnaires.models import VisitQuestion, VisitQuestionnaire
+    from vetdietderm_api.questionnaires.repository import published_questions, replace_questionnaire
+    from vetdietderm_api.questionnaires.schemas import QuestionWrite, QuestionnaireWrite, VisitType
+    from vetdietderm_api.settings import Settings
+
+    database_url = Settings().DATABASE_URL
+    if not database_url.startswith("postgres"):
+        pytest.skip("Concurrent publication lock requires PostgreSQL")
+    schema = f"qm_{uuid4().hex}"
+    admin = create_engine(sqlalchemy_url(database_url), poolclass=NullPool,
+                           connect_args={"connect_timeout": 5})
+    try:
+        with admin.begin() as connection:
+            connection.execute(text(f'CREATE SCHEMA "{schema}"'))
+    except Exception as exc:
+        admin.dispose()
+        pytest.skip(f"Isolated PostgreSQL schema is unavailable: {type(exc).__name__}")
+    scoped = make_url(sqlalchemy_url(database_url)).update_query_dict({"options": f"-csearch_path={schema}"})
+    engine = create_engine(scoped.render_as_string(hide_password=False), poolclass=NullPool,
+                           connect_args={"connect_timeout": 5})
+
+    def set_lock_timeout(dbapi_connection, _record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("SET lock_timeout = '5s'")
+        cursor.close()
+
+    event.listen(engine, "connect", set_lock_timeout)
+    VisitQuestionnaire.__table__.create(engine)
+    VisitQuestion.__table__.create(engine)
+    Session = sessionmaker(bind=engine, expire_on_commit=False)
+    try:
+        _assert_concurrent_freeze(Session, Barrier, ThreadPoolExecutor)
+        _assert_concurrent_replacement(Session, Barrier, ThreadPoolExecutor, published_questions,
+                                       replace_questionnaire, QuestionWrite, QuestionnaireWrite, VisitType)
+    finally:
+        engine.dispose()
+        with admin.begin() as connection:
+            connection.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
+        admin.dispose()
+
+
+def _assert_concurrent_freeze(Session, Barrier, ThreadPoolExecutor):
+    from datetime import datetime, timezone
+
+    from vetdietderm_api.questionnaires.models import VisitQuestion, VisitQuestionnaire
+    from vetdietderm_api.questionnaires.repository import published_questions
+    from vetdietderm_api.questionnaires.schemas import VisitType
+
+    clinic, admin_id, member_id = uuid4(), uuid4(), uuid4()
+    members = [{"user_id": str(admin_id), "org_role": "admin"},
+               {"user_id": str(member_id), "org_role": "member"}]
+    with Session() as db:
+        _publication(db, admin_id, "primary", ["A1", "A2", "A3"], datetime(2026, 1, 1, tzinfo=timezone.utc))
+        _publication(db, member_id, "primary", ["M1", "M2", "M3"], datetime(2026, 2, 1, tzinfo=timezone.utc))
+        db.commit()
+    barrier = Barrier(2)
+
+    def migrate():
+        barrier.wait(5)
+        with Session() as db:
+            published_questions(db, clinic, VisitType.primary, members)
+            db.commit()
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(lambda _: migrate(), range(2)))
+    assert results == [None, None]
+    with Session() as db:
+        slots = db.scalars(select(VisitQuestionnaire).where(VisitQuestionnaire.tenant_id == clinic)).all()
+        assert len(slots) == 1 and slots[0].doctor_user_id == admin_id
+        assert db.scalar(select(VisitQuestionnaire).where(VisitQuestionnaire.doctor_user_id == member_id)) is None
+        labels = db.scalars(select(VisitQuestion.label).where(
+            VisitQuestion.questionnaire_uuid == slots[0].uuid).order_by(VisitQuestion.position)).all()
+        assert list(labels) == ["A1", "A2", "A3"]
+
+
+def _assert_concurrent_replacement(Session, Barrier, ThreadPoolExecutor, published_questions,
+                                   replace_questionnaire, QuestionWrite, QuestionnaireWrite, VisitType):
+    from datetime import datetime, timezone
+
+    from vetdietderm_api.questionnaires.models import VisitQuestion, VisitQuestionnaire
+
+    clinic, admin_id, member_id = uuid4(), uuid4(), uuid4()
+    members = [{"user_id": str(admin_id), "org_role": "admin"},
+               {"user_id": str(member_id), "org_role": "member"}]
+    with Session() as db:
+        _publication(db, admin_id, "primary", ["A1", "A2", "A3"], datetime(2026, 1, 1, tzinfo=timezone.utc))
+        _publication(db, member_id, "primary", ["M1", "M2", "M3"], datetime(2026, 2, 1, tzinfo=timezone.utc))
+        db.commit()
+    barrier = Barrier(2)
+    replacement = QuestionnaireWrite(questions=[QuestionWrite(kind="text", label="N1"),
+                                                QuestionWrite(kind="text", label="N2")])
+
+    def migrate():
+        barrier.wait(5)
+        with Session() as db:
+            published_questions(db, clinic, VisitType.primary, members)
+            db.commit()
+
+    def replace():
+        barrier.wait(5)
+        with Session() as db:
+            replace_questionnaire(db, clinic, admin_id, VisitType.primary, replacement)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        jobs = [pool.submit(migrate), pool.submit(replace)]
+        for job in jobs:
+            job.result(timeout=20)
+    with Session() as db:
+        slots = db.scalars(select(VisitQuestionnaire).where(
+            VisitQuestionnaire.tenant_id == clinic, VisitQuestionnaire.visit_type == "primary")).all()
+        assert len(slots) == 1
+        labels = list(db.scalars(select(VisitQuestion.label).where(
+            VisitQuestion.questionnaire_uuid == slots[0].uuid).order_by(VisitQuestion.position)))
+        assert labels == ["N1", "N2"]

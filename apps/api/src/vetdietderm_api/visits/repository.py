@@ -19,7 +19,6 @@ from vetdietderm_api.encounters.schemas import EncounterStatus
 from vetdietderm_api.owners import repository as owners
 from vetdietderm_api.owners.models import JoinCode, OwnerAccount, OwnerAnimal, OwnerRegistration, utc_now
 from vetdietderm_api.patients.models import Patient
-from vetdietderm_api.questionnaires.models import VisitQuestion, VisitQuestionnaire
 from vetdietderm_api.questionnaires.schemas import VisitType
 from vetdietderm_api.visits.models import VisitRequest, VisitRequestFile
 from vetdietderm_api.visits.schemas import VisitFileRead, VisitRead
@@ -39,16 +38,9 @@ def transaction(db: Session):
 
 
 def questions(db: Session, tenant_id: UUID | None, visit_type: VisitType):
-    # Replacement locks the same clinic row: submission copies one complete publication.
-    if tenant_id is None:
-        return []
-    slot = db.scalar(select(VisitQuestionnaire).where(
-        VisitQuestionnaire.tenant_id == tenant_id,
-        VisitQuestionnaire.visit_type == visit_type).with_for_update())
-    if slot is None:
-        return []
-    return list(db.scalars(select(VisitQuestion).where(
-        VisitQuestion.questionnaire_uuid == slot.uuid).order_by(VisitQuestion.position)))
+    # Migration may roll this session back, so callers invoke it before visit locks.
+    from vetdietderm_api.questionnaires.repository import published_questions
+    return published_questions(db, tenant_id, visit_type)
 
 
 def snapshot(published, answers):
@@ -116,11 +108,12 @@ def read(db: Session, row: VisitRequest):
 
 
 def create(db: Session, owner: OwnerAccount, animal_id: UUID, body):
+    published = questions(db, owner.tenant_id, body.visit_type)
     animal_id, patient_id, _ = owner_target(db, owner, animal_id)
     row = VisitRequest(owner_account_uuid=owner.uuid, owner_animal_uuid=animal_id,
                        patient_uuid=patient_id, visit_type=body.visit_type, reason=body.reason,
                        proposed_starts_at=body.proposed_starts_at,
-                       answers=snapshot(questions(db, owner.tenant_id, body.visit_type), body.answers))
+                       answers=snapshot(published, body.answers))
     db.add(row)
     db.flush()
     return row

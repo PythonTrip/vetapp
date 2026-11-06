@@ -10,7 +10,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import CheckConstraint, Float, JSON, String, Text, Uuid, select, text, update
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from vetdietderm_api.db import Base, get_session_factory
 from vetdietderm_api.settings import get_settings
@@ -176,6 +176,43 @@ def organization_members(request: Request) -> list[dict]:
     if not isinstance(members, list):
         raise HTTPException(502, "Не удалось получить состав клиники")
     return members
+
+
+def staff_access_tokens(session: Session) -> list[str]:
+    now = time.time()
+    return [token for token in session.scalars(select(BrowserSession.access_token).where(
+        BrowserSession.expires > now, BrowserSession.access_expires > now)) if isinstance(token, str) and token]
+
+
+def clinic_members(clinic_id: UUID, tokens: list[str]) -> list[dict]:
+    """Read the clinic roster with staff access tokens already stored for the BFF.
+
+    An owner request must not refresh or delete those sessions: refresh rotates a
+    one-time token and can sign the clinician out. Unusable tokens are skipped.
+    A missing roster is retryable and is not an empty questionnaire.
+    """
+    from vetdietderm_api.questionnaires.repository import PUBLICATION_RETRY
+
+    if not tokens:
+        raise HTTPException(503, PUBLICATION_RETRY)
+    for token in tokens:
+        try:
+            response = upstream("GET", f"/organizations/{clinic_id}/members", token=token)
+        except HTTPException as exc:
+            raise HTTPException(503, PUBLICATION_RETRY) from exc
+        if response.status_code in {401, 403, 404}:
+            continue
+        if response.status_code >= 400:
+            raise HTTPException(503, PUBLICATION_RETRY)
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            raise HTTPException(503, PUBLICATION_RETRY) from exc
+        members = payload.get("members") if isinstance(payload, dict) else payload
+        if not isinstance(members, list) or not members:
+            raise HTTPException(503, PUBLICATION_RETRY)
+        return members
+    raise HTTPException(503, PUBLICATION_RETRY)
 
 
 EMPTY_CLINIC_REFUSAL = (
