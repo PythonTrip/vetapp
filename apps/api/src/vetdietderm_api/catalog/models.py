@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -16,12 +16,9 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from vetdietderm_api.clock import utc_now
 from vetdietderm_api.db import Base
 from vetdietderm_api.ids import uuid6
-
-
-def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 class Nutrient(Base):

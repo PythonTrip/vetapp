@@ -1,17 +1,14 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import DateTime, Index, String, Text, Uuid
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
+from vetdietderm_api.clock import utc_now
 from vetdietderm_api.db import Base
 from vetdietderm_api.tenancy import TenantOwned
 from vetdietderm_api.ids import uuid6
-
-
-def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 class EncounterTemplate(TenantOwned, Base):
