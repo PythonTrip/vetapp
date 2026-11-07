@@ -18,6 +18,7 @@ from vetdietderm_api.visits import repository as visits_repo
 @pytest.mark.parametrize("content_type,payload", [("image/jpeg", b"photo"), ("application/pdf", b"pdf")])
 def test_gallery_copy_uses_invitation_workspace(cabinet, monkeypatch, tmp_path, workspace, content_type, payload):
     staff, owner, factory, user = cabinet
+    staff.visit_factory = factory
     monkeypatch.setattr(storage, "attachment_root", lambda: tmp_path)
     headers = {"X-Vetapp-Workspace": workspace}
     code = staff.get("/join-codes/current", headers=headers).json()["code"]
@@ -32,7 +33,7 @@ def test_gallery_copy_uses_invitation_workspace(cabinet, monkeypatch, tmp_path, 
     # In an organization, a colleague can confirm while personal workspace is selected.
     if workspace == "organization":
         user["user_id"] = str(uuid4())
-    result = confirm(staff, visit)
+    result = confirm_legacy(staff, visit)
     assert result.status_code == 200, result.text
     patient = owner.get("/owner/animals").json()[0]
     gallery_url = f"/patients/{patient['uuid']}/attachments"
@@ -61,7 +62,7 @@ def test_gallery_copy_uses_invitation_workspace(cabinet, monkeypatch, tmp_path, 
 
     copy = assert_copy(payload)
     assert owner.get(f"{url}/{uploaded.json()['uuid']}").content == payload
-    assert confirm(staff, visit).status_code == 409
+    assert confirm_legacy(staff, visit).status_code == 409
     assert len(staff.get(gallery_url, headers=headers).json()) == 1
     # Uploading to a new request after linking copies immediately, before confirmation.
     next_visit = request_visit(owner, patient).json()
@@ -69,7 +70,7 @@ def test_gallery_copy_uses_invitation_workspace(cabinet, monkeypatch, tmp_path, 
                           files={"file": ("next.pdf", b"next", "application/pdf")})
     assert response.status_code == 201, response.text
     assert_copy(b"next")
-    assert confirm(staff, next_visit, registration=None).status_code == 200
+    assert confirm_legacy(staff, next_visit, registration=None).status_code == 200
     assert len(staff.get(gallery_url, headers=headers).json()) == 2
     # Ordinary clinical uploads still get the current staff identity from TenantSession.
     clinical = staff.post(gallery_url, headers=headers,
@@ -90,6 +91,7 @@ def test_gallery_copy_uses_invitation_workspace(cabinet, monkeypatch, tmp_path, 
 @pytest.fixture
 def visits(cabinet, monkeypatch, tmp_path):
     staff, owner, factory, user = cabinet
+    staff.visit_factory = factory
     monkeypatch.setattr(storage, "attachment_root", lambda: tmp_path)
     code = staff.get("/join-codes/current").json()["code"]
     assert register(owner, code).status_code == 201
@@ -99,16 +101,22 @@ def visits(cabinet, monkeypatch, tmp_path):
 
 def request_visit(owner, animal, **changes):
     return owner.post(f"/owner/animals/{animal['uuid']}/visits", json={
-        "visit_type": "supervision", "proposed_starts_at": "2026-11-01T10:00:00Z", **changes})
+        "reason": "Питомец плохо ест", "proposed_starts_at": "2026-11-01T10:00:00Z", **changes})
 
 
-def confirm(staff, visit, **changes):
+def confirm_legacy(staff, visit, **changes):
+    # Lifecycle cases below exercise requests that already had a stored type.
+    with staff.visit_factory() as db:
+        row = db.get(VisitRequest, UUID(visit["uuid"]))
+        if row.visit_type is None:
+            row.visit_type = "supervision"
+            db.commit()
     return staff.post(f"/visit-requests/{visit['uuid']}/confirm", json={
         "starts_at": "2026-11-02T12:00:00Z", "duration_min": 45,
         "registration": {"mode": "create"}, **changes})
 
 
-def test_snapshot_required_answers_and_no_schedule_entry(visits):
+def test_snapshot_optional_answers_and_no_schedule_entry(visits):
     staff, owner, factory, user, animal, _ = visits
     user["organization"]["org_role"] = "owner"
     result = staff.put("/visit-questionnaires/primary", json={"questions": [
@@ -116,11 +124,11 @@ def test_snapshot_required_answers_and_no_schedule_entry(visits):
         {"kind": "single_select", "label": "Аппетит", "options": [
             {"value": "ok", "label": "Хороший"}, {"value": "bad", "label": "Плохой"}]}]})
     assert result.status_code == 200, result.text
-    questions = owner.get("/owner/visit-questions/primary").json()
+    questions = owner.get("/owner/visit-questions").json()
     one = [{"question_id": questions[0]["uuid"], "value": "  зуд  "}]
-    assert request_visit(owner, animal, visit_type="primary", answers=one).status_code == 422
+    assert request_visit(owner, animal, answers=one).status_code == 201
     both = one + [{"question_id": questions[1]["uuid"], "value": "ok"}]
-    submitted = request_visit(owner, animal, visit_type="primary", answers=both)
+    submitted = request_visit(owner, animal, answers=both)
     assert submitted.status_code == 201, submitted.text
     original = submitted.json()["answers"]
     assert original[0]["value"] == "зуд"
@@ -141,14 +149,14 @@ def test_reason_without_questionnaire_is_preserved_and_bounded(visits):
     assert result.json()["reason"] == "Питомец плохо ест"
     assert staff.get("/visit-requests").json()[0]["reason"] == "Питомец плохо ест"
     assert request_visit(owner, animal, reason="x" * 4001).status_code == 422
-    assert confirm(staff, result.json()).status_code == 200
+    assert confirm_legacy(staff, result.json()).status_code == 200
     assert staff.get("/appointments").json()[0]["notes"] == "Питомец плохо ест"
 
 
 def test_results_use_exact_encounter_patient_and_explicit_visibility(visits):
     staff, owner, factory, _, animal, _ = visits
     visit = request_visit(owner, animal).json()
-    assert confirm(staff, visit).status_code == 200
+    assert confirm_legacy(staff, visit).status_code == 200
     patient = owner.get("/owner/animals").json()[0]
     patient_id = patient["uuid"]
     encounter = staff.post(f"/patients/{patient_id}/encounters", json={"status": "in_progress", "exam": "Private clinical note"}).json()
@@ -188,9 +196,9 @@ def test_results_use_exact_encounter_patient_and_explicit_visibility(visits):
 @pytest.mark.parametrize("kind,options,valid,invalid", [
     ("binary", [], "no", ["", True, "maybe", []]),
     ("single_select", [{"value": "a", "label": "А"}, {"value": "b", "label": "Б"}], "a", ["c", [], True]),
-    ("multi_select", [{"value": "a", "label": "А"}, {"value": "b", "label": "Б"}], ["a", "b"], [[], ["c"], ["a", "a"], "a", [True], [{}]]),
+    ("multi_select", [{"value": "a", "label": "А"}, {"value": "b", "label": "Б"}], ["a", "b"], [["c"], ["a", "a"], "a", [True], [{}]]),
     ("number", [], 0, ["1", True, None, [], "Infinity"]),
-    ("text", [], "ответ", ["   ", 1, "x" * 4001]),
+    ("text", [], "ответ", [1, "x" * 4001]),
     ("date", [], "2026-11-01", ["2026-02-30", "20261101", "", 1]),
 ])
 def test_answer_shapes(visits, kind, options, valid, invalid):
@@ -199,9 +207,9 @@ def test_answer_shapes(visits, kind, options, valid, invalid):
     q = staff.put("/visit-questionnaires/primary", json={"questions": [
         {"kind": kind, "label": "Вопрос", "options": options}]}).json()["questions"][0]
     for value in invalid:
-        result = request_visit(owner, animal, visit_type="primary", answers=[{"question_id": q["uuid"], "value": value}])
+        result = request_visit(owner, animal, answers=[{"question_id": q["uuid"], "value": value}])
         assert result.status_code == 422, result.text
-    assert request_visit(owner, animal, visit_type="primary", answers=[{"question_id": q["uuid"], "value": valid}]).status_code == 201
+    assert request_visit(owner, animal, answers=[{"question_id": q["uuid"], "value": valid}]).status_code == 201
 
 
 def test_files_survive_reject_withdraw_and_private_boundaries(visits):
@@ -219,7 +227,7 @@ def test_files_survive_reject_withdraw_and_private_boundaries(visits):
     assert rejected.status_code == 200, rejected.text
     assert rejected.json()["rejection_reason"] == "Выберите другой день"
     assert owner.get(f"{url}/{file_id}").content == payload
-    assert confirm(staff, visit).status_code == 409
+    assert confirm_legacy(staff, visit).status_code == 409
     with factory() as db:
         assert db.scalar(select(func.count()).select_from(Appointment)) == 0
     # A staff account from another clinic has no read or write access. The header does not reopen it.
@@ -242,14 +250,14 @@ def test_confirmation_acceptance_transfer_and_appointment_sync(visits):
     assert queued["registration_status"] == "pending" and queued["can_write"] is True
     url = f"/owner/visits/{visit['uuid']}/files"
     file = owner.post(url, files={"file": ("photo.jpg", b"photo", "image/jpeg")}).json()
-    assert confirm(staff, visit, registration=None).status_code == 422
-    result = confirm(staff, visit)
+    assert confirm_legacy(staff, visit, registration=None).status_code == 422
+    result = confirm_legacy(staff, visit)
     assert result.status_code == 200, result.text
     scheduled = result.json()
     assert scheduled["status"] == "scheduled"
     assert scheduled["proposed_starts_at"].startswith("2026-11-01T10:00")
     assert scheduled["confirmed_starts_at"].startswith("2026-11-02T12:00")
-    assert confirm(staff, visit).status_code == 409
+    assert confirm_legacy(staff, visit).status_code == 409
     assert staff.get("/visit-requests?status=requested").json() == []
     with factory() as db:
         assert db.scalar(select(OwnerRegistration)).status == "accepted"
@@ -279,7 +287,7 @@ def test_confirmation_acceptance_transfer_and_appointment_sync(visits):
     third = request_visit(owner, patient).json()
     copied = owner.post(f"/owner/visits/{third['uuid']}/files", files={"file": ("note.pdf", b"pdf", "application/pdf")})
     assert copied.status_code == 201, copied.text
-    assert confirm(staff, third, registration=None).status_code == 200
+    assert confirm_legacy(staff, third, registration=None).status_code == 200
     with factory() as db:
         assert db.scalar(select(func.count()).select_from(Attachment)) == 2
     assert request_visit(owner, patient, confirmed_starts_at="2026-11-05T00:00:00Z").status_code == 422
@@ -289,15 +297,15 @@ def test_confirmation_acceptance_transfer_and_appointment_sync(visits):
 def test_booked_visit_type_syncs_onto_owner_request(visits):
     staff, owner, factory, user, animal, _ = visits
     user["organization"]["org_role"] = "owner"
-    published = staff.put("/visit-questionnaires/supervision", json={"questions": [
+    published = staff.put("/visit-questionnaires/primary", json={"questions": [
         {"kind": "text", "label": "Жалоба"}]})
     assert published.status_code == 200, published.text
-    question_id = owner.get("/owner/visit-questions/supervision").json()[0]["uuid"]
+    question_id = owner.get("/owner/visit-questions").json()[0]["uuid"]
     submitted = request_visit(owner, animal, answers=[{"question_id": question_id, "value": "  зуд  "}])
     assert submitted.status_code == 201, submitted.text
     visit = submitted.json()
     answers = visit["answers"]
-    confirmed = confirm(staff, visit)
+    confirmed = confirm_legacy(staff, visit)
     assert confirmed.status_code == 200, confirmed.text
     assert confirmed.json()["visit_type"] == "supervision"
     with factory() as db:
@@ -347,7 +355,7 @@ def test_confirmation_rolls_back_acceptance_and_appointment_if_file_missing(visi
     owner.post(f"/owner/visits/{visit['uuid']}/files", files={"file": ("photo.jpg", b"photo", "image/jpeg")})
     for file in root.iterdir():
         file.unlink()
-    assert confirm(staff, visit).status_code == 404
+    assert confirm_legacy(staff, visit).status_code == 404
     with factory() as db:
         assert db.scalar(select(OwnerRegistration)).status == "pending"
         assert db.scalar(select(VisitRequest)).status == "requested"
@@ -395,11 +403,11 @@ def test_observer_and_legacy_appointment_types(visits):
     queued = staff.get("/visit-requests?status=requested", headers=org_headers).json()
     assert queued[0]["can_write"] is False
     assert staff.get(f"/visit-requests/{visit['uuid']}/files/{file['uuid']}", headers=org_headers).content == b"photo"
-    assert confirm(staff, visit).status_code == 403
+    assert confirm_legacy(staff, visit).status_code == 403
     assert staff.post(f"/visit-requests/{visit['uuid']}/reject", json={}).status_code == 403
     user["organization"]["org_role"] = "member"
     # Confirm follows the invitation even when personal workspace is selected.
-    assert confirm(staff, visit).status_code == 200
+    assert confirm_legacy(staff, visit).status_code == 200
     patient = owner.get("/owner/animals").json()[0]
     body = {"patient_uuid": patient["uuid"], "starts_at": "2026-11-03T10:00:00Z", "duration_min": 30}
     for kind in ("recheck", "procedure", "telemedicine"):
@@ -432,7 +440,7 @@ def test_request_survives_separate_acceptance_linking_and_withdrawal(visits):
     listing = f"/owner/animals/{patient['uuid']}/visits"
     assert owner.get(listing).json()[0]["uuid"] == visit["uuid"]
     assert staff.get("/visit-requests?status=requested").json()[0]["registration_status"] == "accepted"
-    result = confirm(staff, visit, registration=None)
+    result = confirm_legacy(staff, visit, registration=None)
     assert result.status_code == 200, result.text
     assert result.json()["patient_uuid"] == patient["uuid"]
     assert len(staff.get("/clients").json()) == 1
@@ -449,14 +457,14 @@ def test_confirm_link_payload_is_atomic_and_invalid_duration_does_not_accept(vis
     staff, owner, factory, _, animal, _ = visits
     visit = request_visit(owner, animal).json()
     for duration in (4, 481):
-        assert confirm(staff, visit, duration_min=duration).status_code == 422
-    assert confirm(staff, visit, registration={"mode": "link", "client_uuid": str(uuid4())}).status_code == 404
+        assert confirm_legacy(staff, visit, duration_min=duration).status_code == 422
+    assert confirm_legacy(staff, visit, registration={"mode": "link", "client_uuid": str(uuid4())}).status_code == 404
     with factory() as db:
         assert db.scalar(select(OwnerRegistration)).status == "pending"
         assert db.scalar(select(func.count()).select_from(Appointment)) == 0
     client = staff.post("/clients", json={"name": "Существующий владелец"}).json()
     patient = staff.post("/patients", json={"name": "Пациент", "species": "dog", "client_uuid": client["uuid"]}).json()
-    result = confirm(staff, visit, registration={"mode": "link", "client_uuid": client["uuid"],
+    result = confirm_legacy(staff, visit, registration={"mode": "link", "client_uuid": client["uuid"],
         "matches": [{"owner_animal_id": animal["uuid"], "patient_uuid": patient["uuid"]}]})
     assert result.status_code == 200, result.text
     assert result.json()["patient_uuid"] == patient["uuid"]
@@ -484,7 +492,7 @@ def test_empty_publication_does_not_require_membership(visits):
     with factory() as db:
         db.execute(delete(BrowserSession))
         db.commit()
-    listed = owner.get("/owner/visit-questions/consultation")
+    listed = owner.get("/owner/visit-questions")
     assert listed.status_code == 200, listed.text
     assert listed.json() == []
 
@@ -504,10 +512,10 @@ def test_unresolved_membership_does_not_accept_an_empty_publication(visits):
         db.execute(delete(BrowserSession))
         _publication(db, uuid4(), "primary", ["Обязательный"], datetime(2026, 1, 1, tzinfo=timezone.utc))
         db.commit()
-    listed = owner.get("/owner/visit-questions/primary")
+    listed = owner.get("/owner/visit-questions")
     assert listed.status_code == 503, listed.text
     assert listed.json()["detail"] == PUBLICATION_RETRY
-    refused = request_visit(owner, animal, visit_type="primary", answers=[])
+    refused = request_visit(owner, animal, answers=[])
     assert refused.status_code == 503, refused.text
     with factory() as db:
         row = db.scalar(select(VisitQuestionnaire).where(VisitQuestionnaire.visit_type == "primary"))
@@ -536,6 +544,8 @@ def test_owner_receives_legacy_questions_before_settings(visits, monkeypatch):
     calls = []
 
     def remote(method, path, body=None, token=None):
+        if path == "/me":
+            return httpx.Response(200, json=user)
         if path == f"/organizations/{clinic_id}/members":
             assert token == "staff-access"
             calls.append(path)
@@ -571,23 +581,20 @@ def test_owner_receives_legacy_questions_before_settings(visits, monkeypatch):
         stranger_id = stranger.uuid
 
     assert owner.get("/visit-questionnaires").status_code == 401
-    selected = owner.get("/owner/visit-questions/primary")
+    selected = owner.get("/owner/visit-questions")
     assert selected.status_code == 200, selected.text
     assert [item["label"] for item in selected.json()] == ["Актуально", "Уточнение"]
     assert [UUID(item["uuid"]) for item in selected.json()] == admin_question_ids
-    missing = request_visit(owner, animal, visit_type="primary", answers=[
+    missing = request_visit(owner, animal, answers=[
         {"question_id": selected.json()[0]["uuid"], "value": "зуд"}])
-    assert missing.status_code == 422, missing.text
-    accepted = request_visit(owner, animal, visit_type="primary", answers=[
+    assert missing.status_code == 201, missing.text
+    accepted = request_visit(owner, animal, answers=[
         {"question_id": item["uuid"], "value": "зуд"} for item in selected.json()])
     assert accepted.status_code == 201, accepted.text
-    again = owner.get("/owner/visit-questions/primary")
+    again = owner.get("/owner/visit-questions")
     assert [item["uuid"] for item in again.json()] == [item["uuid"] for item in selected.json()]
-    secondary = owner.get("/owner/visit-questions/secondary")
-    assert [item["label"] for item in secondary.json()] == ["Только сотрудник"]
-    consultation = owner.get("/owner/visit-questions/consultation")
-    assert consultation.json()[0]["label"] == ("Первая" if expected_tie == first_tie else "Вторая")
-    assert owner.get("/owner/visit-questions/supervision").json() == []
+    assert len(_staff.get("/visit-questionnaires").json()) == 1
+    assert owner.get("/owner/visit-questions/primary").status_code == 404
     assert calls == [f"/organizations/{clinic_id}/members"]
     kept = owner.get(f"/owner/animals/{animal['uuid']}/visits").json()
     historical = next(item for item in kept if item["uuid"] == str(previous_id))
@@ -616,7 +623,7 @@ def test_concurrent_publication_is_complete():
 
     from vetdietderm_api.db import sqlalchemy_url
     from vetdietderm_api.questionnaires.models import VisitQuestion, VisitQuestionnaire
-    from vetdietderm_api.questionnaires.repository import published_questions, replace_questionnaire
+    from vetdietderm_api.questionnaires.repository import published_clinic_questionnaire, replace_questionnaire
     from vetdietderm_api.questionnaires.schemas import QuestionWrite, QuestionnaireWrite, VisitType
     from vetdietderm_api.settings import Settings
 
@@ -647,7 +654,7 @@ def test_concurrent_publication_is_complete():
     Session = sessionmaker(bind=engine, expire_on_commit=False)
     try:
         _assert_concurrent_freeze(Session, Barrier, ThreadPoolExecutor)
-        _assert_concurrent_replacement(Session, Barrier, ThreadPoolExecutor, published_questions,
+        _assert_concurrent_replacement(Session, Barrier, ThreadPoolExecutor, published_clinic_questionnaire,
                                        replace_questionnaire, QuestionWrite, QuestionnaireWrite, VisitType)
     finally:
         engine.dispose()
@@ -660,7 +667,7 @@ def _assert_concurrent_freeze(Session, Barrier, ThreadPoolExecutor):
     from datetime import datetime, timezone
 
     from vetdietderm_api.questionnaires.models import VisitQuestion, VisitQuestionnaire
-    from vetdietderm_api.questionnaires.repository import published_questions
+    from vetdietderm_api.questionnaires.repository import published_clinic_questionnaire
     from vetdietderm_api.questionnaires.schemas import VisitType
 
     clinic, admin_id, member_id = uuid4(), uuid4(), uuid4()
@@ -675,7 +682,7 @@ def _assert_concurrent_freeze(Session, Barrier, ThreadPoolExecutor):
     def migrate():
         barrier.wait(5)
         with Session() as db:
-            published_questions(db, clinic, VisitType.primary, members)
+            published_clinic_questionnaire(db, clinic, members=members)
             db.commit()
 
     with ThreadPoolExecutor(max_workers=2) as pool:
@@ -690,7 +697,7 @@ def _assert_concurrent_freeze(Session, Barrier, ThreadPoolExecutor):
         assert list(labels) == ["A1", "A2", "A3"]
 
 
-def _assert_concurrent_replacement(Session, Barrier, ThreadPoolExecutor, published_questions,
+def _assert_concurrent_replacement(Session, Barrier, ThreadPoolExecutor, published_clinic_questionnaire,
                                    replace_questionnaire, QuestionWrite, QuestionnaireWrite, VisitType):
     from datetime import datetime, timezone
 
@@ -710,12 +717,13 @@ def _assert_concurrent_replacement(Session, Barrier, ThreadPoolExecutor, publish
     def migrate():
         barrier.wait(5)
         with Session() as db:
-            published_questions(db, clinic, VisitType.primary, members)
+            published_clinic_questionnaire(db, clinic, members=members)
             db.commit()
 
     def replace():
         barrier.wait(5)
         with Session() as db:
+            published_clinic_questionnaire(db, clinic, admin_id, members)
             replace_questionnaire(db, clinic, admin_id, VisitType.primary, replacement)
 
     with ThreadPoolExecutor(max_workers=2) as pool:
@@ -729,3 +737,114 @@ def _assert_concurrent_replacement(Session, Barrier, ThreadPoolExecutor, publish
         labels = list(db.scalars(select(VisitQuestion.label).where(
             VisitQuestion.questionnaire_uuid == slots[0].uuid).order_by(VisitQuestion.position)))
         assert labels == ["N1", "N2"]
+
+
+def test_problem_contract_and_null_confirmation(visits):
+    staff, owner, factory, _, animal, _ = visits
+    url = f"/owner/animals/{animal['uuid']}/visits"
+    base = {"proposed_starts_at": "2026-11-01T10:00:00Z", "answers": []}
+    for changes in ({}, {"reason": ""}, {"reason": "   "}, {"reason": None},
+                    {"reason": "x" * 4001}, {"reason": "Зуд", "visit_type": "primary"},
+                    {"reason": "Зуд", "specialty": "dermatology"}):
+        assert owner.post(url, json={**base, **changes}).status_code == 422
+    with factory() as db:
+        assert db.scalar(select(func.count()).select_from(VisitRequest)) == 0
+    visit = owner.post(url, json={**base, "reason": "  " + "x" * 4000 + "  "})
+    assert visit.status_code == 201, visit.text
+    row = visit.json()
+    assert row["reason"] == "x" * 4000 and row["visit_type"] is None and row["answers"] == []
+    assert staff.get("/visit-requests").json()[0]["visit_type"] is None
+    assert owner.get(url).json()[0]["reason"] == row["reason"]
+    refused = staff.post(f"/visit-requests/{row['uuid']}/confirm", json={
+        "starts_at": "2026-11-02T12:00:00Z", "duration_min": 45, "registration": {"mode": "create"}})
+    assert refused.status_code == 422 and refused.json()["detail"] == "Укажите тип визита"
+    with factory() as db:
+        assert db.scalar(select(func.count()).select_from(Appointment)) == 0
+        assert db.scalar(select(OwnerRegistration)).status == "pending"
+
+
+@pytest.mark.parametrize("primary", [True, False, "newest"])
+def test_one_publication_selection_permissions_and_preservation(visits, primary):
+    from vetdietderm_api.questionnaires.models import VisitQuestionnaire
+    from vetdietderm_api.encounters.models import Encounter
+
+    staff, owner, factory, user, animal, _ = visits
+    clinic = UUID(user["organization"]["org_id"])
+    tied = datetime(2026, 1, 1)
+    with factory() as db:
+        rows = [_publication(db, uuid4(), kind, [kind], tied, clinic, UUID(int=i))
+                for i, kind in enumerate(("secondary", "consultation", "supervision"), 1)]
+        if primary is True:
+            rows.append(_publication(db, uuid4(), "primary", ["primary"], datetime(2025, 1, 1), clinic))
+        if primary == "newest":
+            rows[0].updated_at = datetime(2026, 2, 1)
+        expected = rows[0] if primary == "newest" else rows[-1]
+        expected_id, expected_type = str(expected.uuid), expected.visit_type
+        saved_ids = [row.uuid for row in rows]
+        db.commit()
+    listed = staff.get("/visit-questionnaires").json()
+    assert len(listed) == 1 and listed[0]["uuid"] == expected_id
+    questions = owner.get("/owner/visit-questions").json()
+    assert questions[0]["label"] == expected_type
+    answer = [{"question_id": questions[0]["uuid"], "value": "Снимок"}]
+    visit = request_visit(owner, animal, answers=answer).json()
+    snapshot = visit["answers"]
+    for role in ("member", "viewer"):
+        user["organization"]["org_role"] = role
+        assert staff.get("/visit-questionnaires").status_code == 200
+        denied = staff.put(f"/visit-questionnaires/{expected_type}", json={"questions": []})
+        assert denied.status_code == 403
+        assert denied.json()["detail"] == "Анкету клиники изменяют владелец и администратор"
+    for role in ("owner", "admin"):
+        user["organization"]["org_role"] = role
+        for kind in ("primary", "secondary", "consultation", "supervision"):
+            if kind != expected_type:
+                assert staff.put(f"/visit-questionnaires/{kind}", json={"questions": []}).status_code == 404
+        assert staff.put(f"/visit-questionnaires/{expected_type}", json={"questions": []}).status_code == 200
+    with factory() as db:
+        assert all(db.get(VisitQuestionnaire, id) is not None for id in saved_ids)
+        assert db.get(VisitRequest, UUID(visit["uuid"])).answers == snapshot
+        assert db.scalar(select(func.count()).select_from(Encounter)) == 0
+
+
+def test_optional_snapshot_empty_values_and_invalid_ids(visits):
+    staff, owner, factory, user, animal, _ = visits
+    user["organization"]["org_role"] = "owner"
+    questions = staff.put("/visit-questionnaires/primary", json={"questions": [
+        {"kind": "text", "label": "Текст"}, {"kind": "number", "label": "Число"},
+        {"kind": "multi_select", "label": "Выбор", "options": [
+            {"value": "a", "label": "А"}, {"value": "b", "label": "Б"}]}]}).json()["questions"]
+    assert request_visit(owner, animal, answers=[]).json()["answers"] == []
+    answers = [{"question_id": q["uuid"], "value": value}
+               for q, value in zip(questions, ("  ", 0, []))]
+    stored = request_visit(owner, animal, answers=answers).json()["answers"]
+    assert len(stored) == 1 and stored[0]["value"] == 0 and stored[0]["label"] == "Число"
+    for invalid in ([{"question_id": str(uuid4()), "value": "x"}],
+                    [answers[1], answers[1]],
+                    [{"question_id": questions[2]["uuid"], "value": ["unknown"]}]):
+        assert request_visit(owner, animal, answers=invalid).status_code == 422
+    with factory() as db:
+        assert len(db.scalars(select(VisitRequest)).all()) == 2
+
+
+@pytest.mark.parametrize("first_read", ["owner", "staff"])
+def test_empty_clinic_seeds_one_questionnaire(visits, first_read):
+    from vetdietderm_api.questionnaires.models import VisitQuestionnaire
+
+    staff, owner, factory, user, animal, _ = visits
+    user["organization"]["org_role"] = "owner"
+    assert staff.put("/visit-questionnaires/secondary", json={"questions": []}).status_code == 404
+    with factory() as db:
+        assert db.scalar(select(func.count()).select_from(VisitQuestionnaire)) == 0
+    if first_read == "owner":
+        assert owner.get("/owner/visit-questions").json() == []
+    else:
+        assert len(staff.get("/visit-questionnaires").json()) == 1
+    assert owner.get("/owner/visit-questions").json() == []
+    listed = staff.get("/visit-questionnaires").json()
+    assert len(listed) == 1 and listed[0]["visit_type"] == "primary"
+    user["organization"]["org_role"] = "owner"
+    assert staff.put("/visit-questionnaires/secondary", json={"questions": []}).status_code == 404
+    with factory() as db:
+        rows = db.scalars(select(VisitQuestionnaire)).all()
+        assert len(rows) == 1 and rows[0].visit_type == "primary"

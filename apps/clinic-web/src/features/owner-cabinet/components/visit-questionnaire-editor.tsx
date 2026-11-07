@@ -7,11 +7,8 @@ import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Input } from "@/shared/ui/input";
 import { ownerError } from "@/features/owner-cabinet/api";
-import { visitQuestionnairesApi, type BookableVisitType, type VisitQuestionKind, type VisitQuestionnaire, type VisitQuestionWrite } from "@/features/appointments/api";
+import { visitQuestionnairesApi, type VisitQuestionKind, type VisitQuestionnaire, type VisitQuestionWrite } from "@/features/appointments/api";
 
-const types: Record<BookableVisitType, string> = {
-  primary: "Первичный", secondary: "Повторный", consultation: "Консультация", supervision: "Курирование",
-};
 const kinds: Record<VisitQuestionKind, string> = {
   binary: "Да/нет", single_select: "Один вариант", multi_select: "Несколько вариантов", number: "Число", text: "Текст", date: "Дата",
 };
@@ -52,8 +49,8 @@ function TypeEditor({ slot, canEdit }: { slot: VisitQuestionnaire; canEdit: bool
     } catch (cause) { setError(ownerError(cause)); }
     finally { setBusy(false); }
   }
-  return <form onSubmit={save} className="border-t pt-5 space-y-4" aria-label={`Анкета: ${types[slot.visit_type]}`}>
-    <h3 className="font-semibold">{types[slot.visit_type]}</h3>
+  return <form onSubmit={save} className="border-t pt-5 space-y-4" aria-label="Анкета перед визитом">
+
     {questions.length === 0 && <p className="text-sm text-muted-foreground">{dirty
       ? "Вопросов нет. Сохраните, чтобы запрос уходил без вопросов."
       : "Анкета не задана — запрос уйдёт без вопросов"}</p>}
@@ -118,11 +115,11 @@ function DoctorQuestionnaires() {
   }, []);
   React.useEffect(() => { void load(); }, [load]);
   return <Card>
-    <CardHeader><CardTitle className="text-base">Анкеты перед визитом</CardTitle>
-      <CardDescription>Вопросы клиники для каждого типа визита. Все вопросы обязательны для владельца. Сохранение публикует анкету.</CardDescription>
+    <CardHeader><CardTitle className="text-base">Анкета перед визитом</CardTitle>
+      <CardDescription>Одна анкета клиники перед визитом. Все ответы необязательны. Сохранение публикует анкету.</CardDescription>
     </CardHeader>
     <CardContent className="space-y-5">
-      {loading && <p role="status">Загрузка анкет…</p>}
+      {loading && <p role="status">Загрузка анкеты…</p>}
       {error && <div className="space-y-2"><p role="alert" className="text-sm text-destructive">{error}</p><Button variant="outline" disabled={loading} onClick={() => void load()}>Повторить загрузку</Button></div>}
       {!canEdit && <p className="text-sm text-muted-foreground">В этом рабочем месте доступен только просмотр.</p>}
       {slots?.map(slot => <TypeEditor key={slot.uuid} slot={slot} canEdit={canEdit} />)}

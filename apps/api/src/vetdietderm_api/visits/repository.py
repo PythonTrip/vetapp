@@ -19,7 +19,6 @@ from vetdietderm_api.encounters.schemas import EncounterStatus
 from vetdietderm_api.owners import repository as owners
 from vetdietderm_api.owners.models import JoinCode, OwnerAccount, OwnerAnimal, OwnerRegistration, utc_now
 from vetdietderm_api.patients.models import Patient
-from vetdietderm_api.questionnaires.schemas import VisitType
 from vetdietderm_api.visits.models import VisitRequest, VisitRequestFile
 from vetdietderm_api.visits.schemas import VisitFileRead, VisitRead
 
@@ -37,19 +36,26 @@ def transaction(db: Session):
         raise
 
 
-def questions(db: Session, tenant_id: UUID | None, visit_type: VisitType):
+def questions(db: Session, tenant_id: UUID | None):
     # Migration may roll this session back, so callers invoke it before visit locks.
-    from vetdietderm_api.questionnaires.repository import published_questions
-    return published_questions(db, tenant_id, visit_type)
+    from vetdietderm_api.questionnaires.repository import published_clinic_questionnaire, _question_rows
+    if tenant_id is None:
+        return []
+    return _question_rows(db, published_clinic_questionnaire(db, tenant_id))
 
 
 def snapshot(published, answers):
     submitted = {answer.question_id: answer.value for answer in answers}
-    if len(submitted) != len(answers) or set(submitted) != {q.uuid for q in published}:
+    if len(submitted) != len(answers) or not set(submitted).issubset({q.uuid for q in published}):
         raise HTTPException(422, "Ответьте на все вопросы актуальной анкеты")
     result = []
     for question in published:
+        if question.uuid not in submitted:
+            continue
         value = submitted[question.uuid]
+        if (question.kind == "text" and isinstance(value, str) and not value.strip()
+                or question.kind == "multi_select" and value == []):
+            continue
         options = question.options
         allowed = {option["value"] for option in options}
         valid = False
@@ -108,10 +114,10 @@ def read(db: Session, row: VisitRequest):
 
 
 def create(db: Session, owner: OwnerAccount, animal_id: UUID, body):
-    published = questions(db, owner.tenant_id, body.visit_type)
+    published = questions(db, owner.tenant_id)
     animal_id, patient_id, _ = owner_target(db, owner, animal_id)
     row = VisitRequest(owner_account_uuid=owner.uuid, owner_animal_uuid=animal_id,
-                       patient_uuid=patient_id, visit_type=body.visit_type, reason=body.reason,
+                       patient_uuid=patient_id, visit_type=None, reason=body.reason,
                        proposed_starts_at=body.proposed_starts_at,
                        answers=snapshot(published, body.answers))
     db.add(row)
@@ -180,6 +186,8 @@ def copy_gallery(db, row, file, keys):
 def confirm(db, request_id, user, body, keys):
     row, registration, code = context(db, request_id, user=user, write=True)
     require_status(row, "requested")
+    if row.visit_type is None:
+        raise HTTPException(422, "Укажите тип визита")
     if registration.status == "pending":
         if body.registration is None:
             raise HTTPException(422, "Укажите способ принятия регистрации")

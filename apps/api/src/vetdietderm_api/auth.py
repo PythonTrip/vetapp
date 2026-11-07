@@ -403,6 +403,8 @@ def require_clinical_access(request: Request, user: Annotated[dict, Depends(requ
     if request.method not in {"GET", "HEAD", "OPTIONS"}:
         # Apply the same resource policy through the legacy and versioned adapters.
         path = request.url.path.removeprefix("/v1/staff")
+        if path.startswith("/visit-questionnaires/") and org.get("org_role") not in {"owner", "admin"}:
+            raise HTTPException(403, "Анкету клиники изменяют владелец и администратор")
         calculation = path.startswith("/assessments/")
         if org.get("org_role") not in {"owner", "admin", "member"} and not calculation:
             raise HTTPException(403, "Роль наблюдателя разрешает только просмотр")

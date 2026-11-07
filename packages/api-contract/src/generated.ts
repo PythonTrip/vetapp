@@ -997,7 +997,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/owner/visit-questions/{visit_type}": {
+    "/owner/visit-questions": {
         parameters: {
             query?: never;
             header?: never;
@@ -1005,7 +1005,7 @@ export interface paths {
             cookie?: never;
         };
         /** Owner Questions */
-        get: operations["owner_questions_owner_visit_questions__visit_type__get"];
+        get: operations["owner_questions_owner_visit_questions_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1688,7 +1688,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/owner/visit-questions/{visit_type}": {
+    "/v1/owner/visit-questions": {
         parameters: {
             query?: never;
             header?: never;
@@ -1696,7 +1696,7 @@ export interface paths {
             cookie?: never;
         };
         /** V1 Owner Questions */
-        get: operations["v1_owner_questions_v1_owner_visit_questions__visit_type__get"];
+        get: operations["v1_owner_questions_v1_owner_visit_questions_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4788,7 +4788,7 @@ export interface components {
              * Format: uuid
              */
             uuid: string;
-            visit_type: components["schemas"]["vetdietderm_api__questionnaires__schemas__VisitType"];
+            visit_type: components["schemas"]["vetdietderm_api__questionnaires__schemas__VisitType"] | null;
         };
         /** StatusResponse */
         StatusResponse: {
@@ -4949,8 +4949,7 @@ export interface components {
              */
             proposed_starts_at: string;
             /** Reason */
-            reason?: string | null;
-            visit_type: components["schemas"]["vetdietderm_api__questionnaires__schemas__VisitType"];
+            reason: string;
         };
         /** VisitFileRead */
         VisitFileRead: {
@@ -5010,7 +5009,7 @@ export interface components {
              * Format: uuid
              */
             uuid: string;
-            visit_type: components["schemas"]["vetdietderm_api__questionnaires__schemas__VisitType"];
+            visit_type: components["schemas"]["vetdietderm_api__questionnaires__schemas__VisitType"] | null;
         };
         /** VisitReject */
         VisitReject: {
@@ -7663,13 +7662,11 @@ export interface operations {
             };
         };
     };
-    owner_questions_owner_visit_questions__visit_type__get: {
+    owner_questions_owner_visit_questions_get: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                visit_type: components["schemas"]["vetdietderm_api__questionnaires__schemas__VisitType"];
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -7681,15 +7678,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["QuestionRead"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -12845,16 +12833,14 @@ export interface operations {
             };
         };
     };
-    v1_owner_questions_v1_owner_visit_questions__visit_type__get: {
+    v1_owner_questions_v1_owner_visit_questions_get: {
         parameters: {
             query?: never;
             header?: {
                 /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
                 "X-Vetapp-CSRF"?: string | null;
             };
-            path: {
-                visit_type: components["schemas"]["vetdietderm_api__questionnaires__schemas__VisitType"];
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;

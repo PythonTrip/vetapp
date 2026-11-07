@@ -6230,7 +6230,14 @@
             "type": "string"
           },
           "visit_type": {
-            "$ref": "#/components/schemas/vetdietderm_api__questionnaires__schemas__VisitType"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/vetdietderm_api__questionnaires__schemas__VisitType"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -6742,24 +6749,14 @@
             "type": "string"
           },
           "reason": {
-            "anyOf": [
-              {
-                "maxLength": 4000,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reason"
-          },
-          "visit_type": {
-            "$ref": "#/components/schemas/vetdietderm_api__questionnaires__schemas__VisitType"
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
           }
         },
         "required": [
-          "visit_type",
+          "reason",
           "proposed_starts_at"
         ],
         "title": "VisitCreate",
@@ -6926,7 +6923,14 @@
             "type": "string"
           },
           "visit_type": {
-            "$ref": "#/components/schemas/vetdietderm_api__questionnaires__schemas__VisitType"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/vetdietderm_api__questionnaires__schemas__VisitType"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -10792,19 +10796,9 @@
         ]
       }
     },
-    "/owner/visit-questions/{visit_type}": {
+    "/owner/visit-questions": {
       "get": {
-        "operationId": "owner_questions_owner_visit_questions__visit_type__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "visit_type",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/vetdietderm_api__questionnaires__schemas__VisitType"
-            }
-          }
-        ],
+        "operationId": "owner_questions_owner_visit_questions_get",
         "responses": {
           "200": {
             "content": {
@@ -10813,22 +10807,12 @@
                   "items": {
                     "$ref": "#/components/schemas/QuestionRead"
                   },
-                  "title": "Response Owner Questions Owner Visit Questions  Visit Type  Get",
+                  "title": "Response Owner Questions Owner Visit Questions Get",
                   "type": "array"
                 }
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
         "summary": "Owner Questions",
@@ -17520,18 +17504,10 @@
         ]
       }
     },
-    "/v1/owner/visit-questions/{visit_type}": {
+    "/v1/owner/visit-questions": {
       "get": {
-        "operationId": "v1_owner_questions_v1_owner_visit_questions__visit_type__get",
+        "operationId": "v1_owner_questions_v1_owner_visit_questions_get",
         "parameters": [
-          {
-            "in": "path",
-            "name": "visit_type",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/vetdietderm_api__questionnaires__schemas__VisitType"
-            }
-          },
           {
             "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
             "in": "header",
@@ -17559,7 +17535,7 @@
                   "items": {
                     "$ref": "#/components/schemas/QuestionRead"
                   },
-                  "title": "Response V1 Owner Questions V1 Owner Visit Questions  Visit Type  Get",
+                  "title": "Response V1 Owner Questions V1 Owner Visit Questions Get",
                   "type": "array"
                 }
               }

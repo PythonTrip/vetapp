@@ -7,7 +7,6 @@ import { Input } from "@/shared/ui/input";
 import { Textarea } from "@/shared/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/ui/dialog";
 import { formatDateTime, toDateTimeLocal } from "@/shared/lib/date-time";
-import { VISIT_TYPE_LABELS } from "@/features/appointments/labels";
 import { useClientsQuery } from "@/features/patients/hooks";
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value";
 import { ownerError, registrationsApi, visitAnswerLabel, visitRequestsApi, type PendingRegistration, type RegistrationAccept, type StaffVisit, type VisitFile } from "@/features/owner-cabinet/api";
@@ -66,7 +65,7 @@ function VisitRow({ row }: { row: StaffVisit }) {
   return <article className="min-w-0 space-y-3 py-5 first:pt-0">
     <header className="break-words">
       <h3 className="font-semibold">{row.animal_name} · {row.owner_name}</h3>
-      <p className="text-sm">{VISIT_TYPE_LABELS[row.visit_type]}</p>
+      <p className="whitespace-pre-wrap break-words text-sm">{row.reason || "Заявка"}</p>
       <span className={`mt-2 inline-block rounded-md px-2.5 py-1 text-xs font-semibold ${VISIT_STATUS_STYLES.waiting}`}>{VISIT_STATUS_LABELS.requested}</span>
       <p className="text-sm">Предложено: {formatDateTime(row.proposed_starts_at)}</p>
       {row.reason && <p className="mt-2 whitespace-pre-wrap break-words text-sm">{row.reason}</p>}

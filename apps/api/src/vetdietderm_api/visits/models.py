@@ -18,7 +18,7 @@ class VisitRequest(Base):
     owner_animal_uuid: Mapped[UUID | None] = mapped_column(ForeignKey("owner_animals.uuid", ondelete="SET NULL"))
     patient_uuid: Mapped[UUID | None] = mapped_column(ForeignKey("patients.uuid", ondelete="SET NULL"))
     appointment_uuid: Mapped[UUID | None] = mapped_column(ForeignKey("appointments.uuid", ondelete="SET NULL"), unique=True)
-    visit_type: Mapped[str] = mapped_column(String(16))
+    visit_type: Mapped[str | None] = mapped_column(String(16), nullable=True)
     reason: Mapped[str | None] = mapped_column(Text)
     proposed_starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     confirmed_starts_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

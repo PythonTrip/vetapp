@@ -18,7 +18,7 @@ SessionDep = Annotated[Session, Depends(get_session)]
 def list_questionnaires(request: Request, response: Response, session: SessionDep):
     response.headers["Cache-Control"] = "no-store"
     clinic_id = UUID(str(request.state.tenant_id))
-    members = organization_members(request) if repository.missing_clinic_types(session, clinic_id) else None
+    members = organization_members(request) if repository.missing_clinic_questionnaire(session, clinic_id) else None
     return repository.list_questionnaires(
         session, clinic_id, UUID(request.state.user["user_id"]), members)
 

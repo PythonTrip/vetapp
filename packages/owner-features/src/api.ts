@@ -1,6 +1,6 @@
 import type { components } from "@vetdietderm/api-contract";
 import { createHttpClient } from "@vetdietderm/api-client/http";
-import type { BookableVisitType, VisitQuestionnaire } from "./domain";
+import type { VisitQuestionnaire } from "./domain";
 type Schemas = components["schemas"];
 const { apiRequest, apiBlob, apiUpload } = createHttpClient({ audience: "owner" });
 
@@ -57,7 +57,7 @@ export function visitAnswerLabel(answer: OwnerVisit["answers"][number]): string 
   return values.map(value => answer.options?.find(option => option.value === value)?.label ?? String(value)).join(", ");
 }
 export const ownerVisits = {
-  questions: (type: BookableVisitType) => ownerRequest<VisitQuestion[]>(`/visit-questions/${type}`),
+  questions: () => ownerRequest<VisitQuestion[]>("/visit-questions"),
   list: (animalId: string) => ownerRequest<OwnerVisit[]>(`/animals/${animalId}/visits`),
   create: (animalId: string, body: Schemas["VisitCreate"]) =>
     ownerRequest<OwnerVisit>(`/animals/${animalId}/visits`, "POST", body),

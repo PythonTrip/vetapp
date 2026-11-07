@@ -9,7 +9,7 @@ from vetdietderm_api.attachments.storage import extension_for, resolve_file
 from vetdietderm_api.auth import csrf, require_clinical_access
 from vetdietderm_api.owners.models import utc_now
 from vetdietderm_api.owners.router import DB, Owner
-from vetdietderm_api.questionnaires.schemas import QuestionRead, VisitType
+from vetdietderm_api.questionnaires.schemas import QuestionRead
 from vetdietderm_api.visits import repository as repo
 from vetdietderm_api.visits.models import VisitRequestFile
 from vetdietderm_api.visits.schemas import (
@@ -20,9 +20,9 @@ router = APIRouter(tags=["visit-requests"], dependencies=[Depends(csrf)])
 clinical = APIRouter(dependencies=[Depends(require_clinical_access)])
 
 
-@router.get("/owner/visit-questions/{visit_type}", response_model=list[QuestionRead])
-def owner_questions(visit_type: VisitType, owner: Owner, db: DB):
-    rows = repo.questions(db, owner.tenant_id, visit_type)
+@router.get("/owner/visit-questions", response_model=list[QuestionRead])
+def owner_questions(owner: Owner, db: DB):
+    rows = repo.questions(db, owner.tenant_id)
     db.commit()
     return rows
 

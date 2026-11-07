@@ -27,8 +27,7 @@ class AnswerSnapshot(BaseModel):
 
 class VisitCreate(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
-    visit_type: VisitType
-    reason: str | None = Field(default=None, min_length=1, max_length=4000)
+    reason: str = Field(min_length=1, max_length=4000)
     proposed_starts_at: AwareDatetime
     answers: list[AnswerWrite] = Field(default_factory=list)
 
@@ -58,7 +57,7 @@ class VisitRead(BaseModel):
     uuid: UUID
     owner_animal_uuid: UUID | None
     patient_uuid: UUID | None
-    visit_type: VisitType
+    visit_type: VisitType | None
     reason: str | None = None
     proposed_starts_at: datetime
     confirmed_starts_at: datetime | None
