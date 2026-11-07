@@ -17,6 +17,23 @@ const visit: OwnerVisit = {
 };
 
 describe("owner visit request", () => {
+  it.each([
+    { paid: false, active: false }, { paid: true, active: false },
+    { paid: false, active: true }, { paid: true, active: true },
+  ])("shows completed charges on home with paid=$paid and active=$active", async ({ paid, active }) => {
+    vi.spyOn(ownerVisits, "list").mockResolvedValue([
+      ...(active ? [{ ...visit, uuid: "upcoming", reason: "Новый вопрос" }] : []),
+      { ...visit, uuid: "charged", status: "completed", read_only: true, amount_rub: "1500.50", paid },
+      { ...visit, uuid: "no-charge", status: "completed", reason: "Без суммы", amount_rub: null },
+    ]);
+    render(<AnimalVisits animalId="animal-1" animalName="Мурка" home />);
+    expect(await screen.findByText(`${paid ? "Оплачено" : "К оплате"}: 1500.50 руб.`)).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Мурка · Визит" })).toBeVisible();
+    expect(screen.queryByText("Новых консультаций пока нет")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Без суммы/)).not.toBeInTheDocument();
+    if (active) expect(screen.getByRole("heading", { name: "Мурка · Новый вопрос" })).toBeVisible();
+  });
+
   it("prioritizes the running visit and opens the selected pet's dialogue", async () => {
     vi.spyOn(ownerVisits, "list").mockResolvedValue([
       { ...visit, uuid: "future", status: "scheduled", confirmed_starts_at: "2026-11-10T10:00:00Z", duration_min: 30 },

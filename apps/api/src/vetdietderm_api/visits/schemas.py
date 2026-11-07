@@ -2,7 +2,9 @@ from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
+
+from vetdietderm_api.appointments.schemas import format_amount_rub
 
 from vetdietderm_api.owners.schemas import RegistrationAccept
 from vetdietderm_api.attachments.schemas import OwnerFileRead
@@ -69,7 +71,15 @@ class VisitRead(BaseModel):
     files: list[VisitFileRead] = Field(default_factory=list)
     encounter_status: EncounterStatus | None = None
     result_files: list[OwnerFileRead] = Field(default_factory=list)
+    amount_rub: str | None = None
+    paid: bool = False
+    read_only: bool = False
     created_at: datetime
+
+    @field_validator("amount_rub", mode="before")
+    @classmethod
+    def amount_has_two_places(cls, value: object) -> str | None:
+        return format_amount_rub(value)
 
 
 class StaffVisitRead(VisitRead):

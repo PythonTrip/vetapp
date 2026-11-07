@@ -16,6 +16,15 @@ import { CabinetIcon, PetAvatar } from "./cabinet-visuals";
 import type { CabinetSection } from "./cabinet-home";
 
 const selectClass = "min-h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm";
+
+function visitTitle(visit: OwnerVisit) {
+  return visit.read_only ? "Визит" : (visit.reason || "Заявка");
+}
+
+function chargeText(visit: OwnerVisit) {
+  if (visit.amount_rub == null) return "";
+  return `${visit.paid ? "Оплачено" : "К оплате"}: ${visit.amount_rub} руб.`;
+}
 const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"];
 
 function hasAnswer(question: VisitQuestion, value: VisitAnswerValue | undefined) {
@@ -156,7 +165,7 @@ export function AnimalVisits({ animalId, animalName, doctorName, animals, home =
     const current = ++generation.current;
     if (!background) setLoading(true); setError("");
     try { const result = await ownerVisits.list(animalId); if (generation.current === current) {
-      const signature = JSON.stringify(result.map(visit => [visit.uuid, visit.status, visit.confirmed_starts_at, visit.encounter_status, visit.result_files?.map(file => file.uuid)]));
+      const signature = JSON.stringify(result.map(visit => [visit.uuid, visit.status, visit.confirmed_starts_at, visit.encounter_status, visit.amount_rub, visit.paid, visit.read_only, visit.result_files?.map(file => file.uuid)]));
       if (previous.current !== null && previous.current !== signature) setNotice("Данные консультаций обновлены. Проверьте время, статус и доступные результаты.");
       previous.current = signature; setVisits(result);
     } }
@@ -210,24 +219,26 @@ export function AnimalVisits({ animalId, animalName, doctorName, animals, home =
   if (home) {
     const pending = visits.filter(active).sort((a, b) => Number(running(b)) - Number(running(a)) || new Date(a.confirmed_starts_at || a.proposed_starts_at).getTime() - new Date(b.confirmed_starts_at || b.proposed_starts_at).getTime());
     const current = pending[0];
-    const currentState = current && consultationState(current.status, current.confirmed_starts_at, current.encounter_status, now);
+    const homeVisits = [...pending.slice(0, 1), ...visits.filter(visit => !active(visit) && visit.amount_rub != null)];
     return <section className="owner-dashboard" aria-label="Консультации питомца">
       {booking}
       <section className="home-booking-section"><h2>Запись к ветеринару</h2><div className="home-booking-card"><div className="home-booking-intro"><span><CabinetIcon name="calendar" size={25} /></span><div><h3>Запланируйте приём</h3><p>Выберите удобное время</p></div></div><Button type="button" className="w-full min-h-12" onClick={() => setOpen(true)}>Записаться к врачу<CabinetIcon name="arrow" size={19} /></Button></div></section>
-      <div className="dashboard-section-heading"><h2>Текущая консультация</h2><button type="button" disabled={loading || busy} onClick={() => void load()}>Обновить</button></div>
+      <div className="dashboard-section-heading"><h2>Консультации</h2><button type="button" disabled={loading || busy} onClick={() => void load()}>Обновить</button></div>
       {loading && <p role="status">Загрузка консультаций…</p>}
       {error && <div className="space-y-2"><p role="alert" className="text-destructive">{error}</p><Button variant="outline" disabled={loading} onClick={() => void load()}>Повторить загрузку</Button></div>}
       {notice && <p role="status" className="text-sm">{notice}</p>}
-      {current && currentState ? <article className="current-consultation">
+      {homeVisits.map(current => { const currentState = consultationState(current.status, current.confirmed_starts_at, current.encounter_status, now); return <article key={current.uuid} className="current-consultation">
         <div className="consultation-meta"><span className="consultation-status"><span aria-hidden="true" className="status-dot" />{currentState.label}</span>{current.duration_min != null && <span>{current.duration_min} мин</span>}</div>
-        <h3 className="whitespace-pre-wrap break-words">{animalName} · {current.reason || "Заявка"}</h3>
+        <h3 className="whitespace-pre-wrap break-words">{animalName} · {visitTitle(current)}</h3>
+        {chargeText(current) && <p className="font-medium">{chargeText(current)}</p>}
         <p>{running(current) ? "Откройте переписку с врачом." : currentState.next}</p>
         {!running(current) && <p className="consultation-date">{formatDateTime(current.confirmed_starts_at || current.proposed_starts_at)}</p>}
         <div className="current-consultation-footer"><span className="doctor-byline"><span className="doctor-avatar"><CabinetIcon name="doctor" size={18} /></span>{doctorName}</span><Button type="button" onClick={running(current) ? onChat : () => onSection?.("visits")}>{running(current) ? "Войти в чат" : "Подробнее"}<CabinetIcon name="arrow" size={18} /></Button></div>
-      </article> : !loading && !error && <div className="dashboard-empty"><CabinetIcon name="calendar" /><h3>Новых консультаций пока нет</h3><p>Запишитесь к ветеринару, когда понадобится помощь.</p></div>}
+      </article>; })}
+      {homeVisits.length === 0 && !loading && !error && <div className="dashboard-empty"><CabinetIcon name="calendar" /><h3>Новых консультаций пока нет</h3><p>Запишитесь к ветеринару, когда понадобится помощь.</p></div>}
       {pending.length > 1 && <>
       <div className="dashboard-section-heading"><h2>Предстоящие записи</h2><button type="button" onClick={() => onSection?.("visits")}>Все <CabinetIcon name="arrow" size={16} /></button></div>
-      {pending.filter(visit => visit !== current).slice(0, 2).map(visit => <button key={visit.uuid} type="button" className="upcoming-visit" onClick={() => onSection?.("visits")}><span className="visit-calendar"><CabinetIcon name="calendar" /></span><span className="min-w-0 break-words"><strong>{visit.reason || "Заявка"}</strong><small>{animalName} · {doctorName}</small><small className="sr-only">{formatDateTime(visit.confirmed_starts_at || visit.proposed_starts_at)}</small></span><span className="upcoming-visit-end"><small>{new Date(visit.confirmed_starts_at || visit.proposed_starts_at).toLocaleString("ru", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</small><span className="visit-status-chip">{consultationState(visit.status, visit.confirmed_starts_at, visit.encounter_status, now).label}</span></span></button>)}
+      {pending.filter(visit => visit !== current).slice(0, 2).map(visit => <button key={visit.uuid} type="button" className="upcoming-visit" onClick={() => onSection?.("visits")}><span className="visit-calendar"><CabinetIcon name="calendar" /></span><span className="min-w-0 break-words"><strong>{visitTitle(visit)}</strong>{chargeText(visit) && <small>{chargeText(visit)}</small>}<small>{animalName} · {doctorName}</small><small className="sr-only">{formatDateTime(visit.confirmed_starts_at || visit.proposed_starts_at)}</small></span><span className="upcoming-visit-end"><small>{new Date(visit.confirmed_starts_at || visit.proposed_starts_at).toLocaleString("ru", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</small><span className="visit-status-chip">{consultationState(visit.status, visit.confirmed_starts_at, visit.encounter_status, now).label}</span></span></button>)}
       </>}
       {visits.length > 0 && <button type="button" className="finished-result-link" onClick={() => onSection?.("visits")}>Все консультации<CabinetIcon name="arrow" size={18} /></button>}
       {visits.some(finished) && <button type="button" className="finished-result-link" onClick={() => onSection?.("results")}><CabinetIcon name="file" /><span>Результаты завершённых приёмов</span><CabinetIcon name="arrow" size={18} /></button>}
@@ -243,17 +254,18 @@ export function AnimalVisits({ animalId, animalName, doctorName, animals, home =
     {error && <p role="alert" className="break-words text-sm text-destructive">{error}</p>}
     {!loading && !error && (resultsOnly ? !visits.some(finished) : visits.length === 0) && <div className="space-y-2 rounded-xl bg-muted/50 p-5"><p className="font-medium">{resultsOnly ? "Завершённых консультаций пока нет" : "Вы ещё не запрашивали визиты."}</p><p className="text-sm text-muted-foreground">{resultsOnly ? "Здесь будут результаты завершённых приёмов, которыми врач поделился с вами." : "Опишите проблему питомца и предложите удобное время. На вопросы анкеты можно не отвечать."}</p></div>}
     {groups.filter(group => group.rows.length > 0).map(group => <section key={group.title} className="space-y-3"><h3 className="text-base font-semibold">{group.title}</h3><ul className="space-y-4">{group.rows.map(visit => { const state = consultationState(visit.status, visit.confirmed_starts_at, visit.encounter_status, now); return <li key={visit.uuid} className={`min-w-0 space-y-4 rounded-xl border p-4 text-sm sm:p-5 ${running(visit) ? "border-primary bg-accent/50" : "bg-card"}`}>
-      <div className="flex flex-wrap items-start justify-between gap-2"><h4 className="min-w-0 whitespace-pre-wrap break-words font-semibold">{visit.reason || "Заявка"}{animalName ? ` · ${animalName}` : ""}</h4><span className={`rounded-md px-2.5 py-1 text-xs font-semibold ${VISIT_STATUS_STYLES[state.tone]}`}>{state.label}</span></div>
+      <div className="flex flex-wrap items-start justify-between gap-2"><h4 className="min-w-0 whitespace-pre-wrap break-words font-semibold">{visitTitle(visit)}{animalName ? ` · ${animalName}` : ""}</h4><span className={`rounded-md px-2.5 py-1 text-xs font-semibold ${VISIT_STATUS_STYLES[state.tone]}`}>{state.label}</span></div>
+      {chargeText(visit) && <p className="font-medium">{chargeText(visit)}</p>}
       {running(visit) && onChat && <div className="space-y-2"><Button type="button" className="min-h-12 w-full sm:w-auto" onClick={onChat}>Открыть консультацию</Button><p className="text-xs text-muted-foreground">Откроется переписка с врачом по этому питомцу.</p></div>}
       <dl className="space-y-1"><div className="flex flex-wrap gap-x-2"><dt className="text-muted-foreground">{visit.confirmed_starts_at ? "Приём:" : "Предлагаемое время:"}</dt><dd className="font-medium tabular-nums">{formatDateTime(visit.confirmed_starts_at || visit.proposed_starts_at)}</dd></div>{visit.duration_min != null && <div className="flex gap-2"><dt className="text-muted-foreground">Длительность:</dt><dd>{visit.duration_min} мин</dd></div>}<div className="flex flex-wrap gap-x-2"><dt className="text-muted-foreground">Врач:</dt><dd className="break-words">{doctorName || "Информация недоступна"}</dd></div></dl>
       <p className="text-muted-foreground">{state.next}</p>
-      {visit.reason && <p className="whitespace-pre-wrap break-words">{visit.reason}</p>}
+      {visit.reason && !visit.read_only && <p className="whitespace-pre-wrap break-words">{visit.reason}</p>}
       {visit.rejection_reason && <p className="break-words">Причина отказа: {visit.rejection_reason}</p>}
       {visit.answers.length > 0 && <details><summary className="cursor-pointer">Ответы на анкету</summary><dl className="space-y-2 pt-2">{visit.answers.map(answer => <div key={answer.question_id} className="break-words"><dt className="font-medium">{answer.label}</dt><dd className="whitespace-pre-wrap">{visitAnswerLabel(answer)}</dd></div>)}</dl></details>}
-      {(visit.files ?? []).length > 0 && <details><summary className="min-h-11 cursor-pointer py-2">Материалы к заявке · {visit.files?.length}</summary><div className="space-y-2">{visit.files?.map((file, index) => <Button key={file.uuid} type="button" variant="outline" className="h-auto min-h-11 w-full whitespace-normal" disabled={busy} onClick={() => void download(visit, file)}>Скачать файл {index + 1} · {file.content_type === "application/pdf" ? "PDF" : "Фото"}</Button>)}</div></details>}
-      {(finished(visit) || Boolean(visit.result_files?.length)) && <section className="space-y-3 rounded-lg bg-muted/50 p-3" aria-label="Результаты этого приёма"><h5 className="font-semibold">Результаты приёма · {visit.result_files?.length ? "Доступны" : "Пока недоступны"}</h5>{visit.result_files?.length ? <ul className="space-y-2">{visit.result_files.map(file => <li key={file.uuid}><Button type="button" variant="outline" className="h-auto min-h-11 w-full justify-start whitespace-normal break-words text-left" disabled={busy} onClick={() => void downloadResult(visit, file)}>Скачать · {file.caption || "Документ приёма"} · {file.content_type === "application/pdf" ? "PDF" : "Фото"}</Button></li>)}</ul> : <p className="text-muted-foreground">Врач ещё не открыл документы этого приёма. Уточните готовность в сообщениях.</p>}</section>}
-      {visit.status === "requested" && <Button type="button" variant="outline" className="w-full" disabled={busy} onClick={() => void change(visit, "withdraw")}>Отозвать заявку</Button>}
-      {visit.status === "scheduled" && !finished(visit) && visit.encounter_status !== "in_progress" && <div className="flex flex-wrap gap-2">{onChat && <Button type="button" variant="outline" onClick={onChat}>Обсудить перенос с врачом</Button>}<Button type="button" variant="ghost" disabled={busy} onClick={() => void change(visit, "cancel")}>Отменить визит</Button></div>}
+      {!visit.read_only && (visit.files ?? []).length > 0 && <details><summary className="min-h-11 cursor-pointer py-2">Материалы к заявке · {visit.files?.length}</summary><div className="space-y-2">{visit.files?.map((file, index) => <Button key={file.uuid} type="button" variant="outline" className="h-auto min-h-11 w-full whitespace-normal" disabled={busy} onClick={() => void download(visit, file)}>Скачать файл {index + 1} · {file.content_type === "application/pdf" ? "PDF" : "Фото"}</Button>)}</div></details>}
+      {!visit.read_only && (finished(visit) || Boolean(visit.result_files?.length)) && <section className="space-y-3 rounded-lg bg-muted/50 p-3" aria-label="Результаты этого приёма"><h5 className="font-semibold">Результаты приёма · {visit.result_files?.length ? "Доступны" : "Пока недоступны"}</h5>{visit.result_files?.length ? <ul className="space-y-2">{visit.result_files.map(file => <li key={file.uuid}><Button type="button" variant="outline" className="h-auto min-h-11 w-full justify-start whitespace-normal break-words text-left" disabled={busy} onClick={() => void downloadResult(visit, file)}>Скачать · {file.caption || "Документ приёма"} · {file.content_type === "application/pdf" ? "PDF" : "Фото"}</Button></li>)}</ul> : <p className="text-muted-foreground">Врач ещё не открыл документы этого приёма. Уточните готовность в сообщениях.</p>}</section>}
+      {!visit.read_only && visit.status === "requested" && <Button type="button" variant="outline" className="w-full" disabled={busy} onClick={() => void change(visit, "withdraw")}>Отозвать заявку</Button>}
+      {!visit.read_only && visit.status === "scheduled" && !finished(visit) && visit.encounter_status !== "in_progress" && <div className="flex flex-wrap gap-2">{onChat && <Button type="button" variant="outline" onClick={onChat}>Обсудить перенос с врачом</Button>}<Button type="button" variant="ghost" disabled={busy} onClick={() => void change(visit, "cancel")}>Отменить визит</Button></div>}
     </li>; })}</ul></section>)}
   </section>;
 }

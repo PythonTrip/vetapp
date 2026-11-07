@@ -526,6 +526,17 @@
       },
       "AppointmentRead": {
         "properties": {
+          "amount_rub": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Rub"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -578,6 +589,11 @@
               }
             ],
             "title": "Owner Problem"
+          },
+          "paid": {
+            "default": false,
+            "title": "Paid",
+            "type": "boolean"
           },
           "patient": {
             "$ref": "#/components/schemas/PatientRead"
@@ -638,6 +654,21 @@
       },
       "AppointmentUpdate": {
         "properties": {
+          "amount_rub": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Rub"
+          },
           "duration_min": {
             "anyOf": [
               {
@@ -673,6 +704,17 @@
               }
             ],
             "title": "Notes"
+          },
+          "paid": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paid"
           },
           "patient_uuid": {
             "anyOf": [
@@ -724,6 +766,21 @@
       },
       "AppointmentWrite": {
         "properties": {
+          "amount_rub": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Rub"
+          },
           "duration_min": {
             "default": 30,
             "maximum": 480,
@@ -753,6 +810,11 @@
               }
             ],
             "title": "Notes"
+          },
+          "paid": {
+            "default": false,
+            "title": "Paid",
+            "type": "boolean"
           },
           "patient_uuid": {
             "format": "uuid",
@@ -6088,6 +6150,17 @@
       },
       "StaffVisitRead": {
         "properties": {
+          "amount_rub": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Rub"
+          },
           "animal_name": {
             "title": "Animal Name",
             "type": "string"
@@ -6164,6 +6237,11 @@
             "title": "Owner Name",
             "type": "string"
           },
+          "paid": {
+            "default": false,
+            "title": "Paid",
+            "type": "boolean"
+          },
           "patient_uuid": {
             "anyOf": [
               {
@@ -6180,6 +6258,11 @@
             "format": "date-time",
             "title": "Proposed Starts At",
             "type": "string"
+          },
+          "read_only": {
+            "default": false,
+            "title": "Read Only",
+            "type": "boolean"
           },
           "reason": {
             "anyOf": [
@@ -6810,6 +6893,17 @@
       },
       "VisitRead": {
         "properties": {
+          "amount_rub": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Rub"
+          },
           "answers": {
             "items": {
               "$ref": "#/components/schemas/AnswerSnapshot"
@@ -6874,6 +6968,11 @@
             ],
             "title": "Owner Animal Uuid"
           },
+          "paid": {
+            "default": false,
+            "title": "Paid",
+            "type": "boolean"
+          },
           "patient_uuid": {
             "anyOf": [
               {
@@ -6890,6 +6989,11 @@
             "format": "date-time",
             "title": "Proposed Starts At",
             "type": "string"
+          },
+          "read_only": {
+            "default": false,
+            "title": "Read Only",
+            "type": "boolean"
           },
           "reason": {
             "anyOf": [

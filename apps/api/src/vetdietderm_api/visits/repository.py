@@ -6,9 +6,10 @@ from uuid import UUID
 
 from fastapi import HTTPException, UploadFile
 from sqlalchemy import or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from vetdietderm_api.appointments.models import Appointment
+from vetdietderm_api.appointments.schemas import format_amount_rub
 from vetdietderm_api.attachments import storage
 from vetdietderm_api.attachments.models import Attachment
 from vetdietderm_api.attachments.schemas import OwnerFileRead
@@ -98,6 +99,9 @@ def read(db: Session, row: VisitRequest):
     result.files = [VisitFileRead.model_validate(file) for file in db.scalars(select(VisitRequestFile).where(
         VisitRequestFile.request_uuid == row.uuid).order_by(VisitRequestFile.created_at, VisitRequestFile.uuid))]
     appointment = db.get(Appointment, row.appointment_uuid) if row.appointment_uuid else None
+    if appointment and appointment.patient_uuid == row.patient_uuid:
+        result.amount_rub = format_amount_rub(appointment.amount_rub)
+        result.paid = bool(appointment.paid)
     if appointment and appointment.patient_uuid == row.patient_uuid and appointment.encounter:
         encounter = appointment.encounter
         if encounter.patient_uuid == row.patient_uuid:
@@ -125,6 +129,31 @@ def create(db: Session, owner: OwnerAccount, animal_id: UUID, body):
     return row
 
 
+def direct_charge(appointment: Appointment, owner_animal_uuid: UUID | None) -> VisitRead:
+    encounter = appointment.encounter
+    linked = encounter is not None and encounter.patient_uuid == appointment.patient_uuid
+    return VisitRead(
+        uuid=appointment.uuid,
+        owner_animal_uuid=owner_animal_uuid,
+        patient_uuid=appointment.patient_uuid,
+        visit_type=None,
+        reason=None,
+        proposed_starts_at=appointment.starts_at,
+        confirmed_starts_at=appointment.starts_at,
+        duration_min=appointment.duration_min,
+        status=appointment.status,
+        rejection_reason=None,
+        answers=[],
+        files=[],
+        encounter_status=EncounterStatus(encounter.status) if linked else None,
+        result_files=[],
+        amount_rub=format_amount_rub(appointment.amount_rub),
+        paid=bool(appointment.paid),
+        read_only=True,
+        created_at=appointment.created_at,
+    )
+
+
 def owner_list(db: Session, owner: OwnerAccount, animal_id: UUID):
     animal, patient, _ = owner_target(db, owner, animal_id)
     targets = [VisitRequest.owner_animal_uuid == animal] if animal else [VisitRequest.patient_uuid == patient]
@@ -132,7 +161,20 @@ def owner_list(db: Session, owner: OwnerAccount, animal_id: UUID):
         targets.append(VisitRequest.owner_animal_uuid.in_(select(OwnerAnimal.uuid).where(OwnerAnimal.patient_uuid == patient)))
     rows = db.scalars(select(VisitRequest).where(VisitRequest.owner_account_uuid == owner.uuid,
         or_(*targets)).order_by(VisitRequest.created_at.desc(), VisitRequest.uuid.desc()))
-    return [read(db, row) for row in rows]
+    items = [read(db, row) for row in rows]
+    if patient is None:
+        return items
+    registration = owners.registration_for_owner(db, owner)
+    owner_animal_uuid = db.scalar(select(OwnerAnimal.uuid).where(
+        OwnerAnimal.patient_uuid == patient, OwnerAnimal.registration_uuid == registration.uuid))
+    linked = select(VisitRequest.appointment_uuid).where(VisitRequest.appointment_uuid.is_not(None))
+    charged = db.scalars(select(Appointment).where(
+        Appointment.patient_uuid == patient,
+        Appointment.amount_rub.is_not(None),
+        Appointment.uuid.not_in(linked),
+    ).options(joinedload(Appointment.encounter)).order_by(Appointment.created_at.desc(), Appointment.uuid.desc()))
+    items.extend(direct_charge(row, owner_animal_uuid) for row in charged.unique())
+    return items
 
 
 def context(db: Session, request_id: UUID, *, owner=None, user=None, write=False):

@@ -1,4 +1,5 @@
 """Visit lifecycle and privacy checks against an isolated store and filesystem."""
+from decimal import Decimal
 from uuid import UUID, uuid4
 from datetime import datetime
 
@@ -935,3 +936,194 @@ def test_notes_never_fill_complaint_without_nonblank_request_reason(visits, sour
     assert result.status_code == 200, result.text
     assert result.json()["owner_problem"] == (None if source == "no_request" else source)
     assert staff.get(f"/encounters/{encounter['uuid']}").json()["chief_complaint"] is None
+
+
+def _confirmed(staff, owner, factory, animal):
+    visit = request_visit(owner, animal).json()
+    assert confirm_legacy(staff, visit).status_code == 200
+    with factory() as db:
+        appointment_id = str(db.get(VisitRequest, UUID(visit["uuid"])).appointment_uuid)
+    appointment = staff.get(f"/appointments/{appointment_id}").json()
+    return visit, appointment, f"/appointments/{appointment_id}", f"/owner/animals/{appointment['patient_uuid']}/visits"
+
+
+def test_post_visit_charge_is_entered_changed_and_frozen(visits):
+    staff, owner, factory, _, animal, _ = visits
+    _, appointment, url, listing = _confirmed(staff, owner, factory, animal)
+    assert staff.get(url).json()["amount_rub"] is None
+    assert owner.get(listing).json()[0]["amount_rub"] is None
+    early = staff.patch(url, json={"amount_rub": "1500.50"})
+    assert early.status_code == 422 and early.json()["detail"] == "Сумму указывают после проведения визита"
+    rolled = staff.patch(url, json={"status": "completed", "amount_rub": 10.999})
+    assert rolled.status_code == 422 and rolled.json()["detail"] == "Сумма должна быть больше нуля"
+    assert staff.get(url).json()["status"] == "scheduled" and staff.get(url).json()["amount_rub"] is None
+    saved = staff.patch(url, json={"status": "completed", "amount_rub": 1500.50})
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["amount_rub"] == "1500.50" and saved.json()["paid"] is False and saved.json()["status"] == "completed"
+    assert owner.get(listing).json()[0]["amount_rub"] == "1500.50"
+    for amount in (0, -1, 10.999):
+        refused = staff.patch(url, json={"amount_rub": amount})
+        assert refused.status_code == 422, refused.text
+        assert refused.json()["detail"] == "Сумма должна быть больше нуля"
+    with factory() as db:
+        row = db.get(Appointment, UUID(appointment["uuid"]))
+        assert row.status == "completed" and row.amount_rub == Decimal("1500.50") and row.paid is False
+    changed = staff.patch(url, json={"amount_rub": "1600.00"})
+    assert changed.status_code == 200 and changed.json()["amount_rub"] == "1600.00" and changed.json()["paid"] is False
+    paid = staff.patch(url, json={"paid": True})
+    assert paid.status_code == 200 and paid.json()["paid"] is True and paid.json()["amount_rub"] == "1600.00"
+    assert owner.get(listing).json()[0]["paid"] is True
+    frozen = staff.patch(url, json={"amount_rub": "1700.00"})
+    unpaid = staff.patch(url, json={"paid": False})
+    assert frozen.status_code == 422 and frozen.json()["detail"] == "Оплаченная сумма не изменяется"
+    assert unpaid.status_code == 422 and unpaid.json()["detail"] == "Оплату нельзя отменить"
+    with factory() as db:
+        row = db.get(Appointment, UUID(appointment["uuid"]))
+        assert row.amount_rub == Decimal("1600.00") and row.paid is True
+
+
+@pytest.mark.parametrize("amount", ["10000000000.00", "1e100", "9" * 100])
+def test_charge_rejects_amounts_outside_storage_range(visits, amount):
+    staff, owner, factory, _, animal, _ = visits
+    _, appointment, url, _ = _confirmed(staff, owner, factory, animal)
+    for response in (
+        staff.patch(url, json={"status": "completed", "amount_rub": amount}),
+        staff.post("/appointments", json={
+            "patient_uuid": appointment["patient_uuid"], "starts_at": "2026-11-04T10:00:00Z",
+            "status": "completed", "amount_rub": amount}),
+    ):
+        assert response.status_code == 422, response.text
+        assert response.json()["detail"] == "Сумма не должна превышать 9999999999.99 руб."
+    unchanged = staff.get(url).json()
+    assert unchanged["status"] == "scheduled" and unchanged["amount_rub"] is None
+    assert len(staff.get("/appointments").json()) == 1
+
+
+def test_charge_accepts_largest_storable_amount(visits):
+    staff, owner, factory, _, animal, _ = visits
+    _, _, url, listing = _confirmed(staff, owner, factory, animal)
+    saved = staff.patch(url, json={"status": "completed", "amount_rub": "9999999999.99"})
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["amount_rub"] == "9999999999.99"
+    assert owner.get(listing).json()[0]["amount_rub"] == "9999999999.99"
+
+
+def test_unpaid_charge_clears_and_paid_charge_remains(visits):
+    staff, owner, factory, _, animal, _ = visits
+    _, appointment, url, listing = _confirmed(staff, owner, factory, animal)
+    assert staff.patch(url, json={"status": "completed", "amount_rub": "400.00"}).status_code == 200
+    assert staff.patch(url, json={"status": "cancelled"}).status_code == 200
+    cleared = staff.get(url).json()
+    assert cleared["amount_rub"] is None and cleared["paid"] is False and cleared["status"] == "cancelled"
+    assert owner.get(listing).json()[0]["amount_rub"] is None
+    patient = {"uuid": appointment["patient_uuid"]}
+    second = request_visit(owner, patient).json()
+    assert confirm_legacy(staff, second).status_code == 200
+    kept = next(item for item in staff.get("/appointments").json() if item["notes"] == "Питомец плохо ест" and item["uuid"] != appointment["uuid"])
+    kept_url = f"/appointments/{kept['uuid']}"
+    assert staff.patch(kept_url, json={"status": "completed", "amount_rub": "400.00", "paid": True}).status_code == 200
+    assert staff.patch(kept_url, json={"status": "no_show"}).status_code == 200
+    stored = staff.get(kept_url).json()
+    assert stored["amount_rub"] == "400.00" and stored["paid"] is True and stored["status"] == "no_show"
+    owner_row = next(item for item in owner.get(listing).json() if item["uuid"] == second["uuid"])
+    assert owner_row["amount_rub"] == "400.00" and owner_row["paid"] is True
+    with factory() as db:
+        first = db.get(Appointment, UUID(appointment["uuid"]))
+        assert first.amount_rub is None and first.paid is False
+
+
+def test_reject_withdraw_cancel_and_encounter_do_not_create_a_charge(visits):
+    staff, owner, factory, _, animal, _ = visits
+    rejected = request_visit(owner, animal).json()
+    assert staff.post(f"/visit-requests/{rejected['uuid']}/reject", json={}).status_code == 200
+    withdrawn = request_visit(owner, animal).json()
+    assert owner.post(f"/owner/visits/{withdrawn['uuid']}/withdraw").status_code == 200
+    visit, appointment, url, _listing = _confirmed(staff, owner, factory, animal)
+    assert owner.post(f"/owner/visits/{visit['uuid']}/cancel").status_code == 200
+    cancelled = staff.get(url).json()
+    assert cancelled["status"] == "cancelled" and cancelled["amount_rub"] is None
+    _visit, scheduled, scheduled_url, _listing = _confirmed(staff, owner, factory, {"uuid": appointment["patient_uuid"]})
+    encounter = staff.post(f"/patients/{scheduled['patient_uuid']}/encounters", json={"status": "completed"}).json()
+    linked = staff.patch(scheduled_url, json={"encounter_uuid": encounter["uuid"]})
+    assert linked.status_code == 200, linked.text
+    current = staff.get(scheduled_url).json()
+    assert current["status"] == "scheduled" and current["amount_rub"] is None
+    assert staff.get(f"/encounters/{encounter['uuid']}").json()["status"] == "completed"
+    with factory() as db:
+        assert all(row.amount_rub is None and row.paid is False for row in db.scalars(select(Appointment)))
+
+
+def test_viewer_can_read_a_charge_and_cannot_change_it(visits):
+    staff, owner, factory, user, animal, _ = visits
+    _, appointment, url, _ = _confirmed(staff, owner, factory, animal)
+    assert staff.patch(url, json={"status": "completed", "amount_rub": "250.00"}).status_code == 200
+    user["organization"]["org_role"] = "viewer"
+    visible = staff.get(url)
+    assert visible.status_code == 200 and visible.json()["amount_rub"] == "250.00" and visible.json()["paid"] is False
+    denied = staff.patch(url, json={"amount_rub": "260.00"})
+    assert denied.status_code == 403 and denied.json()["detail"] == "Роль наблюдателя разрешает только просмотр"
+    user["organization"]["org_role"] = "member"
+    saved = staff.patch(url, json={"amount_rub": "260.00"})
+    assert saved.status_code == 200 and saved.json()["amount_rub"] == "260.00"
+
+
+def test_direct_charge_is_visible_only_in_the_linked_owner_cabinet(visits):
+    staff, owner, factory, _, animal, _ = visits
+    _, appointment, _, listing = _confirmed(staff, owner, factory, animal)
+    direct = staff.post("/appointments", json={
+        "patient_uuid": appointment["patient_uuid"], "starts_at": "2026-11-04T10:00:00Z",
+        "duration_min": 30, "visit_type": "consultation", "status": "completed", "amount_rub": "700.00"})
+    assert direct.status_code == 201, direct.text
+    row = next(item for item in owner.get(listing).json() if item["uuid"] == direct.json()["uuid"])
+    assert row["read_only"] is True and row["reason"] is None and row["visit_type"] is None
+    assert row["amount_rub"] == "700.00" and row["paid"] is False
+    assert row["answers"] == [] and row["files"] == [] and row["result_files"] == []
+    client = staff.post("/clients", json={"name": "Без кабинета"}).json()
+    stranger = staff.post("/patients", json={"name": "Чужак", "species": "dog", "client_uuid": client["uuid"]}).json()
+    hidden = staff.post("/appointments", json={
+        "patient_uuid": stranger["uuid"], "starts_at": "2026-11-04T11:00:00Z", "duration_min": 30,
+        "visit_type": "consultation", "status": "completed", "amount_rub": "800.00"})
+    assert hidden.status_code == 201, hidden.text
+    assert all(item["uuid"] != hidden.json()["uuid"] for item in owner.get(listing).json())
+    assert staff.get(f"/appointments/{hidden.json()['uuid']}").json()["amount_rub"] == "800.00"
+    assert staff.patch(f"/appointments/{direct.json()['uuid']}", json={"status": "cancelled"}).status_code == 200
+    assert all(item["uuid"] != direct.json()["uuid"] for item in owner.get(listing).json())
+    paid = staff.post("/appointments", json={
+        "patient_uuid": appointment["patient_uuid"], "starts_at": "2026-11-04T12:00:00Z",
+        "duration_min": 30, "visit_type": "consultation", "status": "completed",
+        "amount_rub": "900.00", "paid": True})
+    assert paid.status_code == 201, paid.text
+    assert staff.patch(f"/appointments/{paid.json()['uuid']}", json={"status": "cancelled"}).status_code == 200
+    kept = next(item for item in owner.get(listing).json() if item["uuid"] == paid.json()["uuid"])
+    assert kept["read_only"] is True and kept["amount_rub"] == "900.00" and kept["paid"] is True and kept["status"] == "cancelled"
+
+
+def test_due_charge_does_not_block_owner_actions_or_notify(visits, monkeypatch):
+    import vetdietderm_api.owners.telegram as telegram
+
+    staff, owner, factory, _, animal, _ = visits
+    called = []
+
+    def watch(label):
+        def inner(*_args, **_kwargs):
+            called.append(label)
+        return inner
+
+    for name in ("fetch_bot_identity", "validate_init_data", "validate_widget"):
+        monkeypatch.setattr(telegram, name, watch(name))
+    visit, appointment, url, listing = _confirmed(staff, owner, factory, animal)
+    assert staff.patch(url, json={"status": "completed", "amount_rub": "1500.50"}).status_code == 200
+    patient_id = appointment["patient_uuid"]
+    assert request_visit(owner, {"uuid": patient_id}).status_code == 201
+    assert owner.post(f"/owner/animals/{patient_id}/chat", json={"body": "Можно прийти раньше?"}).status_code == 201
+    encounter = staff.post(f"/patients/{patient_id}/encounters", json={"status": "completed"}).json()
+    assert staff.patch(url, json={"encounter_uuid": encounter["uuid"]}).status_code == 200
+    uploaded = staff.post(f"/patients/{patient_id}/attachments", data={"kind": "document", "encounter_uuid": encounter["uuid"]},
+                          files={"file": ("result.pdf", b"result", "application/pdf")})
+    assert uploaded.status_code == 201, uploaded.text
+    file_id = uploaded.json()["uuid"]
+    assert staff.patch(f"/attachments/{file_id}", json={"owner_visible": True}).status_code == 200
+    assert owner.get(f"/owner/files/{file_id}").content == b"result"
+    charged = next(item for item in owner.get(listing).json() if item["uuid"] == visit["uuid"])
+    assert charged["amount_rub"] == "1500.50" and charged["paid"] is False
+    assert called == []

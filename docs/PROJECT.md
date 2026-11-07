@@ -357,6 +357,6 @@ External publication cited by provider metadata: [FEDIAF Nutritional Guidelines 
 - Where owner credentials live, so long as an owner session cannot open the clinician workspace and a staff session cannot open the cabinet
 - When owner email (verification, password reset, chat and appointment notices) returns; the cabinet stays in-app through Clinic Bot (#9)
 - When a clinician can rotate a leaked clinic link. Cycle #9 keeps one permanent link per clinic
-- When online visit payment returns. Cycle #10 records a manual ruble amount after a conducted visit and does not collect the money.
+- When online visit payment returns. A conducted appointment can store one manual ruble amount that the clinic marks paid.
 - When a doctor can belong to a second clinic, or move a clinic that already has patients or connected owners
 - When the clinic bot sends visit and chat notices, or accepts a booking inside Telegram

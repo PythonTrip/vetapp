@@ -6,6 +6,7 @@ import { Loader2, Plus, Stethoscope, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
+import { Checkbox } from "@/shared/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
@@ -35,6 +36,7 @@ import { useDebouncedValue } from "@/shared/hooks/use-debounced-value";
 import { apiErrorMessage } from "@/shared/api/error-message";
 import { speciesLabel } from "@/features/patients/form";
 import { consultationState, VISIT_STATUS_STYLES } from "@vetdietderm/owner-features/domain";
+import { useAuth } from "@/features/authentication/auth-provider";
 
 function startOfDay(date: Date): Date {
   const next = new Date(date);
@@ -54,6 +56,8 @@ function toDateInput(date: Date): string {
 }
 
 export function ScheduleBoard({ queue, requestCount }: { queue?: React.ReactNode; requestCount?: number }) {
+  const { user } = useAuth();
+  const viewer = user?.organization?.org_role === "viewer";
   const [view, setView] = React.useState<"appointments" | "requests">("appointments");
   const [day, setDay] = React.useState(toDateInput(new Date()));
   const selected = new Date(`${day}T00:00:00`);
@@ -88,7 +92,10 @@ export function ScheduleBoard({ queue, requestCount }: { queue?: React.ReactNode
   const [visitType, setVisitType] = React.useState<VisitType>("consultation");
   const [status, setStatus] = React.useState<AppointmentStatus>("scheduled");
   const [notes, setNotes] = React.useState("");
+  const [amountRub, setAmountRub] = React.useState("");
+  const [paid, setPaid] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const chargeLocked = viewer || Boolean(editing?.paid);
 
   function openNew() {
     setPatientSearch("");
@@ -99,6 +106,8 @@ export function ScheduleBoard({ queue, requestCount }: { queue?: React.ReactNode
     setVisitType("consultation");
     setStatus("scheduled");
     setNotes("");
+    setAmountRub("");
+    setPaid(false);
     setError(null);
     setOpen(true);
   }
@@ -112,6 +121,8 @@ export function ScheduleBoard({ queue, requestCount }: { queue?: React.ReactNode
     setVisitType(item.visit_type);
     setStatus(item.status);
     setNotes(item.notes ?? "");
+    setAmountRub(item.amount_rub ?? "");
+    setPaid(Boolean(item.paid));
     setError(null);
     setOpen(true);
   }
@@ -127,6 +138,7 @@ export function ScheduleBoard({ queue, requestCount }: { queue?: React.ReactNode
       return;
     }
     setError(null);
+    const amount = amountRub.trim().replace(",", ".");
     const body = {
       patient_uuid: patientId,
       starts_at: fromDateTimeLocal(startsAt),
@@ -134,6 +146,9 @@ export function ScheduleBoard({ queue, requestCount }: { queue?: React.ReactNode
       visit_type: visitType,
       status,
       notes: notes.trim() || null,
+      ...(status === "completed" && !chargeLocked
+        ? { amount_rub: amount || null, paid: amount ? paid : false }
+        : {}),
     };
     try {
       if (editing) {
@@ -209,6 +224,7 @@ export function ScheduleBoard({ queue, requestCount }: { queue?: React.ReactNode
                   {item.patient.name} · {speciesLabel(item.patient.species)} · {item.patient.client.name}
                 </p>
                 {item.notes ? <p className="text-sm text-muted-foreground">{item.notes}</p> : null}
+                {item.amount_rub != null && <p className="text-sm">{item.paid ? "Оплачено" : "К оплате"}: {item.amount_rub} руб.</p>}
               </button>
               <div className="flex min-w-0 flex-wrap items-center gap-1">
                 {(item.encounter_uuid || item.status === "scheduled") && <Button asChild variant="outline" size="sm">
@@ -308,6 +324,16 @@ export function ScheduleBoard({ queue, requestCount }: { queue?: React.ReactNode
                 </SelectContent>
               </Select>
             </div>
+            {status === "completed" ? <div className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="appt-amount">Сумма, руб.</Label>
+                <Input id="appt-amount" inputMode="decimal" disabled={chargeLocked} value={amountRub} onChange={(event) => setAmountRub(event.target.value)} />
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={paid} disabled={chargeLocked || amountRub.trim() === ""} onCheckedChange={(value) => setPaid(value === true)} />
+                Оплачено
+              </label>
+            </div> : null}
             <div className="space-y-2">
               <Label htmlFor="appt-notes">Заметки</Label>
               <Textarea id="appt-notes" value={notes} onChange={(event) => setNotes(event.target.value)} />

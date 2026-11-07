@@ -2889,6 +2889,8 @@ export interface components {
         };
         /** AppointmentRead */
         AppointmentRead: {
+            /** Amount Rub */
+            amount_rub?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -2903,6 +2905,11 @@ export interface components {
             notes: string | null;
             /** Owner Problem */
             owner_problem: string | null;
+            /**
+             * Paid
+             * @default false
+             */
+            paid?: boolean;
             patient: components["schemas"]["PatientRead"];
             /**
              * Patient Uuid
@@ -2934,12 +2941,16 @@ export interface components {
         AppointmentStatus: "scheduled" | "completed" | "cancelled" | "no_show";
         /** AppointmentUpdate */
         AppointmentUpdate: {
+            /** Amount Rub */
+            amount_rub?: number | string | null;
             /** Duration Min */
             duration_min?: number | null;
             /** Encounter Uuid */
             encounter_uuid?: string | null;
             /** Notes */
             notes?: string | null;
+            /** Paid */
+            paid?: boolean | null;
             /** Patient Uuid */
             patient_uuid?: string | null;
             /** Starts At */
@@ -2949,6 +2960,8 @@ export interface components {
         };
         /** AppointmentWrite */
         AppointmentWrite: {
+            /** Amount Rub */
+            amount_rub?: number | string | null;
             /**
              * Duration Min
              * @default 30
@@ -2958,6 +2971,11 @@ export interface components {
             encounter_uuid?: string | null;
             /** Notes */
             notes?: string | null;
+            /**
+             * Paid
+             * @default false
+             */
+            paid?: boolean;
             /**
              * Patient Uuid
              * Format: uuid
@@ -4735,6 +4753,8 @@ export interface components {
         Species: "dog" | "cat" | "other";
         /** StaffVisitRead */
         StaffVisitRead: {
+            /** Amount Rub */
+            amount_rub?: string | null;
             /** Animal Name */
             animal_name: string;
             /** Answers */
@@ -4757,6 +4777,11 @@ export interface components {
             owner_animal_uuid: string | null;
             /** Owner Name */
             owner_name: string;
+            /**
+             * Paid
+             * @default false
+             */
+            paid?: boolean;
             /** Patient Uuid */
             patient_uuid: string | null;
             /**
@@ -4764,6 +4789,11 @@ export interface components {
              * Format: date-time
              */
             proposed_starts_at: string;
+            /**
+             * Read Only
+             * @default false
+             */
+            read_only?: boolean;
             /** Reason */
             reason?: string | null;
             /**
@@ -4973,6 +5003,8 @@ export interface components {
         };
         /** VisitRead */
         VisitRead: {
+            /** Amount Rub */
+            amount_rub?: string | null;
             /** Answers */
             answers: components["schemas"]["AnswerSnapshot"][];
             /** Confirmed Starts At */
@@ -4989,6 +5021,11 @@ export interface components {
             files?: components["schemas"]["VisitFileRead"][];
             /** Owner Animal Uuid */
             owner_animal_uuid: string | null;
+            /**
+             * Paid
+             * @default false
+             */
+            paid?: boolean;
             /** Patient Uuid */
             patient_uuid: string | null;
             /**
@@ -4996,6 +5033,11 @@ export interface components {
              * Format: date-time
              */
             proposed_starts_at: string;
+            /**
+             * Read Only
+             * @default false
+             */
+            read_only?: boolean;
             /** Reason */
             reason?: string | null;
             /** Rejection Reason */

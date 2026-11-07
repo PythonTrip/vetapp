@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -66,10 +67,56 @@ def _validate_encounter(session: Session, patient_uuid: UUID, encounter_uuid: UU
         raise _bad_request("Приём принадлежит другому пациенту")
 
 
+def _positive_amount(value: Decimal | None) -> Decimal | None:
+    if value is None:
+        return None
+    exponent = value.as_tuple().exponent
+    if not value.is_finite() or not isinstance(exponent, int) or exponent < -2 or value <= 0:
+        raise HTTPException(422, "Сумма должна быть больше нуля")
+    if value > Decimal("9999999999.99"):
+        raise HTTPException(422, "Сумма не должна превышать 9999999999.99 руб.")
+    return value.quantize(Decimal("0.01"))
+
+
+def _same_money(left: Decimal | None, right: Decimal | None) -> bool:
+    if left is None or right is None:
+        return left is None and right is None
+    return left.quantize(Decimal("0.01")) == right.quantize(Decimal("0.01"))
+
+
+def apply_charge(current: Appointment | None, payload: dict) -> None:
+    if "amount_rub" in payload:
+        payload["amount_rub"] = _positive_amount(payload["amount_rub"])
+    current_amount = None if current is None else current.amount_rub
+    current_paid = False if current is None else bool(current.paid)
+    if "paid" in payload and payload["paid"] is None:
+        del payload["paid"]
+    if payload.get("paid") is False and current_paid:
+        raise HTTPException(422, "Оплату нельзя отменить")
+    if current_paid and "amount_rub" in payload and not _same_money(payload["amount_rub"], current_amount):
+        raise HTTPException(422, "Оплаченная сумма не изменяется")
+    status_value = payload.get("status", current.status if current is not None else "scheduled")
+    status_value = status_value.value if hasattr(status_value, "value") else status_value
+    next_paid = payload["paid"] if "paid" in payload else current_paid
+    next_amount = payload["amount_rub"] if "amount_rub" in payload else current_amount
+    if next_paid and next_amount is None:
+        raise HTTPException(422, "Сумма должна быть больше нуля")
+    if status_value != "completed":
+        introducing = "amount_rub" in payload and payload["amount_rub"] is not None
+        same_paid_amount = current_paid and _same_money(payload.get("amount_rub"), current_amount)
+        if introducing and not same_paid_amount:
+            raise HTTPException(422, "Сумму указывают после проведения визита")
+        if not current_paid and not next_paid:
+            payload["amount_rub"] = None
+            payload["paid"] = False
+
+
 def create_appointment(session: Session, data: AppointmentWrite) -> Appointment:
     patient = get_patient(session, data.patient_uuid)
     _validate_encounter(session, patient.uuid, data.encounter_uuid)
-    appointment = Appointment(**data.model_dump())
+    payload = data.model_dump()
+    apply_charge(None, payload)
+    appointment = Appointment(**payload)
     session.add(appointment)
     session.commit()
     return get_appointment(session, appointment.uuid)
@@ -99,6 +146,7 @@ def update_appointment(session: Session, appointment_uuid: UUID, data: Appointme
         payload["visit_type"] = payload["visit_type"].value
     if "status" in payload and payload["status"] is not None:
         payload["status"] = payload["status"].value
+    apply_charge(appointment, payload)
     if appointment.encounter_uuid is None and payload.get("encounter_uuid") is not None and linked:
         encounter = get_encounter(session, payload["encounter_uuid"])
         if not (encounter.chief_complaint or "").strip() and (linked.reason or "").strip():
