@@ -79,6 +79,7 @@ class AppointmentRead(BaseModel):
     visit_type: VisitType
     status: AppointmentStatus
     notes: str | None
+    owner_problem: str | None
     created_at: datetime
     updated_at: datetime
     patient: PatientRead

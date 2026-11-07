@@ -11,6 +11,8 @@ import { useClientsQuery } from "@/features/patients/hooks";
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value";
 import { ownerError, registrationsApi, visitAnswerLabel, visitRequestsApi, type PendingRegistration, type RegistrationAccept, type StaffVisit, type VisitFile } from "@/features/owner-cabinet/api";
 import { speciesLabel } from "@/features/patients/form";
+import type { BookableVisitType } from "@/features/appointments/api";
+import { BOOKABLE_VISIT_TYPES, VISIT_TYPE_LABELS } from "@/features/appointments/labels";
 import { VISIT_STATUS_LABELS, VISIT_STATUS_STYLES } from "@vetdietderm/owner-features/domain";
 
 const selectClass = "min-h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm";
@@ -93,6 +95,8 @@ function VisitRow({ row }: { row: StaffVisit }) {
 }
 
 function ConfirmVisit({ row, onSuccess }: { row: StaffVisit; onSuccess: () => Promise<void> }) {
+  const [visitType, setVisitType] = React.useState<BookableVisitType | "">(() =>
+    BOOKABLE_VISIT_TYPES.find(type => type === row.visit_type) ?? "");
   const [startsAt, setStartsAt] = React.useState(() => toDateTimeLocal(row.proposed_starts_at));
   const [duration, setDuration] = React.useState(30);
   const needsRegistration = row.registration_status === "pending";
@@ -100,15 +104,23 @@ function ConfirmVisit({ row, onSuccess }: { row: StaffVisit; onSuccess: () => Pr
   const registration = registrations.data?.find(item => item.uuid === row.registration_uuid);
   const [acceptance, setAcceptance] = React.useState<RegistrationAccept | null>(null);
   const confirm = useMutation({
-    mutationFn: () => visitRequestsApi.confirm(row.uuid, {
-      starts_at: new Date(startsAt).toISOString(), duration_min: duration,
-      ...(needsRegistration && acceptance ? { registration: acceptance } : {}),
-    }),
+    mutationFn: () => {
+      if (!visitType) throw new Error("Укажите тип визита");
+      return visitRequestsApi.confirm(row.uuid, {
+        visit_type: visitType,
+        starts_at: new Date(startsAt).toISOString(), duration_min: duration,
+        ...(needsRegistration && acceptance ? { registration: acceptance } : {}),
+      });
+    },
     onSuccess,
   });
-  const ready = Boolean(startsAt) && duration >= 5 && duration <= 480 && Number.isInteger(duration) && (!needsRegistration || Boolean(registration?.can_accept && acceptance));
+  const ready = Boolean(visitType && startsAt) && duration >= 5 && duration <= 480 && Number.isInteger(duration) && (!needsRegistration || Boolean(registration?.can_accept && acceptance));
   return <form className="min-w-0 space-y-4" onSubmit={event => { event.preventDefault(); if (ready && !confirm.isPending) confirm.mutate(); }}>
     <fieldset disabled={confirm.isPending} className="min-w-0 space-y-3">
+      <label className="block space-y-1 text-sm"><span>Тип визита</span><select required className={selectClass} value={visitType} onChange={event => setVisitType(event.target.value as BookableVisitType | "")}>
+        <option value="">Выберите тип визита</option>
+        {BOOKABLE_VISIT_TYPES.map(type => <option key={type} value={type}>{VISIT_TYPE_LABELS[type]}</option>)}
+      </select></label>
       <label className="block min-w-0 space-y-1 text-sm"><span>Дата и время визита</span><Input className="min-w-0 max-w-full" type="datetime-local" required value={startsAt} onChange={event => setStartsAt(event.target.value)} /></label>
       <label className="block space-y-1 text-sm"><span>Длительность, мин</span><Input type="number" required min={5} max={480} step={1} value={duration} onChange={event => setDuration(Number(event.target.value))} /></label>
       {needsRegistration && <>

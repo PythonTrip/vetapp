@@ -1,5 +1,5 @@
 import * as React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { appointmentsApi, type AppointmentRecord } from "@/features/appointments/api";
@@ -27,6 +27,33 @@ function setup(element: React.ReactNode, appointments: AppointmentRecord[] = [])
 }
 
 describe("audit clinical regressions", () => {
+  it.each([null, "   ", "Owner problem"])("uses only a nonblank owner problem for a new complaint (%s)", async problem => {
+    const slot = { ...appointment, encounter_uuid: null, owner_problem: problem, notes: "Staff notes" };
+    vi.spyOn(appointmentsApi, "get").mockResolvedValue(slot);
+    setup(<EncounterWorkspace initialAppointmentId={slot.uuid} />);
+    const complaint = await screen.findByLabelText("Жалоба");
+    expect(complaint).toHaveValue(problem?.trim() ? problem : "");
+    expect(screen.queryByDisplayValue("Staff notes")).not.toBeInTheDocument();
+  });
+
+  it("saves the doctor's replacement of the owner problem and preserves it on reopening", async () => {
+    const slot = { ...appointment, encounter_uuid: null, owner_problem: "Owner problem", notes: "Staff notes" };
+    const record = { uuid: "new-encounter", patient_uuid: patient.uuid, specialty: "general", type: "appointment", status: "in_progress", chief_complaint: "Doctor replacement", occurred_at: slot.starts_at, diagnoses: [], vas_score: null } as unknown as EncounterRecord;
+    const getSlot = vi.spyOn(appointmentsApi, "get").mockResolvedValue(slot);
+    const create = vi.spyOn(encountersApi, "create").mockResolvedValue(record);
+    vi.spyOn(encountersApi, "get").mockResolvedValue(record);
+    vi.spyOn(appointmentsApi, "update").mockResolvedValue({ ...slot, encounter_uuid: record.uuid });
+    setup(<EncounterWorkspace initialAppointmentId={slot.uuid} />);
+    fireEvent.change(await screen.findByDisplayValue("Owner problem"), { target: { value: "Doctor replacement" } });
+    fireEvent.click(screen.getByRole("button", { name: "Начать консультацию" }));
+    await waitFor(() => expect(create).toHaveBeenCalledWith(patient.uuid, expect.objectContaining({ chief_complaint: "Doctor replacement" })));
+    await waitFor(() => expect(appointmentsApi.update).toHaveBeenCalled());
+    cleanup();
+    getSlot.mockResolvedValue({ ...slot, encounter_uuid: record.uuid });
+    setup(<EncounterWorkspace initialAppointmentId={slot.uuid} />);
+    expect(await screen.findByDisplayValue("Doctor replacement")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("Owner problem")).not.toBeInTheDocument();
+  });
   it("keeps an active consultation in progress during autosave", async () => {
     const record = { uuid: "linked-visit", patient_uuid: patient.uuid, specialty: "general", type: "appointment", status: "in_progress", chief_complaint: "Existing complaint", occurred_at: appointment.starts_at, diagnoses: [], vas_score: null } as unknown as EncounterRecord;
     vi.spyOn(appointmentsApi, "get").mockResolvedValue(appointment);

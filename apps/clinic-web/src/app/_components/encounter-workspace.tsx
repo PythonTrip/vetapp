@@ -189,7 +189,7 @@ export function EncounterWorkspace({ initialAppointmentId, initialPatientId, ini
       ...emptyForm(),
       type: "appointment" as EncounterType,
       occurredAt: toDateTimeLocal(selectedAppointment.starts_at),
-      chiefComplaint: selectedAppointment.notes ?? "",
+      chiefComplaint: selectedAppointment.owner_problem?.trim() ? selectedAppointment.owner_problem : "",
     };
     setForm(nextForm);
     lastPersistedForm.current = JSON.stringify(nextForm);

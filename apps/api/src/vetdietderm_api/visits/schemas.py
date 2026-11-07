@@ -34,6 +34,7 @@ class VisitCreate(BaseModel):
 
 class VisitConfirm(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    visit_type: VisitType
     starts_at: AwareDatetime
     duration_min: int = Field(ge=5, le=480)
     registration: RegistrationAccept | None = None

@@ -186,8 +186,6 @@ def copy_gallery(db, row, file, keys):
 def confirm(db, request_id, user, body, keys):
     row, registration, code = context(db, request_id, user=user, write=True)
     require_status(row, "requested")
-    if row.visit_type is None:
-        raise HTTPException(422, "Укажите тип визита")
     if registration.status == "pending":
         if body.registration is None:
             raise HTTPException(422, "Укажите способ принятия регистрации")
@@ -200,11 +198,12 @@ def confirm(db, request_id, user, body, keys):
     if patient is None:
         raise HTTPException(409, "Пациент заявки недоступен")
     appointment = Appointment(patient_uuid=patient.uuid, tenant_id=code.tenant_id,
-        created_by=code.doctor_user_id, visit_type=row.visit_type, starts_at=body.starts_at,
+        created_by=code.doctor_user_id, visit_type=body.visit_type, starts_at=body.starts_at,
         duration_min=body.duration_min, status="scheduled", notes=row.reason)
     db.add(appointment)
     db.flush()
     row.appointment_uuid = appointment.uuid
+    row.visit_type = body.visit_type
     row.confirmed_starts_at = body.starts_at
     row.duration_min = body.duration_min
     row.status = "scheduled"

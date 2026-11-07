@@ -49,6 +49,39 @@ async function openQueue() {
 }
 
 describe("clinician visit queue", () => {
+  it.each(["primary", "secondary", "consultation", "supervision"] as const)("requires classification for a null-type request and sends %s", async type => {
+    const { fetcher } = setup({ visit_type: null, registration_status: "accepted" });
+    await openQueue();
+    fireEvent.click(screen.getByRole("button", { name: "Подтвердить", exact: true }));
+    const control = screen.getByLabelText("Тип визита");
+    expect(control).toHaveValue("");
+    expect(control).toBeRequired();
+    const submit = screen.getByRole("button", { name: "Подтвердить визит" });
+    expect(submit).toBeDisabled();
+    fireEvent.change(control, { target: { value: type } });
+    fireEvent.change(screen.getByLabelText("Дата и время визита"), { target: { value: "" } });
+    expect(submit).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Дата и время визита"), { target: { value: "2026-11-02T14:15" } });
+    fireEvent.change(screen.getByLabelText("Длительность, мин"), { target: { value: "" } });
+    expect(submit).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Длительность, мин"), { target: { value: "30" } });
+    fireEvent.click(submit);
+    await screen.findByText("Нет запросов, ожидающих подтверждения");
+    const post = fetcher.mock.calls.find(([, options]) => options?.method === "POST");
+    expect(JSON.parse(post![1]!.body as string).visit_type).toBe(type);
+  });
+
+  it("preselects a stored bookable type and allows reclassification", async () => {
+    const { fetcher } = setup({ registration_status: "accepted" });
+    await openQueue();
+    fireEvent.click(screen.getByRole("button", { name: "Подтвердить", exact: true }));
+    expect(screen.getByLabelText("Тип визита")).toHaveValue("supervision");
+    fireEvent.change(screen.getByLabelText("Тип визита"), { target: { value: "primary" } });
+    fireEvent.click(screen.getByRole("button", { name: "Подтвердить визит" }));
+    await screen.findByText("Нет запросов, ожидающих подтверждения");
+    const post = fetcher.mock.calls.find(([, options]) => options?.method === "POST");
+    expect(JSON.parse(post![1]!.body as string).visit_type).toBe("primary");
+  });
   it("shows snapshots and downloads for observers, hides every write action and non-requested status", async () => {
     const { fetcher } = setup({ can_write: false }, false, true);
     const createUrl = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:file");
@@ -59,7 +92,7 @@ describe("clinician visit queue", () => {
     expect(screen.queryByRole("button", { name: "Принять регистрацию" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     await openQueue();
-    expect(screen.getByText("Курирование")).toBeInTheDocument();
+    expect(screen.getByText("Заявка")).toBeInTheDocument();
     expect(screen.getByText(/^Предложено:/)).toBeInTheDocument();
     expect(screen.getByText("Есть зуд?")).toBeInTheDocument();
     expect(screen.getByText("Нет")).toBeInTheDocument();
@@ -86,7 +119,7 @@ describe("clinician visit queue", () => {
     await screen.findByText("Нет запросов, ожидающих подтверждения");
     const post = fetcher.mock.calls.find(([, options]) => options?.method === "POST");
     expect(post?.[0]).toBe("/api/visit-requests/visit-1/confirm");
-    expect(JSON.parse(post![1]!.body as string)).toEqual({ starts_at: new Date("2026-11-02T14:15").toISOString(), duration_min: 45, registration: { mode: "create", client_uuid: null, matches: [{ owner_animal_id: "animal-1", patient_uuid: null }, { owner_animal_id: "animal-2", patient_uuid: null }] } });
+    expect(JSON.parse(post![1]!.body as string)).toEqual({ starts_at: new Date("2026-11-02T14:15").toISOString(), duration_min: 45, visit_type: "supervision", registration: { mode: "create", client_uuid: null, matches: [{ owner_animal_id: "animal-1", patient_uuid: null }, { owner_animal_id: "animal-2", patient_uuid: null }] } });
     for (const key of ["visit-requests", "owner-registrations", "patients", "appointments"]) expect(invalidate).toHaveBeenCalledWith({ queryKey: [key] });
   });
 
@@ -106,14 +139,14 @@ describe("clinician visit queue", () => {
     expect(JSON.parse(post![1]!.body as string).registration).toEqual({ mode: "link", client_uuid: "client-1", matches: [{ owner_animal_id: "animal-1", patient_uuid: "patient-1" }, { owner_animal_id: "animal-2", patient_uuid: null }] });
   });
 
-  it("confirms an accepted registration using time and duration only", async () => {
+  it("confirms an accepted registration using time, duration and a selected type", async () => {
     const { fetcher } = setup({ registration_status: "accepted" }); await openQueue();
     fireEvent.click(screen.getByRole("button", { name: "Подтвердить", exact: true }));
     expect(screen.queryByLabelText("Новый клиент")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Подтвердить визит" }));
     await screen.findByText("Нет запросов, ожидающих подтверждения");
     const post = fetcher.mock.calls.find(([, options]) => options?.method === "POST");
-    expect(Object.keys(JSON.parse(post![1]!.body as string)).sort()).toEqual(["duration_min", "starts_at"]);
+    expect(Object.keys(JSON.parse(post![1]!.body as string)).sort()).toEqual(["duration_min", "starts_at", "visit_type"]);
     expect(fetcher.mock.calls.some(([url]) => url === "/api/owner-registrations")).toBe(false);
   });
 

@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, Uuid
@@ -9,6 +10,9 @@ from vetdietderm_api.tenancy import TenantOwned
 from vetdietderm_api.encounters.models import Encounter
 from vetdietderm_api.ids import uuid6
 from vetdietderm_api.patients.models import Patient
+
+if TYPE_CHECKING:
+    from vetdietderm_api.visits.models import VisitRequest
 
 
 def utc_now() -> datetime:
@@ -40,6 +44,11 @@ class Appointment(TenantOwned, Base):
 
     patient: Mapped[Patient] = relationship()
     encounter: Mapped[Encounter | None] = relationship()
+    visit_request: Mapped["VisitRequest | None"] = relationship(viewonly=True)
+
+    @property
+    def owner_problem(self) -> str | None:
+        return self.visit_request.reason if self.visit_request else None
 
     @property
     def encounter_status(self) -> str | None:

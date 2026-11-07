@@ -568,6 +568,17 @@
             ],
             "title": "Notes"
           },
+          "owner_problem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Problem"
+          },
           "patient": {
             "$ref": "#/components/schemas/PatientRead"
           },
@@ -607,6 +618,7 @@
           "visit_type",
           "status",
           "notes",
+          "owner_problem",
           "created_at",
           "updated_at",
           "patient"
@@ -6724,9 +6736,13 @@
             "format": "date-time",
             "title": "Starts At",
             "type": "string"
+          },
+          "visit_type": {
+            "$ref": "#/components/schemas/vetdietderm_api__questionnaires__schemas__VisitType"
           }
         },
         "required": [
+          "visit_type",
           "starts_at",
           "duration_min"
         ],

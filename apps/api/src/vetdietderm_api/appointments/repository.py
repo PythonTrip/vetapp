@@ -23,7 +23,7 @@ def _bad_request(detail: str) -> HTTPException:
 
 
 def _appointment_stmt():
-    return select(Appointment).options(joinedload(Appointment.patient).joinedload(Patient.client), joinedload(Appointment.encounter))
+    return select(Appointment).options(joinedload(Appointment.patient).joinedload(Patient.client), joinedload(Appointment.encounter), joinedload(Appointment.visit_request))
 
 
 def list_appointments(
@@ -99,6 +99,11 @@ def update_appointment(session: Session, appointment_uuid: UUID, data: Appointme
         payload["visit_type"] = payload["visit_type"].value
     if "status" in payload and payload["status"] is not None:
         payload["status"] = payload["status"].value
+    if appointment.encounter_uuid is None and payload.get("encounter_uuid") is not None and linked:
+        encounter = get_encounter(session, payload["encounter_uuid"])
+        if not (encounter.chief_complaint or "").strip() and (linked.reason or "").strip():
+            encounter.chief_complaint = linked.reason
+            encounter.updated_at = utc_now()
     for key, value in payload.items():
         setattr(appointment, key, value)
     appointment.updated_at = utc_now()

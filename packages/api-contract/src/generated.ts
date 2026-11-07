@@ -2901,6 +2901,8 @@ export interface components {
             encounter_uuid: string | null;
             /** Notes */
             notes: string | null;
+            /** Owner Problem */
+            owner_problem: string | null;
             patient: components["schemas"]["PatientRead"];
             /**
              * Patient Uuid
@@ -4938,6 +4940,7 @@ export interface components {
              * Format: date-time
              */
             starts_at: string;
+            visit_type: components["schemas"]["vetdietderm_api__questionnaires__schemas__VisitType"];
         };
         /** VisitCreate */
         VisitCreate: {

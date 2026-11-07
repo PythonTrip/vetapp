@@ -112,7 +112,7 @@ def confirm_legacy(staff, visit, **changes):
             row.visit_type = "supervision"
             db.commit()
     return staff.post(f"/visit-requests/{visit['uuid']}/confirm", json={
-        "starts_at": "2026-11-02T12:00:00Z", "duration_min": 45,
+        "starts_at": "2026-11-02T12:00:00Z", "duration_min": 45, "visit_type": "supervision",
         "registration": {"mode": "create"}, **changes})
 
 
@@ -757,7 +757,7 @@ def test_problem_contract_and_null_confirmation(visits):
     assert owner.get(url).json()[0]["reason"] == row["reason"]
     refused = staff.post(f"/visit-requests/{row['uuid']}/confirm", json={
         "starts_at": "2026-11-02T12:00:00Z", "duration_min": 45, "registration": {"mode": "create"}})
-    assert refused.status_code == 422 and refused.json()["detail"] == "Укажите тип визита"
+    assert refused.status_code == 422
     with factory() as db:
         assert db.scalar(select(func.count()).select_from(Appointment)) == 0
         assert db.scalar(select(OwnerRegistration)).status == "pending"
@@ -848,3 +848,90 @@ def test_empty_clinic_seeds_one_questionnaire(visits, first_read):
     with factory() as db:
         rows = db.scalars(select(VisitQuestionnaire)).all()
         assert len(rows) == 1 and rows[0].visit_type == "primary"
+
+
+@pytest.mark.parametrize("kind", ["primary", "secondary", "consultation", "supervision"])
+@pytest.mark.parametrize("stored_type", [None, "primary"])
+def test_confirm_classifies_new_request(visits, kind, stored_type):
+    staff, owner, factory, _, animal, _ = visits
+    visit = request_visit(owner, animal).json()
+    if stored_type:
+        with factory() as db:
+            db.get(VisitRequest, UUID(visit["uuid"])).visit_type = stored_type
+            db.commit()
+    assert staff.get("/appointments").json() == []
+    response = staff.post(f"/visit-requests/{visit['uuid']}/confirm", json={
+        "starts_at": "2026-11-02T12:00:00Z", "duration_min": 45,
+        "visit_type": kind, "registration": {"mode": "create"}})
+    assert response.status_code == 200, response.text
+    assert response.json()["visit_type"] == kind
+    appointments = staff.get("/appointments").json()
+    assert len(appointments) == 1 and appointments[0]["visit_type"] == kind
+    appointment = appointments[0]
+    assert appointment["owner_problem"] == visit["reason"]
+    assert appointment["notes"] == visit["reason"]
+    # The read contract always uses the request, even after staff edit notes.
+    changed = staff.patch(f"/appointments/{appointment['uuid']}", json={"notes": "Staff notes"})
+    assert changed.json()["owner_problem"] == visit["reason"]
+    public = owner.get(f"/owner/animals/{appointment['patient_uuid']}/visits").json()[0]
+    assert public["reason"] == visit["reason"] and public["answers"] == visit["answers"]
+    direct = staff.post("/appointments", json={"patient_uuid": appointment["patient_uuid"],
+        "starts_at": "2026-11-03T12:00:00Z", "visit_type": kind, "notes": "Only staff notes"})
+    assert direct.status_code == 201 and direct.json()["owner_problem"] is None
+    with factory() as db:
+        assert db.get(VisitRequest, UUID(visit["uuid"])).visit_type == kind
+
+
+@pytest.mark.parametrize("kind", [None, "recheck", "procedure", "telemedicine"])
+def test_confirm_rejects_missing_or_legacy_type_atomically(visits, kind):
+    staff, owner, factory, _, animal, _ = visits
+    visit = request_visit(owner, animal).json()
+    body = {"starts_at": "2026-11-02T12:00:00Z", "duration_min": 45,
+            "registration": {"mode": "create"}}
+    if kind is not None:
+        body["visit_type"] = kind
+    response = staff.post(f"/visit-requests/{visit['uuid']}/confirm", json=body)
+    assert response.status_code == 422, response.text
+    with factory() as db:
+        row = db.get(VisitRequest, UUID(visit["uuid"]))
+        assert row.status == "requested" and row.appointment_uuid is None and row.visit_type is None
+        assert db.scalar(select(OwnerRegistration)).status == "pending"
+        assert db.scalar(select(func.count()).select_from(Appointment)) == 0
+
+
+@pytest.mark.parametrize("complaint", [None, "   ", "Doctor wrote this"])
+def test_first_encounter_link_fills_only_blank_complaint_once(visits, complaint):
+    staff, owner, _, _, animal, _ = visits
+    visit = request_visit(owner, animal).json()
+    assert confirm_legacy(staff, visit).status_code == 200
+    appointment = staff.get("/appointments").json()[0]
+    encounter = staff.post(f"/patients/{appointment['patient_uuid']}/encounters", json={
+        "specialty": "general", "chief_complaint": complaint}).json()
+    url = f"/appointments/{appointment['uuid']}"
+    assert staff.patch(url, json={"encounter_uuid": encounter["uuid"]}).status_code == 200
+    expected = complaint if complaint and complaint.strip() else visit["reason"]
+    assert staff.get(f"/encounters/{encounter['uuid']}").json()["chief_complaint"] == expected
+    assert staff.patch(f"/encounters/{encounter['uuid']}", json={"chief_complaint": None}).status_code == 200
+    assert staff.patch(url, json={"encounter_uuid": encounter["uuid"], "notes": "Changed"}).status_code == 200
+    assert staff.get(f"/encounters/{encounter['uuid']}").json()["chief_complaint"] is None
+
+
+@pytest.mark.parametrize("source", ["no_request", None, "   "])
+def test_notes_never_fill_complaint_without_nonblank_request_reason(visits, source):
+    staff, owner, factory, _, animal, _ = visits
+    visit = request_visit(owner, animal).json()
+    assert confirm_legacy(staff, visit).status_code == 200
+    appointment = staff.get("/appointments").json()[0]
+    with factory() as db:
+        row = db.get(VisitRequest, UUID(visit["uuid"]))
+        if source == "no_request":
+            row.appointment_uuid = None
+        else:
+            row.reason = source
+        db.commit()
+    encounter = staff.post(f"/patients/{appointment['patient_uuid']}/encounters", json={"specialty": "general"}).json()
+    result = staff.patch(f"/appointments/{appointment['uuid']}", json={
+        "encounter_uuid": encounter["uuid"], "notes": "Staff notes"})
+    assert result.status_code == 200, result.text
+    assert result.json()["owner_problem"] == (None if source == "no_request" else source)
+    assert staff.get(f"/encounters/{encounter['uuid']}").json()["chief_complaint"] is None
