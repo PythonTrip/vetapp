@@ -5,7 +5,7 @@ import httpx
 from fastapi.testclient import TestClient
 from starlette.requests import Request
 
-from tests.test_owner_cabinet import cabinet  # noqa: F401 - shared isolated SQLite fixture
+from tests.integration.test_owner_cabinet import cabinet  # noqa: F401 - shared isolated SQLite fixture
 from vetdietderm_api import auth
 from vetdietderm_api.v1 import OWNER_AUTH_PATHS
 from vetdietderm_api.v1_security import require_owner_identity

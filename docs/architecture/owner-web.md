@@ -142,11 +142,36 @@ pnpm compose --profile owner up -d --build
 для отдельного домена его нужно изменить. Переключение внешнего reverse proxy
 не выполняется автоматически.
 
-Проверки: `pnpm check`, `pnpm test:web`, `pnpm api:check`, сборки обоих приложений,
-`pytest tests/test_owner_cabinet.py tests/test_v1_api.py tests/test_animal_chat.py tests/test_visit_requests.py tests/test_multi_user_auth.py`. Owner tests покрывают
+Проверки: `pnpm check`, `pnpm test:web`, `pnpm api:check`, сборки обоих приложений.
+Тесты API для кабинета запускаются из `apps/api` командой
+`pytest tests/integration/test_owner_cabinet.py tests/integration/test_v1_api.py tests/integration/test_animal_chat.py tests/integration/test_visit_requests.py tests/secure/test_multi_user_auth.py`. Owner tests покрывают
 изоляцию импортов, proxy/CSRF/cookie, login/logout, регистрацию, паспорт,
 анкеты, retry upload и скачивание через платформенный adapter. API tests
 проверяют неизменность doctor binding, patient isolation и file visibility.
+
+### VAT QA Core
+
+Откат подтверждения визита проверяется на одноразовой PostgreSQL. Из корня
+репозитория поднимите `docker compose -f infra/docker-compose.test.yml up -d --wait`,
+установите `DATABASE_URL=postgresql+psycopg://vetapp:test-only@127.0.0.1:15433/vetapp_test`
+и запустите `uv run --directory apps/api pytest tests/integration/test_visit_confirmation_postgres.py`.
+После проверки остановите одноразовую базу через `docker compose -f infra/docker-compose.test.yml down`.
+
+Браузерная проверка использует отдельные Next.js и FastAPI с одноразовой PostgreSQL
+и временным хранилищем. Настройте одинаковый `OWNER_FRONTEND_URL` для Next.js и FastAPI,
+укажите `API_INTERNAL_URL` для Next.js и подготовьте приглашение синтетической клиники.
+Перед запуском установите Chromium командой
+`uv run --no-project --with "playwright>=1.58,<2" playwright install chromium`.
+
+```powershell
+$env:VAT_OWNER_E2E_ORIGIN = 'http://127.0.0.1:3001'
+$env:VAT_OWNER_E2E_CLINIC_CODE = '<код тестовой клиники>'
+$env:VAT_OWNER_E2E_CLINIC_NAME = '<название тестовой клиники>'
+pnpm --filter vetdietderm-owner-web test:e2e
+```
+
+Тест регистрирует уникального синтетического владельца и двух питомцев.
+Данные удаляются при уничтожении одноразового окружения после прогона.
 
 Проверено 2026-10-30: typecheck/lint, 68 web-тестов, 46 API-тестов, OpenAPI
 snapshot, production build обоих host и standalone build owner host. HTTP smoke

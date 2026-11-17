@@ -840,7 +840,7 @@ def test_clinic_transfer_migration_persists_without_original_engine(tmp_path):
     from alembic.migration import MigrationContext
     from alembic.operations import Operations
 
-    path = Path(__file__).parents[1] / "alembic/versions/0038_clinic_invite_transfers.py"
+    path = Path(__file__).parents[2] / "alembic/versions/0038_clinic_invite_transfers.py"
     spec = importlib.util.spec_from_file_location("transfer_migration", path)
     migration = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(migration)

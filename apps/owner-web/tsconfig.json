@@ -42,6 +42,7 @@
     "**/*.test.ts",
     "**/*.test.tsx",
     "vitest.config.mts",
+    "tests/_support/**",
     "src/test/**"
   ]
 }

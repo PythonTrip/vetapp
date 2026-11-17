@@ -6,7 +6,7 @@ from datetime import datetime
 import pytest
 from sqlalchemy import func, select
 
-from tests.test_owner_cabinet import cabinet, register  # noqa: F401
+from tests.integration.test_owner_cabinet import cabinet, register  # noqa: F401
 from vetdietderm_api.appointments.models import Appointment
 from vetdietderm_api.attachments import storage
 from vetdietderm_api.attachments.models import Attachment

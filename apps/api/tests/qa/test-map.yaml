@@ -1,0 +1,193 @@
+schema_version: 1
+project:
+  name: VetDietDerm API
+  evidence_level: repository_inferred
+  commit: 0308862f9d870ce387a7dbb9cc0055a6796906d0
+  owner: unassigned
+approvals:
+  core: {status: pending, approver: null, approved_at: null, evidence: null, fingerprint: null}
+  scope: {status: pending, approver: null, approved_at: null, evidence: null, fingerprint: null}
+policy:
+  mandatory_core_events: &core_events [pull_request, main_push, release_candidate]
+scope:
+  included:
+    - Clinical records, appointments and attachment persistence through FastAPI.
+    - Nutrition catalog, assessment and saved diet plan snapshots.
+    - Clinic access controls and owner visit requests.
+  environments:
+    - {id: api_postgres, purpose: In-process FastAPI requests with a disposable PostgreSQL instance and temporary file storage.}
+    - {id: api_sqlite, purpose: In-process FastAPI requests with in-memory SQLite and temporary file storage.}
+  real_dependencies: [FastAPI and SQLAlchemy, PostgreSQL for clinical and nutrition integration, Temporary attachment filesystem, In-process FEDIAF 2025 provider]
+  stubbed_dependencies:
+    - {name: module-auth, reason: The fixtures provide synthetic users and clinic roles without calling the external service.}
+  test_data: Use synthetic clinic, owner, patient, visit and ration data. The PostgreSQL fixture creates and drops an isolated schema. Use a disposable database instance.
+  not_core:
+    - Live module-auth, Telegram, deployed network and migration behavior are outside these test fixtures.
+    - The wider visit matrix runs on SQLite. The focused confirmation rollback and retry check uses PostgreSQL.
+  exclusions: []
+capabilities:
+  - id: CAP-API-CLINICAL
+    name: Clinical records and appointments
+    core: true
+    decision: proposed
+    risk: high
+    why: A lost or mislinked record interrupts treatment and follow-up.
+    outcome: Patient records, encounter changes, appointments and attachments persist with the correct relationships.
+    layers: [api, database, filesystem]
+    evidence: Repository docs/PROJECT.md and tests/integration/test_clinical_workflow.py.
+    owner: unassigned
+  - id: CAP-API-NUTRITION
+    name: Reproducible nutrition plans
+    core: true
+    decision: proposed
+    risk: high
+    why: Changes to foods or standards can make a saved clinical decision hard to reproduce.
+    outcome: Saved plans retain the original snapshot and standard provenance until an explicit replacement.
+    layers: [api, database, standards]
+    evidence: Repository docs/PROJECT.md and tests/integration/test_nutrition_workflow.py.
+    owner: unassigned
+  - id: CAP-API-CLINIC-ACCESS
+    name: Clinic data isolation
+    core: true
+    decision: proposed
+    risk: critical
+    why: Incorrect authorization can disclose or modify another clinic's records.
+    outcome: Clinic membership scopes access and a read-only actor cannot create client records.
+    layers: [api, database]
+    evidence: Repository docs/PROJECT.md and tests/integration/test_multi_user_boundaries.py.
+    owner: unassigned
+  - id: CAP-API-VISITS
+    name: Owner request and staff confirmation
+    core: true
+    decision: proposed
+    risk: high
+    why: Incorrect confirmation creates schedule entries or accepts registrations prematurely.
+    outcome: A request preserves submitted data and enters the schedule only on valid staff confirmation.
+    layers: [api, database]
+    evidence: Repository docs/PROJECT.md, docs/prd/2026-11-07_booking-by-problem_prd.md and the SQLite and PostgreSQL visit integration suites.
+    owner: unassigned
+features:
+  - id: FEAT-API-CLINICAL
+    module: Clinical workflow
+    feature: Persist a patient's encounter and appointment
+    places: [apps/api/src/vetdietderm_api/patients/router.py, apps/api/src/vetdietderm_api/encounters/router.py, apps/api/src/vetdietderm_api/appointments/router.py, apps/api/src/vetdietderm_api/attachments/router.py]
+    expected: A separate read returns the encounter values, the linked appointment and the stored attachment.
+  - id: FEAT-API-NUTRITION
+    module: Nutrition
+    feature: Save and explicitly replace a diet plan snapshot
+    places: [apps/api/src/vetdietderm_api/catalog/router.py, apps/api/src/vetdietderm_api/assessments/router.py, apps/api/src/vetdietderm_api/standards/fediaf/v2025/provider.py]
+    expected: Renaming a catalog food preserves the saved snapshot. Explicit replacement records newly selected inputs and provider provenance.
+  - id: FEAT-API-CLINIC-ACCESS
+    module: Authorization
+    feature: Restrict client records by clinic and role
+    places: [apps/api/src/vetdietderm_api/auth.py, apps/api/src/vetdietderm_api/patients/router.py]
+    expected: The owning clinic keeps access to its record. Another clinic cannot read or change it, and a viewer cannot create a record.
+  - id: FEAT-API-VISITS
+    module: Visits
+    feature: Preserve owner submissions and schedule confirmed visits
+    places: [apps/api/src/vetdietderm_api/visits/router.py, apps/api/src/vetdietderm_api/questionnaires/router.py, apps/api/src/vetdietderm_api/appointments/router.py]
+    expected: Submitted answers survive questionnaire edits. Valid confirmation creates a typed appointment. Invalid confirmation leaves the request and registration pending.
+checks:
+  - id: CHECK-API-CLINICAL
+    feature_id: FEAT-API-CLINICAL
+    capability_ids: [CAP-API-CLINICAL]
+    scenario: Create a patient and encounter, complete the encounter, then read the linked appointment and attachment.
+    expected: The response preserves the patient link, completed status, edited plan and stored file contents.
+    oracle: Project clinical-workflow contract and fixed record values and file bytes supplied by the test.
+    level: integration
+    core_smoke: true
+    environment: api_postgres
+    real: [FastAPI ASGI routes, PostgreSQL, Temporary attachment filesystem]
+    stubbed: [module-auth]
+    data: Synthetic patient, encounter, appointment and disposable attachment.
+    triggers: *core_events
+    blocking_on: *core_events
+    safe_in_production: false
+    status: implemented
+    test_ref: tests/integration/test_clinical_workflow.py
+    owner: unassigned
+  - id: CHECK-API-NUTRITION
+    feature_id: FEAT-API-NUTRITION
+    capability_ids: [CAP-API-NUTRITION]
+    scenario: Assess a ration, save a plan, rename its food and then explicitly replace the plan snapshot.
+    expected: The old food name and input hash survive the catalog edit. Replacement keeps the plan ID and records the new inputs and provider metadata.
+    oracle: Project snapshot contract, fixed original and replacement inputs and independent reads of the saved plan.
+    level: integration
+    core_smoke: true
+    environment: api_postgres
+    real: [FastAPI ASGI routes, PostgreSQL, In-process FEDIAF 2025 provider]
+    stubbed: [module-auth]
+    data: Synthetic patient, seeded nutrients, one catalog food and a disposable ration.
+    triggers: *core_events
+    blocking_on: *core_events
+    safe_in_production: false
+    status: implemented
+    test_ref: tests/integration/test_nutrition_workflow.py
+    owner: unassigned
+  - id: CHECK-API-CLINIC-ACCESS
+    feature_id: FEAT-API-CLINIC-ACCESS
+    capability_ids: [CAP-API-CLINIC-ACCESS]
+    scenario: Compare access to a client record for its clinic, another clinic and a viewer.
+    expected: The other clinic sees an empty list and receives 404 for direct reads and writes. Viewer creation returns 403 and the original record remains readable.
+    oracle: Clinic and role assignments fixed in the fixture and the documented clinic and viewer access rules.
+    level: integration
+    core_smoke: true
+    environment: api_postgres
+    real: [FastAPI ASGI authorization and client routes, PostgreSQL]
+    stubbed: [module-auth]
+    data: Synthetic clinic memberships, sessions and client record.
+    triggers: *core_events
+    blocking_on: *core_events
+    safe_in_production: false
+    status: implemented
+    test_ref: tests/integration/test_multi_user_boundaries.py
+    owner: unassigned
+  - id: CHECK-API-VISITS
+    feature_id: FEAT-API-VISITS
+    capability_ids: [CAP-API-VISITS]
+    scenario: Submit a visit request, change the published questionnaire, and exercise valid and invalid confirmation cases.
+    expected: Saved answers stay intact and the schedule stays empty until confirmation. Valid types create one appointment. An invalid type returns 422 and leaves the pending records intact.
+    oracle: Booking by Problem PRD and project contract, fixed questionnaire options and visit types, and independent schedule and database reads.
+    level: integration
+    core_smoke: true
+    environment: api_sqlite
+    real: [FastAPI ASGI routes, In-memory SQLite, Temporary attachment filesystem]
+    stubbed: [module-auth]
+    data: Synthetic owner, pet, clinic, questionnaire and pending registration.
+    triggers: *core_events
+    blocking_on: *core_events
+    safe_in_production: false
+    status: implemented
+    test_ref: tests/integration/test_visit_requests.py
+    owner: unassigned
+  - id: CHECK-API-VISIT-CONFIRMATION-PG
+    feature_id: FEAT-API-VISITS
+    capability_ids: [CAP-API-VISITS]
+    scenario: Confirm an owner request while its uploaded file is missing, then restore the file and retry.
+    expected: The failed confirmation leaves the request and registration pending, with zero clinical rows. Retry accepts the registration and creates one linked appointment and gallery attachment.
+    oracle: Project atomic-confirmation requirement and independently queried PostgreSQL rows, staff schedule and patient lists.
+    level: integration
+    core_smoke: true
+    environment: api_postgres
+    real: [FastAPI ASGI routes, PostgreSQL, Temporary attachment filesystem]
+    stubbed: [module-auth]
+    data: Synthetic clinic, pending owner registration, pet, request and temporary PDF.
+    triggers: *core_events
+    blocking_on: *core_events
+    safe_in_production: false
+    status: implemented
+    test_ref: tests/integration/test_visit_confirmation_postgres.py
+    owner: unassigned
+impact_rules:
+  - paths: [apps/api/tests/integration/conftest.py, apps/api/src/vetdietderm_api/db.py]
+    checks: [CHECK-API-CLINICAL, CHECK-API-NUTRITION, CHECK-API-CLINIC-ACCESS, CHECK-API-VISIT-CONFIRMATION-PG]
+  - paths: [apps/api/src/vetdietderm_api/standards, apps/api/src/vetdietderm_api/catalog]
+    checks: [CHECK-API-NUTRITION]
+  - paths: [apps/api/src/vetdietderm_api/visits, apps/api/src/vetdietderm_api/questionnaires, apps/api/tests/integration/test_owner_cabinet.py, apps/api/tests/integration/test_visit_requests.py]
+    checks: [CHECK-API-VISITS]
+  - paths: [apps/api/src/vetdietderm_api/visits, apps/api/src/vetdietderm_api/owners, apps/api/src/vetdietderm_api/attachments, apps/api/tests/integration/test_visit_confirmation_postgres.py]
+    checks: [CHECK-API-VISIT-CONFIRMATION-PG]
+metadata:
+  discovery: PROJECT_CONTEXT_MISSING at apps/api/docs/PROJECT.md. Shared docs/PROJECT.md and relevant PRDs were used as repository evidence.
+  references: Feature and impact paths are repository-relative. Test references are relative to apps/api.
+  reconciliation: The visit confirmation check collects as tests/integration/test_visit_confirmation_postgres.py::test_missing_visit_file_rolls_back_confirmation_and_allows_retry.

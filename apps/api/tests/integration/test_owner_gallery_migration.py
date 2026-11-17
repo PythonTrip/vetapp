@@ -17,7 +17,7 @@ def test_owner_gallery_ownership_repair():
                            sa.Column("patient_uuid", sa.String),
                            sa.Column("uploaded_by_owner", sa.Boolean),
                            sa.Column("tenant_id", sa.String), sa.Column("created_by", sa.String))
-    migration = runpy.run_path(str(Path(__file__).resolve().parents[1] /
+    migration = runpy.run_path(str(Path(__file__).resolve().parents[2] /
                                   "alembic/versions/0034_owner_gallery_ownership.py"))
     engine = sa.create_engine("sqlite://")
     try:

@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy import func, select
 
-from tests.test_owner_cabinet import cabinet, pending_registration, register  # noqa: F401
+from tests.integration.test_owner_cabinet import cabinet, pending_registration, register  # noqa: F401
 from vetdietderm_api.chat.models import ChatMessage, ChatThread
 from vetdietderm_api.communications.models import Communication
 

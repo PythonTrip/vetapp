@@ -35,8 +35,16 @@ def test_tenant_boundaries_and_parallel_refresh(api_app, monkeypatch):
             time.sleep(0.1)
             return httpx.Response(200, json={'access_token': 'a-new', 'refresh_token': 'successor-a',
                 'expires_in': 900, 'refresh_token_expires_in': 3600})
+        assert token in {'a', 'a-new', 'b'}
+        profile = profiles['b' if token == 'b' else 'a']
+        organization = profile['organization']
+        if organization and path == f"/organizations/{organization['org_id']}/members":
+            assert method == 'GET'
+            return httpx.Response(200, json={'members': [
+                {'user_id': profile['user_id'], 'org_role': organization['org_role']},
+            ]})
         assert path == '/me'
-        return httpx.Response(200, json=profiles['a' if token in {'a', 'a-new'} else 'b'])
+        return httpx.Response(200, json=profile)
     monkeypatch.setattr(auth, 'upstream', remote)
     with get_session_factory()() as db:
         for key in ('a', 'b'):

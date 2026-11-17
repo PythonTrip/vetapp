@@ -6,13 +6,17 @@ import pytest
 from fastapi import HTTPException
 
 from vetdietderm_api.appointments import repository
+from vetdietderm_api.appointments.models import Appointment
 from vetdietderm_api.appointments.schemas import AppointmentUpdate
 
 
 @pytest.mark.parametrize('link_action', ['retain', 'clear', 'replace', 'same_patient'])
 def test_patient_reassignment_validates_result_before_mutating(monkeypatch, link_action):
     original_patient, new_patient, encounter_id = uuid4(), uuid4(), uuid4()
-    appointment = SimpleNamespace(uuid=uuid4(), patient_uuid=original_patient, encounter_uuid=encounter_id)
+    appointment = Appointment(
+        uuid=uuid4(), patient_uuid=original_patient, encounter_uuid=encounter_id,
+        status='scheduled', amount_rub=None, paid=False,
+    )
     session = Mock()
     session.scalar.return_value = None  # An ordinary appointment has no owner request.
     monkeypatch.setattr(repository, 'get_appointment', lambda *args: appointment)

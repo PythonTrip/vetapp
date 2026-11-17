@@ -78,7 +78,7 @@
 
 ## Проверки
 
-`tests/test_telegram_owner.py`: HMAC, срок, replay, CSRF, конфликты, создание
+`apps/api/tests/secure/test_telegram_owner.py`: HMAC, срок, replay, CSRF, конфликты, создание
 без контактов, настройка credentials, веб-вход в тот же UUID, подключение врача,
 перенос питомцев и изоляция клинических данных.
 `apps/owner-web/src/telegram-auth.test.tsx`: автологин, single flight, logout,

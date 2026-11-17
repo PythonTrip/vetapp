@@ -10,17 +10,19 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy import select
 
-from tests.test_owner_cabinet import cabinet, register  # noqa: F401
+from tests.integration.test_owner_cabinet import cabinet, register  # noqa: F401
 from vetdietderm_api.owners import router as owners
 from vetdietderm_api.owners.models import ClinicBot, OwnerAccount, TelegramIdentity
 from vetdietderm_api.owners.telegram import validate_init_data
 from vetdietderm_api.settings import Settings
 
 TOKEN = "123456:test-only-bot-token"
+VALIDATION_TIME = 1_800_000_000
 
 
-def signed(user=1234567890123, age=0, token=TOKEN, **extra):
-    fields = dict(auth_date=str(int(time.time()) - age), user=json.dumps({"id": user, "first_name": "Owner"}), **extra)
+def signed(user=1234567890123, age=0, token=TOKEN, *, now=None, **extra):
+    current = int(time.time()) if now is None else now
+    fields = dict(auth_date=str(current - age), user=json.dumps({"id": user, "first_name": "Owner"}), **extra)
     check = "\n".join(f"{k}={v}" for k, v in sorted(fields.items()))
     secret = hmac.digest(b"WebAppData", token.encode(), "sha256")
     fields["hash"] = hmac.new(secret, check.encode(), hashlib.sha256).hexdigest()
@@ -41,13 +43,15 @@ def test_validation_signature_and_all_fields():
 
 
 @pytest.mark.parametrize("raw", [
-    "", "user=123", signed(age=301), signed(age=-60), signed(user=True), signed(user=-1),
-    signed(user=2**52), signed() + "&user=%7B%7D", signed() + "&hash=00", signed() + "&x=%ZZ",
-    signed().replace("1234567890123", "1234567890124"),
+    "", "user=123", signed(age=301, now=VALIDATION_TIME), signed(age=-60, now=VALIDATION_TIME),
+    signed(user=True, now=VALIDATION_TIME), signed(user=-1, now=VALIDATION_TIME),
+    signed(user=2**52, now=VALIDATION_TIME), signed(now=VALIDATION_TIME) + "&user=%7B%7D",
+    signed(now=VALIDATION_TIME) + "&hash=00", signed(now=VALIDATION_TIME) + "&x=%ZZ",
+    signed(now=VALIDATION_TIME).replace("1234567890123", "1234567890124"),
 ])
 def test_invalid_or_expired_data(raw):
     with pytest.raises(HTTPException) as error:
-        validate_init_data(raw, TOKEN, 300)
+        validate_init_data(raw, TOKEN, 300, now=VALIDATION_TIME)
     assert error.value.status_code == 401
 
 

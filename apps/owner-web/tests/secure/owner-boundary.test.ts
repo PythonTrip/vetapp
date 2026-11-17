@@ -69,7 +69,7 @@ describe("independent owner boundary", () => {
   });
 
   it("owner app and shared owner modules have no imports from Clinic UI or Next routing", () => {
-    const repo = path.resolve(import.meta.dirname, "../../..");
+    const repo = path.resolve(import.meta.dirname, "../../../..");
     function files(dir: string): string[] {
       return readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
         const file = path.join(dir, entry.name);
