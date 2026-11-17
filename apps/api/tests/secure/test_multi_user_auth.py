@@ -252,14 +252,14 @@ def test_telegram_cabinet_survives_when_clinic_link_belongs_to_another_doctor(en
     from vetdietderm_api.owners.models import (
         ClinicLink, JoinCode, OwnerAccount, OwnerAnimal, OwnerRegistration, TelegramIdentity,
     )
-    from vetdietderm_api.owners.router import telegram_exchange
+    from vetdietderm_api.owners.telegram_accounts import telegram_exchange
     from vetdietderm_api.owners.schemas import TelegramLogin
     from vetdietderm_api.settings import Settings
     from vetdietderm_api.tenancy import rehome_personal_rows
     from vetdietderm_api.visits import repository as visits
     from vetdietderm_api.visits.models import VisitRequest
 
-    monkeypatch.setattr("vetdietderm_api.owners.router.get_settings",
+    monkeypatch.setattr("vetdietderm_api.owners.sessions.get_settings",
                         lambda: Settings(DATABASE_URL="sqlite://", FRONTEND_URL="http://testserver"))
     doctor, other, stranger = uuid4(), uuid4(), uuid4()
     clinic, elsewhere = uuid4(), uuid4()

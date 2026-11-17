@@ -12,7 +12,7 @@ from vetdietderm_api.attachments import storage
 from vetdietderm_api.attachments.models import Attachment
 from vetdietderm_api.owners.models import OwnerAccount, OwnerRegistration
 from vetdietderm_api.visits.models import VisitRequest, VisitRequestFile
-from vetdietderm_api.visits import repository as visits_repo
+from vetdietderm_api.visits import service as visit_service
 
 
 @pytest.mark.parametrize("workspace", ["personal", "organization"])
@@ -379,12 +379,12 @@ def test_gallery_copy_without_join_code_does_not_write_attachment(visits):
     original_keys = set(root.iterdir())
     with factory() as db:
         with pytest.raises(HTTPException) as error:
-            with visits_repo.transaction(db) as keys:
+            with visit_service.transaction(db) as keys:
                 row = db.get(VisitRequest, UUID(visit["uuid"]))
                 row.patient_uuid = UUID(patient["uuid"])
                 db.get(OwnerAccount, row.owner_account_uuid).join_code_uuid = None
                 file = db.get(VisitRequestFile, UUID(response.json()["uuid"]))
-                visits_repo.copy_gallery(db, row, file, keys)
+                visit_service.copy_gallery(db, row, file, keys)
         assert error.value.status_code == 404
         assert not db.get(VisitRequestFile, UUID(response.json()["uuid"])).gallery_copied
         assert db.scalar(select(func.count()).select_from(Attachment)) == 0
@@ -624,7 +624,7 @@ def test_concurrent_publication_is_complete():
 
     from vetdietderm_api.db import sqlalchemy_url
     from vetdietderm_api.questionnaires.models import VisitQuestion, VisitQuestionnaire
-    from vetdietderm_api.questionnaires.repository import published_clinic_questionnaire, replace_questionnaire
+    from vetdietderm_api.questionnaires.service import published_clinic_questionnaire, replace_questionnaire
     from vetdietderm_api.questionnaires.schemas import QuestionWrite, QuestionnaireWrite, VisitType
     from vetdietderm_api.settings import Settings
 
@@ -668,7 +668,7 @@ def _assert_concurrent_freeze(Session, Barrier, ThreadPoolExecutor):
     from datetime import datetime, timezone
 
     from vetdietderm_api.questionnaires.models import VisitQuestion, VisitQuestionnaire
-    from vetdietderm_api.questionnaires.repository import published_clinic_questionnaire
+    from vetdietderm_api.questionnaires.service import published_clinic_questionnaire
     from vetdietderm_api.questionnaires.schemas import VisitType
 
     clinic, admin_id, member_id = uuid4(), uuid4(), uuid4()

@@ -6,25 +6,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 from pydantic import BaseModel
 
-from vetdietderm_api.appointments import router as appointments_router
-from vetdietderm_api.assessments.router import router as assessments_router
-from vetdietderm_api.attachments import router as attachments_router
-from vetdietderm_api.auth import require_clinical_access, router as account_router
-from vetdietderm_api.catalog import router as catalog_router
-from vetdietderm_api.clinical_catalog import router as clinical_catalog_router
-from vetdietderm_api.communications import router as communications_router
-from vetdietderm_api.db import ping_database
-from vetdietderm_api.encounters import router as encounters_router
-from vetdietderm_api.encounter_templates import router as encounter_templates_router
-from vetdietderm_api.guidelines import router as guidelines_router
-from vetdietderm_api.patients import router as patients_router
-from vetdietderm_api.owners.router import router as owners_router
-from vetdietderm_api.chat.router import router as chat_router
-from vetdietderm_api.questionnaires.router import router as questionnaires_router
-from vetdietderm_api.visits.router import router as visits_router
-from vetdietderm_api.settings import get_settings
 from vetdietderm_api.api_errors import install_error_handlers
-from vetdietderm_api.v1 import create_v1_router
+from vetdietderm_api.auth import require_clinical_access
+from vetdietderm_api.db import ping_database
+from vetdietderm_api.orm import load_models
+from vetdietderm_api.routing import include_clinical_and_versioned_routes, include_legacy_self_scoped_routes
+from vetdietderm_api.settings import get_settings
 
 
 class StatusResponse(BaseModel):
@@ -41,7 +28,8 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 @logger.catch(reraise=True)
 def create_app() -> FastAPI:
-    get_settings()
+    settings = get_settings()
+    load_models()
     application = FastAPI(
         title="VetDietDerm API",
         version="0.1.0",
@@ -49,7 +37,7 @@ def create_app() -> FastAPI:
     )
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=get_settings().client_origins,
+        allow_origins=settings.client_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -59,36 +47,15 @@ def create_app() -> FastAPI:
     def health() -> StatusResponse:
         return StatusResponse(status="ok")
 
-    auth = [Depends(require_clinical_access)]
-    application.include_router(account_router)
-    application.include_router(owners_router)
-    application.include_router(chat_router)
-    application.include_router(questionnaires_router)
-    application.include_router(visits_router)
+    include_legacy_self_scoped_routes(application)
 
-    @application.get("/ready", response_model=StatusResponse, dependencies=auth)
+    @application.get("/ready", response_model=StatusResponse, dependencies=[Depends(require_clinical_access)])
     def ready() -> StatusResponse:
         ping_database()
         return StatusResponse(status="ok")
 
-    application.include_router(patients_router, dependencies=auth)
-    application.include_router(encounters_router, dependencies=auth)
-    application.include_router(encounter_templates_router, dependencies=auth)
-    application.include_router(clinical_catalog_router, dependencies=auth)
-    application.include_router(attachments_router, dependencies=auth)
-    application.include_router(appointments_router, dependencies=auth)
-    application.include_router(communications_router, dependencies=auth)
-    application.include_router(catalog_router, dependencies=auth)
-    application.include_router(guidelines_router, dependencies=auth)
-    application.include_router(assessments_router, dependencies=auth)
-    application.include_router(create_v1_router(
-        staff_routers=[patients_router, encounters_router, encounter_templates_router,
-                       clinical_catalog_router, attachments_router, appointments_router,
-                       communications_router, catalog_router, guidelines_router,
-                       assessments_router, questionnaires_router],
-        mixed_routers=[owners_router, chat_router, visits_router],
-    ))
-    install_error_handlers(application, get_settings().client_origins)
+    include_clinical_and_versioned_routes(application)
+    install_error_handlers(application, settings.client_origins)
     return application
 
 

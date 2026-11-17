@@ -12,7 +12,10 @@ from vetdietderm_api.owners.schemas import OwnerUploadRead
 from vetdietderm_api.patients.models import Patient
 
 
-def owner_target(db: Session, owner: OwnerAccount, animal_id: UUID, *, write=False):
+ChatTarget = tuple[UUID | None, UUID | None, JoinCode | None]
+
+
+def owner_target(db: Session, owner: OwnerAccount, animal_id: UUID, *, write=False) -> ChatTarget:
     # Shares acceptance's registration lock, so a first send cannot miss its transfer.
     registration = owners.registration_for_owner(db, owner, lock=True)
     if owner.join_code_uuid is None:
@@ -31,7 +34,7 @@ def owner_target(db: Session, owner: OwnerAccount, animal_id: UUID, *, write=Fal
     raise HTTPException(404, "Животное не найдено")
 
 
-def registration_target(db: Session, registration_id: UUID, animal_id: UUID, user: dict, *, write=False):
+def registration_target(db: Session, registration_id: UUID, animal_id: UUID, user: dict, *, write=False) -> ChatTarget:
     registration, _, code = owners.registration_context(db, registration_id, lock=True)
     owners.authorize_registration(code, user, write=write)
     animal = db.scalar(select(OwnerAnimal).where(OwnerAnimal.uuid == animal_id,
@@ -43,7 +46,7 @@ def registration_target(db: Session, registration_id: UUID, animal_id: UUID, use
     return animal.uuid, animal.patient_uuid, code
 
 
-def patient_target(db: Session, patient_id: UUID, user: dict, tenant_id: str | None, *, write=False):
+def patient_target(db: Session, patient_id: UUID, user: dict, tenant_id: str | None, *, write=False) -> ChatTarget:
     # Chat tables deliberately do not use TenantOwned, so the clinic id is applied here.
     if not tenant_id:
         raise HTTPException(403, "Клиника недоступна")
@@ -56,7 +59,7 @@ def patient_target(db: Session, patient_id: UUID, user: dict, tenant_id: str | N
     return None, patient.uuid, None
 
 
-def thread_for(db: Session, target, *, create=False):
+def thread_for(db: Session, target: ChatTarget, *, create=False):
     animal_id, patient_id, _ = target
     condition = ChatThread.patient_uuid == patient_id if patient_id else ChatThread.owner_animal_uuid == animal_id
     thread = db.scalar(select(ChatThread).where(condition))
@@ -68,7 +71,7 @@ def thread_for(db: Session, target, *, create=False):
     return thread
 
 
-def list_messages(db: Session, target, *, owner_view=False):
+def list_messages(db: Session, target: ChatTarget, *, owner_view=False):
     thread = thread_for(db, target)
     if thread is None:
         return []
@@ -85,7 +88,7 @@ def list_messages(db: Session, target, *, owner_view=False):
     return result
 
 
-def add_message(db: Session, target, payload: MessageCreate, *, owner: OwnerAccount | None = None, user: dict | None = None):
+def add_message(db: Session, target: ChatTarget, payload: MessageCreate, *, owner: OwnerAccount | None = None, user: dict | None = None):
     files = []
     if payload.attachment_ids:
         if owner is None or len(set(payload.attachment_ids)) != len(payload.attachment_ids):
@@ -126,3 +129,15 @@ def link_thread(db: Session, animal_id: UUID, patient_id: UUID):
         db.flush()
     pending.patient_uuid = patient_id
     db.flush()
+
+
+
+def get_thread_file(db: Session, target: ChatTarget, file_id: UUID) -> OwnerUpload | None:
+    thread = thread_for(db, target)
+    if thread is None:
+        raise HTTPException(404, "Файл не найден")
+    return db.scalar(
+        select(OwnerUpload)
+        .join(ChatMessage, OwnerUpload.message_uuid == ChatMessage.uuid)
+        .where(OwnerUpload.uuid == file_id, ChatMessage.thread_uuid == thread.uuid)
+    )

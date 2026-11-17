@@ -1,6 +1,5 @@
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -10,6 +9,8 @@ from sqlalchemy.orm import Session
 
 from vetdietderm_api.catalog.energy import ME_CODE, canonicalize_imported_me
 from vetdietderm_api.catalog.models import Food, FoodNutrientValue, Nutrient
+from vetdietderm_api.catalog.schemas import optional_food_label
+from vetdietderm_api.clock import utc_now
 from vetdietderm_api.db import get_session_factory
 from vetdietderm_api.ids import uuid6
 
@@ -81,7 +82,7 @@ def import_products(session: Session, path: Path = PRODUCTS_PATH) -> ImportRepor
     names = list(products_by_name)
     existing_foods = list(session.scalars(select(Food).where(Food.name.in_(names))).all())
     foods_by_name = {food.name: food for food in existing_foods}
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     created = 0
 
     for name, item in products_by_name.items():
@@ -96,7 +97,7 @@ def import_products(session: Session, path: Path = PRODUCTS_PATH) -> ImportRepor
         food.feed_form = feed_form
         food.category = item["type"]
         subcategory = item.get("subcat")
-        food.subcategory = subcategory.strip() if isinstance(subcategory, str) and subcategory.strip() else None
+        food.subcategory = optional_food_label(subcategory) if isinstance(subcategory, str) else None
         food.updated_at = now
 
     session.flush()
@@ -118,36 +119,21 @@ def import_products(session: Session, path: Path = PRODUCTS_PATH) -> ImportRepor
             raw_value = item.get(nutrient.code)
             if nutrient.code == ME_CODE:
                 value = canonicalize_imported_me(_optional_decimal(raw_value))
-                if value is None:
-                    null_count += 1
-                    continue
-                value_rows.append(
-                    {
-                        "uuid": uuid6(),
-                        "food_uuid": food.uuid,
-                        "nutrient_uuid": nutrient.uuid,
-                        "value": value,
-                        "basis": AS_FED_BASIS,
-                        "value_status": "measured",
-                        "source_uuid": None,
-                        "created_at": now,
-                        "updated_at": now,
-                    }
-                )
-                continue
-            if raw_value is None:
+            elif raw_value is None:
+                value = None
+            else:
+                if isinstance(raw_value, bool) or not isinstance(raw_value, (int, float)):
+                    raise ValueError(f"Nutrient {nutrient.code!r} for {name!r} must be numeric or null")
+                value = Decimal(str(raw_value))
+            if value is None:
                 null_count += 1
                 continue
-            if isinstance(raw_value, bool) or not isinstance(raw_value, (int, float)):
-                raise ValueError(
-                    f"Nutrient {nutrient.code!r} for {name!r} must be numeric or null"
-                )
             value_rows.append(
                 {
                     "uuid": uuid6(),
                     "food_uuid": food.uuid,
                     "nutrient_uuid": nutrient.uuid,
-                    "value": Decimal(str(raw_value)),
+                    "value": value,
                     "basis": AS_FED_BASIS,
                     "value_status": "measured",
                     "source_uuid": None,

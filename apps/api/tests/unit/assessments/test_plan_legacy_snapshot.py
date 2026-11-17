@@ -111,7 +111,7 @@ def test_legacy_plan_read_maps_null_or_missing_adjustment_without_recalculation(
     def fail_if_recalculated(*_args: object, **_kwargs: object) -> None:
         raise AssertionError("A stored assessment snapshot must not be recalculated")
 
-    monkeypatch.setattr(plans, "assess_nutrition", fail_if_recalculated)
+    monkeypatch.setattr(plans.service, "assess", fail_if_recalculated)
 
     result = plans.to_read(_plan(stored_snapshot))
 

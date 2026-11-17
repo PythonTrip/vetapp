@@ -6,10 +6,12 @@ from fastapi import Depends, Header, HTTPException, Request, Security
 from fastapi.security import APIKeyCookie
 
 from vetdietderm_api import auth
-from vetdietderm_api.owners import router as owners
+from vetdietderm_api.owners.models import OwnerAccount
+from vetdietderm_api.owners.sessions import COOKIE as OWNER_COOKIE
+from vetdietderm_api.owners.sessions import require_owner
 
 staff_cookie = APIKeyCookie(name=auth.COOKIE, scheme_name="StaffSession", auto_error=False)
-owner_cookie = APIKeyCookie(name=owners.COOKIE, scheme_name="OwnerSession", auto_error=False)
+owner_cookie = APIKeyCookie(name=OWNER_COOKIE, scheme_name="OwnerSession", auto_error=False)
 
 
 def csrf_marker(
@@ -39,6 +41,6 @@ def require_staff_identity(
 
 def require_owner_identity(
     _session: Annotated[None, Depends(owner_session)],
-    owner: Annotated[owners.OwnerAccount, Depends(owners.require_owner)],
-) -> owners.OwnerAccount:
+    owner: Annotated[OwnerAccount, Depends(require_owner)],
+) -> OwnerAccount:
     return owner

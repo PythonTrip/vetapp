@@ -1,248 +1,64 @@
-import hashlib
-import json
-import secrets
-import time
-from collections.abc import Iterator
 from typing import Annotated, Literal
-from urllib.parse import parse_qs
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse
-from sqlalchemy import delete, select
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
 
 from vetdietderm_api.attachments import repository as attachment_repo
 from vetdietderm_api.attachments.schemas import OwnerFileRead
 from vetdietderm_api.attachments.storage import extension_for, resolve_file
 from vetdietderm_api.auth import csrf, require_clinical_access, require_user
-from vetdietderm_api.db import get_session_factory
-from vetdietderm_api.ids import uuid6
+from vetdietderm_api.owners import registrations as registration_service
 from vetdietderm_api.owners import repository as repo
-from vetdietderm_api.owners import uploads
-from vetdietderm_api.owners.models import ClinicBot, OwnerAnimal, OwnerUpload, JoinCode, OwnerAccount, OwnerRegistration, OwnerSession, TelegramExchange, TelegramIdentity, utc_now
-from vetdietderm_api.owners.schemas import ClinicBotRead, ClinicBotStatus, ClinicBotWrite, CurrentJoinCode, DoctorPreview, OwnerLogin, OwnerProfileUpdate, OwnerRead, OwnerRegister
+from vetdietderm_api.owners import clinic_bots, profile, telegram_accounts, uploads
+from vetdietderm_api.owners.schemas import ClinicBotRead, ClinicBotWrite, CurrentJoinCode, DoctorPreview, OwnerLogin, OwnerProfileUpdate, OwnerRead, OwnerRegister
 from vetdietderm_api.owners.schemas import OwnerUploadRead, AnimalCreate, AnimalRead, AnimalUpdate
 from vetdietderm_api.owners.schemas import RegistrationAccept, RegistrationAccepted, RegistrationRead
 from vetdietderm_api.owners.schemas import TelegramLogin, TelegramLink, TelegramWidgetLogin, OwnerCredentials
-from vetdietderm_api.owners.telegram import fetch_bot_identity, validate_init_data, validate_widget
-from vetdietderm_api.patients.models import Patient
+from vetdietderm_api.owners.sessions import DB, Owner, end_session
 from vetdietderm_api.settings import get_settings
 
-COOKIE = "vetapp_owner_session"
-SESSION_SECONDS = 30 * 24 * 3600
 router = APIRouter(tags=["owners"], dependencies=[Depends(csrf)])
-
-
-def owner_db(response: Response) -> Iterator[Session]:
-    response.headers["Cache-Control"] = "no-store"
-    with get_session_factory()() as db:
-        yield db
-
-
-DB = Annotated[Session, Depends(owner_db)]
-
-
-def session_digest(key: str) -> str:
-    return hashlib.sha256(key.encode()).hexdigest()
-
-
-def require_owner(request: Request, db: DB) -> OwnerAccount:
-    row = db.get(OwnerSession, session_digest(request.cookies.get(COOKIE, "")))
-    if row is None or row.expires <= time.time():
-        raise HTTPException(401, "Войдите в кабинет владельца")
-    owner = db.get(OwnerAccount, row.owner_account_uuid)
-    if owner is None:
-        raise HTTPException(401, "Войдите в кабинет владельца")
-    return owner
-
-
-Owner = Annotated[OwnerAccount, Depends(require_owner)]
-
-
-def create_session(db: Session, request: Request, response: Response, owner: OwnerAccount) -> None:
-    old = db.get(OwnerSession, session_digest(request.cookies.get(COOKIE, "")))
-    if old:
-        db.delete(old)
-    key = secrets.token_urlsafe(32)
-    db.add(OwnerSession(key_hash=session_digest(key), owner_account_uuid=owner.uuid,
-                        expires=time.time() + SESSION_SECONDS))
-    db.commit()
-    settings = get_settings()
-    response.set_cookie(COOKIE, key, httponly=True, secure=settings.AUTH_COOKIE_SECURE,
-                        samesite=getattr(settings, "OWNER_COOKIE_SAMESITE", "lax"), path="/", max_age=SESSION_SECONDS)
 
 
 @router.post("/owner/telegram/login", response_model=OwnerRead)
 def telegram_login(body: TelegramLogin, request: Request, response: Response, db: DB):
-    return telegram_exchange(body, request, response, db, link=False)
+    return telegram_accounts.telegram_exchange(body, request, response, db, link=False)
 
 
 @router.post("/owner/telegram/link", response_model=OwnerRead)
 def telegram_link(body: TelegramLink, request: Request, response: Response, db: DB):
-    return telegram_exchange(body, request, response, db, link=True)
-
-
-def connected_bot(db: Session, code: JoinCode) -> ClinicBot | None:
-    bot = db.get(ClinicBot, code.tenant_id)
-    return bot if bot and bot.status == ClinicBotStatus.connected else None
-
-
-def telegram_exchange(body: TelegramLogin, request: Request, response: Response, db: Session, *, link: bool, verified=None, name="Владелец"):
-    code = repo.code_by_value(db, body.code)
-    if verified is None:
-        bot = connected_bot(db, code)
-        verified = validate_init_data(body.init_data, bot.token if bot else None,
-                                      get_settings().TELEGRAM_INIT_DATA_MAX_AGE)
-        user = json.loads(parse_qs(body.init_data)["user"][0])
-        name = " ".join(str(user.get(key) or "") for key in ("first_name", "last_name")).strip()[:255] or name
-    identity, digest, expires = verified
-    binding = db.scalar(select(TelegramIdentity).join(OwnerAccount).where(
-        OwnerAccount.tenant_id == code.tenant_id,
-        TelegramIdentity.tenant_id == code.tenant_id, TelegramIdentity.telegram_user_id == identity))
-    if link:
-        owner = password_owner(db, body, code)
-        session = db.get(OwnerSession, session_digest(request.cookies.get(COOKIE, "")))
-        if session and session.expires > time.time() and session.owner_account_uuid != owner.uuid:
-            raise HTTPException(409, "Сначала выйдите из другого кабинета владельца")
-        other = db.get(TelegramIdentity, owner.uuid)
-        if (binding and binding.owner_account_uuid != owner.uuid) or (other and other.telegram_user_id != identity):
-            raise HTTPException(409, "Telegram или кабинет уже привязан к другому аккаунту")
-        if binding is None:
-            db.add(TelegramIdentity(telegram_user_id=identity, owner_account_uuid=owner.uuid, tenant_id=code.tenant_id))
-    else:
-        session = db.get(OwnerSession, session_digest(request.cookies.get(COOKIE, "")))
-        active_owner = db.get(OwnerAccount, session.owner_account_uuid) if session and session.expires > time.time() else None
-        if active_owner and active_owner.tenant_id == code.tenant_id and (
-            binding is None or binding.owner_account_uuid != active_owner.uuid
-        ):
-            raise HTTPException(409, "Сначала выйдите из другого кабинета владельца")
-    if not link and binding:
-        owner = db.get(OwnerAccount, binding.owner_account_uuid)
-    elif not link:
-        owner = OwnerAccount(uuid=uuid6(), name=name, phone="", doctor_user_id=code.doctor_user_id,
-                             join_code_uuid=code.uuid, workspace=code.workspace, tenant_id=code.tenant_id)
-        db.add(owner)
-        db.add(OwnerRegistration(owner_account_uuid=owner.uuid))
-        db.add(TelegramIdentity(telegram_user_id=identity, owner_account_uuid=owner.uuid, tenant_id=code.tenant_id))
-    try:
-        # Use one cutoff so a token validated just before expiry cannot delete its
-        # own replay marker if the clock passes its expiry during this request.
-        cutoff = time.time()
-        if expires < cutoff:
-            raise HTTPException(401, "Данные Telegram устарели. Откройте Mini App заново")
-        db.execute(delete(TelegramExchange).where(TelegramExchange.expires < cutoff))
-        db.add(TelegramExchange(digest=digest, expires=expires))
-        # Unique constraints serialize replay and concurrent account-link conflicts.
-        db.flush()
-        create_session(db, request, response, owner)
-    except IntegrityError as exc:
-        db.rollback()
-        raise HTTPException(409, "Привязка конфликтует или данные Telegram уже использованы. Откройте Mini App заново") from exc
-    return repo.owner_read(db, owner)
+    return telegram_accounts.telegram_exchange(body, request, response, db, link=True)
 
 
 @router.get("/owner/telegram/config")
 def telegram_config(code: str, db: DB):
-    bot = connected_bot(db, repo.code_by_value(db, code))
+    bot = clinic_bots.connected_bot(db, repo.code_by_value(db, code))
     return {"bot_username": bot.username if bot else None}
 
 
 @router.post("/owner/telegram/widget", response_model=OwnerRead)
 def telegram_widget(body: TelegramWidgetLogin, request: Request, response: Response, db: DB):
-    bot = connected_bot(db, repo.code_by_value(db, body.code))
-    verified = validate_widget(body.model_dump(exclude={"code"}), bot.token if bot else None,
-                               get_settings().TELEGRAM_INIT_DATA_MAX_AGE)
-    return telegram_exchange(TelegramLogin(code=body.code, init_data="widget"), request, response, db, link=False,
-                             verified=verified, name=(body.first_name + " " + (body.last_name or "")).strip()[:255])
+    return telegram_accounts.telegram_widget(body, request, response, db)
 
 
 @router.post("/owner/credentials", response_model=OwnerRead)
 def set_credentials(body: OwnerCredentials, owner: Owner, db: DB):
-    # Only initial setup: existing passwords require a separate reauthentication flow.
-    registration = repo.registration_for_owner(db, owner, lock=True)
-    db.refresh(owner, with_for_update=True)
-    if owner.password_hash:
-        raise HTTPException(409, "Вход по почте уже настроен")
-    repo.email_available(db, body.email, owner.tenant_id, owner.uuid)
-    if registration.client_uuid:
-        code = db.get(JoinCode, owner.join_code_uuid)
-        client = repo.linked_client(db, registration.client_uuid, code)
-        client.email = body.email
-        client.updated_at = utc_now()
-    owner.email = body.email
-    owner.password_salt = secrets.token_hex(16)
-    owner.password_hash = repo.password_hash(body.password, owner.password_salt)
-    owner.updated_at = utc_now()
-    try:
-        db.commit()
-    except IntegrityError as exc:
-        db.rollback()
-        raise HTTPException(409, repo.TAKEN_EMAIL) from exc
-    return repo.owner_read(db, owner)
-
-
-DUPLICATE_BOT = "Этот бот уже подключён к другой клинике"
+    return profile.set_credentials(body, owner, db)
 
 
 def clinic_uuid(request: Request) -> UUID:
     return UUID(str(request.state.tenant_id))
 
 
-def clinic_bot_read(row: ClinicBot | None) -> ClinicBotRead:
-    if row is None:
-        return ClinicBotRead()
-    return ClinicBotRead(status=ClinicBotStatus(row.status), bot_id=row.bot_id,
-                         username=row.username, last_error=row.last_error)
-
-
 @router.get("/clinic-bot", response_model=ClinicBotRead, dependencies=[Depends(require_clinical_access)])
 def read_clinic_bot(request: Request, db: DB) -> ClinicBotRead:
-    return clinic_bot_read(db.get(ClinicBot, clinic_uuid(request)))
+    return clinic_bots.read_clinic_bot(db, clinic_uuid(request))
 
 
 @router.put("/clinic-bot", response_model=ClinicBotRead, dependencies=[Depends(require_clinical_access)])
 def save_clinic_bot(body: ClinicBotWrite, request: Request, db: DB) -> ClinicBotRead:
-    org = request.state.user.get("organization") or {}
-    if org.get("org_role") not in {"owner", "admin"}:
-        raise HTTPException(403, "Подключить бота могут владелец и администратор клиники")
-    clinic = clinic_uuid(request)
-    checked = fetch_bot_identity(body.token)
-    row = db.get(ClinicBot, clinic, with_for_update=True)
-    if isinstance(checked, str):
-        if row is not None and row.status == ClinicBotStatus.connected:
-            raise HTTPException(422, checked)
-        if row is None:
-            db.add(ClinicBot(clinic_id=clinic, status=ClinicBotStatus.error, token=None,
-                             bot_id=None, username=None, last_error=checked))
-        else:
-            row.status = ClinicBotStatus.error
-            row.token = None
-            row.last_error = checked
-        db.commit()
-        raise HTTPException(422, checked)
-    bot_id, username = checked
-    taken = db.scalar(select(ClinicBot.clinic_id).where(
-        ClinicBot.bot_id == bot_id, ClinicBot.clinic_id != clinic))
-    if taken is not None:
-        raise HTTPException(409, DUPLICATE_BOT)
-    if row is None:
-        row = ClinicBot(clinic_id=clinic, token=body.token, bot_id=bot_id, username=username,
-                        status=ClinicBotStatus.connected, last_error=None)
-        db.add(row)
-    else:
-        row.token = body.token
-        row.bot_id = bot_id
-        row.username = username
-        row.status = ClinicBotStatus.connected
-        row.last_error = None
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(409, DUPLICATE_BOT) from None
-    return clinic_bot_read(row)
+    return clinic_bots.save_clinic_bot(body, request.state.user, request.state.tenant_id, db)
 
 
 @router.get("/join-codes/current", response_model=CurrentJoinCode, dependencies=[Depends(require_clinical_access)])
@@ -262,52 +78,17 @@ def preview(code: str, db: DB):
 
 @router.post("/owner/register", response_model=OwnerRead, status_code=201)
 def register(body: OwnerRegister, request: Request, response: Response, db: DB):
-    code = repo.code_by_value(db, body.code)
-    repo.email_available(db, body.email, code.tenant_id)
-    session = db.get(OwnerSession, session_digest(request.cookies.get(COOKIE, "")))
-    active_owner = db.get(OwnerAccount, session.owner_account_uuid) if session and session.expires > time.time() else None
-    if active_owner and active_owner.tenant_id == code.tenant_id:
-        raise HTTPException(409, "В этой клинике уже открыт кабинет владельца")
-    salt = secrets.token_hex(16)
-    owner = OwnerAccount(name=body.name, email=body.email, phone=body.phone,
-                         password_salt=salt, password_hash=repo.password_hash(body.password, salt),
-                         doctor_user_id=code.doctor_user_id, join_code_uuid=code.uuid,
-                         workspace=code.workspace, tenant_id=code.tenant_id)
-    db.add(owner)
-    try:
-        db.flush()
-        db.add(OwnerRegistration(owner_account_uuid=owner.uuid))
-        create_session(db, request, response, owner)
-    except IntegrityError as exc:
-        db.rollback()
-        raise HTTPException(409, repo.TAKEN_EMAIL) from exc
-    return repo.owner_read(db, owner)
-
-
-def password_owner(db: Session, body: OwnerLogin, code: JoinCode) -> OwnerAccount:
-    owner = db.scalar(select(OwnerAccount).where(OwnerAccount.email == repo.normalize_email(body.email),
-                                               OwnerAccount.tenant_id == code.tenant_id))
-    # Equal expensive work for unknown emails and incorrect passwords.
-    candidate = repo.password_hash(body.password, owner.password_salt if owner and owner.password_salt else "00" * 16)
-    if owner is None or not secrets.compare_digest(candidate, owner.password_hash or ""):
-        raise HTTPException(401, "Неверная почта или пароль")
-    return owner
+    return profile.register(body, request, response, db)
 
 
 @router.post("/owner/login", response_model=OwnerRead)
 def login(body: OwnerLogin, request: Request, response: Response, db: DB):
-    owner = password_owner(db, body, repo.code_by_value(db, body.code))
-    create_session(db, request, response, owner)
-    return repo.owner_read(db, owner)
+    return profile.login(body, request, response, db)
 
 
 @router.post("/owner/logout")
 def logout(request: Request, response: Response, db: DB):
-    row = db.get(OwnerSession, session_digest(request.cookies.get(COOKIE, "")))
-    if row:
-        db.delete(row)
-        db.commit()
-    response.delete_cookie(COOKIE, path="/")
+    end_session(request, response, db)
     return {"ok": True}
 
 
@@ -318,26 +99,7 @@ def me(owner: Owner, db: DB):
 
 @router.patch("/owner/me", response_model=OwnerRead)
 def update_me(body: OwnerProfileUpdate, owner: Owner, db: DB):
-    registration = repo.registration_for_owner(db, owner, lock=True)
-    if owner.password_hash and not body.email:
-        raise HTTPException(422, "Укажите почту для входа")
-    if body.email:
-        repo.email_available(db, body.email, owner.tenant_id, owner.uuid)
-    if registration.client_uuid:
-        code = db.get(JoinCode, owner.join_code_uuid)
-        client = repo.linked_client(db, registration.client_uuid, code)
-        for key, value in body.model_dump().items():
-            setattr(client, key, value or None if key == "email" else value)
-        client.updated_at = utc_now()
-    for key, value in body.model_dump().items():
-        setattr(owner, key, value or None if key == "email" else value)
-    owner.updated_at = utc_now()
-    try:
-        db.commit()
-    except IntegrityError as exc:
-        db.rollback()
-        raise HTTPException(409, repo.TAKEN_EMAIL) from exc
-    return repo.owner_read(db, owner)
+    return profile.update_me(body, owner, db)
 
 
 @router.get("/owner/animals/{animal_id}/files", response_model=list[OwnerFileRead])
@@ -382,21 +144,13 @@ def registrations(request: Request, db: DB):
 @router.get("/owner-registrations/{registration_id}/patients", response_model=list[AnimalRead],
             dependencies=[Depends(require_clinical_access)])
 def matching_patients(registration_id: UUID, client_uuid: UUID, request: Request, db: DB):
-    _, _, code = repo.registration_context(db, registration_id)
-    repo.authorize_registration(code, request.state.user)
-    repo.linked_client(db, client_uuid, code)
-    return list(db.scalars(select(Patient).where(Patient.client_uuid == client_uuid,
-        repo.workspace_filter(Patient, code)).order_by(Patient.name, Patient.uuid)))
+    return repo.matching_patients(db, registration_id, client_uuid, request.state.user)
 
 
 @router.post("/owner-registrations/{registration_id}/accept", response_model=RegistrationAccepted,
              dependencies=[Depends(require_user)])
 def accept(registration_id: UUID, body: RegistrationAccept, request: Request, db: DB):
-    # Permission and row provenance follow the invitation, independent of the selected workspace.
-    db.info["user"] = request.state.user
-    registration = repo.accept_registration(db, registration_id, body)
-    db.commit()
-    return dict(uuid=registration.uuid, client_uuid=registration.client_uuid, status=registration.status)
+    return registration_service.accept_and_commit(db, registration_id, body, request.state.user)
 
 
 @router.get("/owner/animals/{animal_id}/uploads", response_model=list[OwnerUploadRead])
@@ -411,15 +165,5 @@ def upload_owner_media(animal_id: UUID, file: UploadFile, kind: Annotated[Litera
 
 @router.get("/owner/uploads/{upload_id}")
 def download_owner_upload(upload_id: UUID, owner: Owner, db: DB):
-    row = db.scalar(select(OwnerUpload).where(OwnerUpload.uuid == upload_id, OwnerUpload.owner_account_uuid == owner.uuid))
-    if row is None:
-        raise HTTPException(404, "Файл не найден")
-    # Resolve ownership again, so a removed animal does not leave a readable URL.
-    current = next((animal.uuid for animal in repo.list_animals(db, owner) if animal.uuid == row.animal_uuid), None)
-    if current is None:
-        previous = db.get(OwnerAnimal, row.animal_uuid)
-        current = previous.patient_uuid if previous else None
-    if current is None:
-        raise HTTPException(404, "Животное не найдено")
-    uploads.animal_ids(db, owner, current)
+    row = uploads.get_owner_upload(db, owner, upload_id)
     return uploads.download(row, inline=row.kind == "photo")

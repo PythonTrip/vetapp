@@ -1,6 +1,6 @@
 # VetDietDerm API — Test Map
 
-> Source: repository not supplied · ref `0308862f9d870ce387a7dbb9cc0055a6796906d0`
+> Source: repository not supplied · ref `0d87f973dfa74c7c66c6363d8245c83d47896d3f`
 
 ## Short Review
 
@@ -17,9 +17,9 @@
 | Module | Feature | Place (file / API / method / class) | Expected results |
 |---|---|---|---|
 | **Clinical workflow** | **Persist a patient's encounter and appointment** (`FEAT-API-CLINICAL`)<br>Checks: `CHECK-API-CLINICAL` | `apps/api/src/vetdietderm_api/patients/router.py`<br>`apps/api/src/vetdietderm_api/encounters/router.py`<br>`apps/api/src/vetdietderm_api/appointments/router.py`<br>`apps/api/src/vetdietderm_api/attachments/router.py` | A separate read returns the encounter values, the linked appointment and the stored attachment. |
-| **Nutrition** | **Save and explicitly replace a diet plan snapshot** (`FEAT-API-NUTRITION`)<br>Checks: `CHECK-API-NUTRITION` | `apps/api/src/vetdietderm_api/catalog/router.py`<br>`apps/api/src/vetdietderm_api/assessments/router.py`<br>`apps/api/src/vetdietderm_api/standards/fediaf/v2025/provider.py` | Renaming a catalog food preserves the saved snapshot. Explicit replacement records newly selected inputs and provider provenance. |
-| **Authorization** | **Restrict client records by clinic and role** (`FEAT-API-CLINIC-ACCESS`)<br>Checks: `CHECK-API-CLINIC-ACCESS` | `apps/api/src/vetdietderm_api/auth.py`<br>`apps/api/src/vetdietderm_api/patients/router.py` | The owning clinic keeps access to its record. Another clinic cannot read or change it, and a viewer cannot create a record. |
-| **Visits** | **Preserve owner submissions and schedule confirmed visits** (`FEAT-API-VISITS`)<br>Checks: `CHECK-API-VISITS`, `CHECK-API-VISIT-CONFIRMATION-PG` | `apps/api/src/vetdietderm_api/visits/router.py`<br>`apps/api/src/vetdietderm_api/questionnaires/router.py`<br>`apps/api/src/vetdietderm_api/appointments/router.py` | Submitted answers survive questionnaire edits. Valid confirmation creates a typed appointment. Invalid confirmation leaves the request and registration pending. |
+| **Nutrition** | **Save and explicitly replace a diet plan snapshot** (`FEAT-API-NUTRITION`)<br>Checks: `CHECK-API-NUTRITION` | `apps/api/src/vetdietderm_api/catalog/router.py`<br>`apps/api/src/vetdietderm_api/assessments/router.py`<br>`apps/api/src/vetdietderm_api/assessments/plans.py`<br>`apps/api/src/vetdietderm_api/assessments/service.py`<br>`apps/api/src/vetdietderm_api/standards/fediaf/v2025/provider.py` | Renaming a catalog food preserves the saved snapshot. Explicit replacement records newly selected inputs and provider provenance. |
+| **Authorization** | **Restrict client records by clinic and role** (`FEAT-API-CLINIC-ACCESS`)<br>Checks: `CHECK-API-CLINIC-ACCESS` | `apps/api/src/vetdietderm_api/auth.py`<br>`apps/api/src/vetdietderm_api/auth_sessions.py`<br>`apps/api/src/vetdietderm_api/tenancy.py`<br>`apps/api/src/vetdietderm_api/patients/router.py` | The owning clinic keeps access to its record. Another clinic cannot read or change it, and a viewer cannot create a record. |
+| **Visits** | **Preserve owner submissions and schedule confirmed visits** (`FEAT-API-VISITS`)<br>Checks: `CHECK-API-VISITS`, `CHECK-API-VISIT-CONFIRMATION-PG` | `apps/api/src/vetdietderm_api/visits/router.py`<br>`apps/api/src/vetdietderm_api/visits/service.py`<br>`apps/api/src/vetdietderm_api/questionnaires/service.py`<br>`apps/api/src/vetdietderm_api/owners/registrations.py`<br>`apps/api/src/vetdietderm_api/appointments/router.py` | Submitted answers survive questionnaire edits. Valid confirmation creates a typed appointment. Invalid confirmation leaves the request and registration pending. |
 
 ### Included
 
@@ -116,7 +116,7 @@ tests/
 
 **Schedule:** `pull_request`, `main_push`, `release_candidate` · **Blocking:** `pull_request`, `main_push`, `release_candidate`
 
-**Implementation:** `implemented` · **test_ref:** `tests/integration/test_clinical_workflow.py`
+**Implementation:** `implemented` · **test_ref:** `tests/integration/test_clinical_workflow.py::test_clinical_records_persist_across_requests_and_attachment_storage`
 
 ## CHECK-API-NUTRITION — Assess a ration, save a plan, rename its food and then explicitly replace the plan snapshot.
 
@@ -134,7 +134,7 @@ tests/
 
 **Schedule:** `pull_request`, `main_push`, `release_candidate` · **Blocking:** `pull_request`, `main_push`, `release_candidate`
 
-**Implementation:** `implemented` · **test_ref:** `tests/integration/test_nutrition_workflow.py`
+**Implementation:** `implemented` · **test_ref:** `tests/integration/test_nutrition_workflow.py::test_catalog_assessment_and_diet_plan_snapshot_are_integrated`
 
 ## CHECK-API-CLINIC-ACCESS — Compare access to a client record for its clinic, another clinic and a viewer.
 
@@ -152,7 +152,7 @@ tests/
 
 **Schedule:** `pull_request`, `main_push`, `release_candidate` · **Blocking:** `pull_request`, `main_push`, `release_candidate`
 
-**Implementation:** `implemented` · **test_ref:** `tests/integration/test_multi_user_boundaries.py`
+**Implementation:** `implemented` · **test_ref:** `tests/integration/test_multi_user_boundaries.py::test_tenant_boundaries_and_parallel_refresh`
 
 ## CHECK-API-VISITS — Submit a visit request, change the published questionnaire, and exercise valid and invalid confirmation cases.
 
@@ -188,4 +188,4 @@ tests/
 
 **Schedule:** `pull_request`, `main_push`, `release_candidate` · **Blocking:** `pull_request`, `main_push`, `release_candidate`
 
-**Implementation:** `implemented` · **test_ref:** `tests/integration/test_visit_confirmation_postgres.py`
+**Implementation:** `implemented` · **test_ref:** `tests/integration/test_visit_confirmation_postgres.py::test_missing_visit_file_rolls_back_confirmation_and_allows_retry`

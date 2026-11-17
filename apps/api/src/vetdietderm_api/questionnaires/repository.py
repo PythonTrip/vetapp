@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from vetdietderm_api.ids import uuid6
 from vetdietderm_api.questionnaires.models import VisitQuestion, VisitQuestionnaire, utc_now
 from vetdietderm_api.questionnaires.schemas import (
-    QuestionRead, QuestionnaireRead, QuestionnaireWrite, VisitType,
+    QuestionRead, QuestionnaireRead, QuestionWrite, VisitType,
 )
 
 PUBLICATION_RETRY = "Не удалось подтвердить публикацию анкеты клиники. Повторите запрос"
@@ -43,7 +43,7 @@ def missing_clinic_questionnaire(session: Session, clinic_id: UUID) -> bool:
         VisitQuestionnaire.tenant_id == clinic_id).limit(1)) is None
 
 
-def _publication_lock(session: Session, clinic_id: UUID) -> None:
+def lock_publication(session: Session, clinic_id: UUID) -> None:
     # Same transaction lock for the owner migration and a staff replacement.
     if session.get_bind().dialect.name != "postgresql":
         return
@@ -58,7 +58,7 @@ def clinic_slot(session: Session, clinic_id: UUID, visit_type: VisitType) -> Vis
     ).with_for_update())
 
 
-def _question_rows(session: Session, row: VisitQuestionnaire) -> list[VisitQuestion]:
+def question_rows(session: Session, row: VisitQuestionnaire) -> list[VisitQuestion]:
     return list(session.scalars(select(VisitQuestion).where(
         VisitQuestion.questionnaire_uuid == row.uuid,
     ).order_by(VisitQuestion.position)))
@@ -73,7 +73,7 @@ def freeze_clinic_questionnaires(session: Session, clinic_id: UUID, members: lis
     published for another clinic is not a candidate. Empty membership is not an
     empty publication.
     """
-    _publication_lock(session, clinic_id)
+    lock_publication(session, clinic_id)
     member_ids, administrator_ids = _members(members)
     if not member_ids:
         raise HTTPException(503, PUBLICATION_RETRY)
@@ -103,7 +103,7 @@ def freeze_clinic_questionnaires(session: Session, clinic_id: UUID, members: lis
 
 
 def ensure_clinic_slot(session: Session, clinic_id: UUID, user_id: UUID, visit_type: VisitType) -> VisitQuestionnaire:
-    _publication_lock(session, clinic_id)
+    lock_publication(session, clinic_id)
     row = clinic_slot(session, clinic_id, visit_type)
     if row is not None:
         return row
@@ -139,75 +139,45 @@ def ensure_clinic_slot(session: Session, clinic_id: UUID, user_id: UUID, visit_t
 
 
 def read_slot(session: Session, row: VisitQuestionnaire) -> QuestionnaireRead:
-    questions = session.scalars(select(VisitQuestion).where(
-        VisitQuestion.questionnaire_uuid == row.uuid,
-    ).order_by(VisitQuestion.position)).all()
+    questions = question_rows(session, row)
     return QuestionnaireRead(uuid=row.uuid, visit_type=row.visit_type, updated_at=row.updated_at,
                              questions=[QuestionRead.model_validate(q) for q in questions])
 
 
-def published_clinic_questionnaire(session: Session, clinic_id: UUID,
-                                   user_id: UUID | None = None,
-                                   members: list[dict] | None = None) -> VisitQuestionnaire:
-    """Select primary, otherwise newest publication; seed only an empty clinic."""
-    _publication_lock(session, clinic_id)
+def lock_preferred_questionnaire(session: Session, clinic_id: UUID) -> VisitQuestionnaire | None:
+    return session.scalar(
+        select(VisitQuestionnaire)
+        .where(VisitQuestionnaire.tenant_id == clinic_id)
+        .order_by(
+            (VisitQuestionnaire.visit_type == "primary").desc(),
+            VisitQuestionnaire.updated_at.desc(),
+            VisitQuestionnaire.uuid.desc(),
+        )
+        .limit(1)
+        .with_for_update()
+    )
 
-    def kept():
-        return session.scalar(select(VisitQuestionnaire).where(
-            VisitQuestionnaire.tenant_id == clinic_id,
-        ).order_by((VisitQuestionnaire.visit_type == "primary").desc(),
-                   VisitQuestionnaire.updated_at.desc(), VisitQuestionnaire.uuid.desc())
-          .limit(1).with_for_update())
 
-    row = kept()
-    if row is not None:
-        return row
-    if session.scalar(select(VisitQuestionnaire.uuid).where(
-            VisitQuestionnaire.tenant_id.is_(None)).limit(1)) is not None:
-        if members is None:
-            from vetdietderm_api.auth import clinic_members, staff_access_tokens
-            tokens = staff_access_tokens(session)
-            session.rollback()
-            members = clinic_members(clinic_id, tokens)
-            _publication_lock(session, clinic_id)
-        freeze_clinic_questionnaires(session, clinic_id, members)
-        row = kept()
-        if row is not None:
-            return row
+def has_legacy_questionnaire(session: Session) -> bool:
+    return session.scalar(select(VisitQuestionnaire.uuid).where(
+        VisitQuestionnaire.tenant_id.is_(None),
+    ).limit(1)) is not None
+
+
+def clinic_doctor_id(session: Session, clinic_id: UUID) -> UUID | None:
+    from vetdietderm_api.owners.models import ClinicLink, JoinCode
+
+    user_id = session.scalar(select(JoinCode.doctor_user_id).join(
+        ClinicLink, ClinicLink.code == JoinCode.code,
+    ).where(ClinicLink.clinic_id == clinic_id))
     if user_id is None:
-        from vetdietderm_api.owners.models import ClinicLink, JoinCode
-        user_id = session.scalar(select(JoinCode.doctor_user_id).join(
-            ClinicLink, ClinicLink.code == JoinCode.code).where(ClinicLink.clinic_id == clinic_id))
-        if user_id is None:
-            user_id = session.scalar(select(JoinCode.doctor_user_id).where(JoinCode.tenant_id == clinic_id))
-    if user_id is None:
-        raise HTTPException(503, PUBLICATION_RETRY)
-    return ensure_clinic_slot(session, clinic_id, user_id, VisitType.primary)
+        user_id = session.scalar(select(JoinCode.doctor_user_id).where(JoinCode.tenant_id == clinic_id))
+    return user_id
 
 
-def list_questionnaires(session: Session, clinic_id: UUID, user_id: UUID,
-                        members: list[dict] | None) -> list[QuestionnaireRead]:
-    row = published_clinic_questionnaire(session, clinic_id, user_id, members)
-    result = [read_slot(session, row)]
-    session.commit()
-    return result
-
-
-def replace_questionnaire(session: Session, clinic_id: UUID, user_id: UUID, visit_type: VisitType,
-                          payload: QuestionnaireWrite) -> QuestionnaireRead:
-    _publication_lock(session, clinic_id)
-    if visit_type != VisitType.primary and missing_clinic_questionnaire(session, clinic_id):
-        raise HTTPException(404, "Анкета не найдена")
-    row = published_clinic_questionnaire(session, clinic_id, user_id)
-    if row.visit_type != visit_type:
-        raise HTTPException(404, "Анкета не найдена")
-    session.execute(delete(VisitQuestion).where(VisitQuestion.questionnaire_uuid == row.uuid))
-    for position, question in enumerate(payload.questions):
-        session.add(VisitQuestion(questionnaire_uuid=row.uuid, position=position,
-                                  **question.model_dump(mode="json")))
-    row.tenant_id = clinic_id
-    row.updated_at = utc_now()
-    session.flush()
-    result = read_slot(session, row)
-    session.commit()
-    return result
+def replace_questions(session: Session, questionnaire: VisitQuestionnaire, questions: list[QuestionWrite]) -> None:
+    session.execute(delete(VisitQuestion).where(VisitQuestion.questionnaire_uuid == questionnaire.uuid))
+    for position, question in enumerate(questions):
+        session.add(VisitQuestion(
+            questionnaire_uuid=questionnaire.uuid, position=position, **question.model_dump(mode="json"),
+        ))

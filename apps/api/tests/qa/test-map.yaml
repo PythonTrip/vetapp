@@ -2,7 +2,7 @@ schema_version: 1
 project:
   name: VetDietDerm API
   evidence_level: repository_inferred
-  commit: 0308862f9d870ce387a7dbb9cc0055a6796906d0
+  commit: 0d87f973dfa74c7c66c6363d8245c83d47896d3f
   owner: unassigned
 approvals:
   core: {status: pending, approver: null, approved_at: null, evidence: null, fingerprint: null}
@@ -75,17 +75,17 @@ features:
   - id: FEAT-API-NUTRITION
     module: Nutrition
     feature: Save and explicitly replace a diet plan snapshot
-    places: [apps/api/src/vetdietderm_api/catalog/router.py, apps/api/src/vetdietderm_api/assessments/router.py, apps/api/src/vetdietderm_api/standards/fediaf/v2025/provider.py]
+    places: [apps/api/src/vetdietderm_api/catalog/router.py, apps/api/src/vetdietderm_api/assessments/router.py, apps/api/src/vetdietderm_api/assessments/plans.py, apps/api/src/vetdietderm_api/assessments/service.py, apps/api/src/vetdietderm_api/standards/fediaf/v2025/provider.py]
     expected: Renaming a catalog food preserves the saved snapshot. Explicit replacement records newly selected inputs and provider provenance.
   - id: FEAT-API-CLINIC-ACCESS
     module: Authorization
     feature: Restrict client records by clinic and role
-    places: [apps/api/src/vetdietderm_api/auth.py, apps/api/src/vetdietderm_api/patients/router.py]
+    places: [apps/api/src/vetdietderm_api/auth.py, apps/api/src/vetdietderm_api/auth_sessions.py, apps/api/src/vetdietderm_api/tenancy.py, apps/api/src/vetdietderm_api/patients/router.py]
     expected: The owning clinic keeps access to its record. Another clinic cannot read or change it, and a viewer cannot create a record.
   - id: FEAT-API-VISITS
     module: Visits
     feature: Preserve owner submissions and schedule confirmed visits
-    places: [apps/api/src/vetdietderm_api/visits/router.py, apps/api/src/vetdietderm_api/questionnaires/router.py, apps/api/src/vetdietderm_api/appointments/router.py]
+    places: [apps/api/src/vetdietderm_api/visits/router.py, apps/api/src/vetdietderm_api/visits/service.py, apps/api/src/vetdietderm_api/questionnaires/service.py, apps/api/src/vetdietderm_api/owners/registrations.py, apps/api/src/vetdietderm_api/appointments/router.py]
     expected: Submitted answers survive questionnaire edits. Valid confirmation creates a typed appointment. Invalid confirmation leaves the request and registration pending.
 checks:
   - id: CHECK-API-CLINICAL
@@ -104,7 +104,7 @@ checks:
     blocking_on: *core_events
     safe_in_production: false
     status: implemented
-    test_ref: tests/integration/test_clinical_workflow.py
+    test_ref: tests/integration/test_clinical_workflow.py::test_clinical_records_persist_across_requests_and_attachment_storage
     owner: unassigned
   - id: CHECK-API-NUTRITION
     feature_id: FEAT-API-NUTRITION
@@ -122,7 +122,7 @@ checks:
     blocking_on: *core_events
     safe_in_production: false
     status: implemented
-    test_ref: tests/integration/test_nutrition_workflow.py
+    test_ref: tests/integration/test_nutrition_workflow.py::test_catalog_assessment_and_diet_plan_snapshot_are_integrated
     owner: unassigned
   - id: CHECK-API-CLINIC-ACCESS
     feature_id: FEAT-API-CLINIC-ACCESS
@@ -140,7 +140,7 @@ checks:
     blocking_on: *core_events
     safe_in_production: false
     status: implemented
-    test_ref: tests/integration/test_multi_user_boundaries.py
+    test_ref: tests/integration/test_multi_user_boundaries.py::test_tenant_boundaries_and_parallel_refresh
     owner: unassigned
   - id: CHECK-API-VISITS
     feature_id: FEAT-API-VISITS
@@ -176,18 +176,33 @@ checks:
     blocking_on: *core_events
     safe_in_production: false
     status: implemented
-    test_ref: tests/integration/test_visit_confirmation_postgres.py
+    test_ref: tests/integration/test_visit_confirmation_postgres.py::test_missing_visit_file_rolls_back_confirmation_and_allows_retry
     owner: unassigned
 impact_rules:
-  - paths: [apps/api/tests/integration/conftest.py, apps/api/src/vetdietderm_api/db.py]
-    checks: [CHECK-API-CLINICAL, CHECK-API-NUTRITION, CHECK-API-CLINIC-ACCESS, CHECK-API-VISIT-CONFIRMATION-PG]
-  - paths: [apps/api/src/vetdietderm_api/standards, apps/api/src/vetdietderm_api/catalog]
+  - paths:
+      - apps/api/tests/integration/conftest.py
+      - apps/api/src/vetdietderm_api/main.py
+      - apps/api/src/vetdietderm_api/routing.py
+      - apps/api/src/vetdietderm_api/orm.py
+      - apps/api/src/vetdietderm_api/db.py
+      - apps/api/src/vetdietderm_api/tenancy.py
+      - apps/api/src/vetdietderm_api/auth.py
+      - apps/api/src/vetdietderm_api/auth_client.py
+      - apps/api/src/vetdietderm_api/auth_models.py
+      - apps/api/src/vetdietderm_api/auth_sessions.py
+      - apps/api/src/vetdietderm_api/clinic_transfer.py
+    checks: [CHECK-API-CLINICAL, CHECK-API-NUTRITION, CHECK-API-CLINIC-ACCESS, CHECK-API-VISITS, CHECK-API-VISIT-CONFIRMATION-PG]
+  - paths: [apps/api/src/vetdietderm_api/patients, apps/api/src/vetdietderm_api/encounters, apps/api/src/vetdietderm_api/appointments, apps/api/src/vetdietderm_api/attachments, apps/api/tests/integration/test_clinical_workflow.py]
+    checks: [CHECK-API-CLINICAL]
+  - paths: [apps/api/src/vetdietderm_api/assessments, apps/api/src/vetdietderm_api/standards, apps/api/src/vetdietderm_api/catalog, apps/api/tests/integration/test_nutrition_workflow.py, apps/api/tests/unit/assessments]
     checks: [CHECK-API-NUTRITION]
-  - paths: [apps/api/src/vetdietderm_api/visits, apps/api/src/vetdietderm_api/questionnaires, apps/api/tests/integration/test_owner_cabinet.py, apps/api/tests/integration/test_visit_requests.py]
+  - paths: [apps/api/src/vetdietderm_api/patients, apps/api/tests/integration/test_multi_user_boundaries.py]
+    checks: [CHECK-API-CLINIC-ACCESS]
+  - paths: [apps/api/src/vetdietderm_api/visits, apps/api/src/vetdietderm_api/questionnaires, apps/api/src/vetdietderm_api/owners, apps/api/src/vetdietderm_api/chat/repository.py, apps/api/tests/integration/test_owner_cabinet.py, apps/api/tests/integration/test_visit_requests.py]
     checks: [CHECK-API-VISITS]
-  - paths: [apps/api/src/vetdietderm_api/visits, apps/api/src/vetdietderm_api/owners, apps/api/src/vetdietderm_api/attachments, apps/api/tests/integration/test_visit_confirmation_postgres.py]
+  - paths: [apps/api/src/vetdietderm_api/visits, apps/api/src/vetdietderm_api/questionnaires, apps/api/src/vetdietderm_api/owners, apps/api/src/vetdietderm_api/chat/repository.py, apps/api/src/vetdietderm_api/attachments, apps/api/tests/integration/test_visit_confirmation_postgres.py]
     checks: [CHECK-API-VISIT-CONFIRMATION-PG]
 metadata:
   discovery: PROJECT_CONTEXT_MISSING at apps/api/docs/PROJECT.md. Shared docs/PROJECT.md and relevant PRDs were used as repository evidence.
   references: Feature and impact paths are repository-relative. Test references are relative to apps/api.
-  reconciliation: The visit confirmation check collects as tests/integration/test_visit_confirmation_postgres.py::test_missing_visit_file_rolls_back_confirmation_and_allows_retry.
+  reconciliation: The commit identifies the base of the working-tree API refactor reviewed for this draft. Pytest collection verified the four exact node references and the existing visit scenario suite.

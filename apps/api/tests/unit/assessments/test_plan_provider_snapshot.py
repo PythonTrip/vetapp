@@ -1,6 +1,6 @@
 from uuid import uuid4
 
-from vetdietderm_api.assessments import plans
+from vetdietderm_api.assessments import plans, repository
 from vetdietderm_api.assessments.schemas import (
     AnimalProfile,
     AssessmentRequest,
@@ -22,7 +22,7 @@ def test_new_plan_snapshot_freezes_provider_and_result(monkeypatch) -> None:
         feed_form="dry",
         values={"ME": FoodValue(value=350, value_status="measured")},
     )
-    monkeypatch.setattr(plans.repository, "load_foods", lambda _session, _ids: {food_uuid: food})
+    monkeypatch.setattr(repository, "load_foods", lambda _session, _ids: {food_uuid: food})
     payload = DietPlanWrite(
         name="Provider snapshot",
         assessment_request=AssessmentRequest(

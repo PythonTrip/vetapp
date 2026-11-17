@@ -1,11 +1,9 @@
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 
-from vetdietderm_api.assessments import repository
-from vetdietderm_api.assessments.engine import assess_nutrition  # noqa: F401 - legacy test hook
+from vetdietderm_api.assessments import repository, service
 from vetdietderm_api.assessments.models import DietPlan, utc_now
 from vetdietderm_api.assessments.schemas import (
     AssessmentSnapshot,
@@ -18,12 +16,7 @@ from vetdietderm_api.assessments.schemas import (
 from vetdietderm_api.patients.models import Patient
 from vetdietderm_api.standards import STANDARD_REGISTRY
 
-LIST_CAP = 50
 LEGACY_ENERGY_ADJUSTMENT_PERCENT = 100.0
-
-
-def _not_found() -> HTTPException:
-    return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="План питания не найден")
 
 
 def _validate_patient(session: Session, patient_uuid: UUID | None) -> Patient | None:
@@ -44,8 +37,7 @@ def _compute_snapshot(
 ) -> tuple[list[dict[str, object]], dict[str, object]]:
     request = payload.assessment_request
     provider = STANDARD_REGISTRY.active()
-    foods = repository.load_foods(session, [item.food_uuid for item in request.components])
-    assessment = provider.assess(request, foods)
+    assessment, foods = service.assess(session, request, provider=provider)
     ration = [
         DietPlanRationComponent(
             food_uuid=item.food_uuid,
@@ -69,17 +61,6 @@ def _compute_snapshot(
         result=assessment,
     ).model_dump(mode="json")
     return ration, snapshot
-
-
-def _plan_stmt():
-    return select(DietPlan).options(joinedload(DietPlan.patient))
-
-
-def get_plan(session: Session, plan_uuid: UUID) -> DietPlan:
-    plan = session.scalars(_plan_stmt().where(DietPlan.uuid == plan_uuid)).one_or_none()
-    if plan is None:
-        raise _not_found()
-    return plan
 
 
 def _patient_reference(patient: Patient | None) -> PatientPlanReference | None:
@@ -153,14 +134,6 @@ def to_summary(plan: DietPlan) -> DietPlanSummary:
     )
 
 
-def list_plans(session: Session, patient_uuid: UUID | None) -> list[DietPlan]:
-    stmt = _plan_stmt()
-    if patient_uuid is not None:
-        stmt = stmt.where(DietPlan.patient_uuid == patient_uuid)
-    stmt = stmt.order_by(DietPlan.updated_at.desc()).limit(LIST_CAP)
-    return list(session.scalars(stmt).unique().all())
-
-
 def create_plan(session: Session, payload: DietPlanWrite) -> DietPlan:
     patient = _validate_patient(session, payload.patient_uuid)
     ration, snapshot = _compute_snapshot(session, payload)
@@ -174,11 +147,11 @@ def create_plan(session: Session, payload: DietPlanWrite) -> DietPlan:
     )
     session.add(plan)
     session.commit()
-    return get_plan(session, plan.uuid)
+    return repository.get_plan(session, plan.uuid)
 
 
 def update_plan(session: Session, plan_uuid: UUID, payload: DietPlanWrite) -> DietPlan:
-    plan = get_plan(session, plan_uuid)
+    plan = repository.get_plan(session, plan_uuid)
     patient = _validate_patient(session, payload.patient_uuid)
     ration, snapshot = _compute_snapshot(session, payload)
     plan.name = payload.name
@@ -189,4 +162,4 @@ def update_plan(session: Session, plan_uuid: UUID, payload: DietPlanWrite) -> Di
     plan.notes = payload.notes
     plan.updated_at = utc_now()
     session.commit()
-    return get_plan(session, plan.uuid)
+    return repository.get_plan(session, plan.uuid)

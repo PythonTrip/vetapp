@@ -3,8 +3,9 @@ from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
+from vetdietderm_api.assessments.models import DietPlan
 from vetdietderm_api.catalog.models import (
     Food,
     FoodNutrientValue,
@@ -12,6 +13,8 @@ from vetdietderm_api.catalog.models import (
 )
 from vetdietderm_api.catalog.nutrient_selection import nutrient_value_order
 from vetdietderm_api.standards.contract import FoodSnapshot, FoodValue
+
+LIST_CAP = 50
 
 
 def load_foods(session: Session, food_uuids: list[UUID]) -> dict[UUID, FoodSnapshot]:
@@ -50,3 +53,26 @@ def load_foods(session: Session, food_uuids: list[UUID]) -> dict[UUID, FoodSnaps
         )
         for food in foods
     }
+
+
+def _not_found() -> HTTPException:
+    return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="План питания не найден")
+
+
+def _plan_stmt():
+    return select(DietPlan).options(joinedload(DietPlan.patient))
+
+
+def get_plan(session: Session, plan_uuid: UUID) -> DietPlan:
+    plan = session.scalars(_plan_stmt().where(DietPlan.uuid == plan_uuid)).one_or_none()
+    if plan is None:
+        raise _not_found()
+    return plan
+
+
+def list_plans(session: Session, patient_uuid: UUID | None) -> list[DietPlan]:
+    stmt = _plan_stmt()
+    if patient_uuid is not None:
+        stmt = stmt.where(DietPlan.patient_uuid == patient_uuid)
+    stmt = stmt.order_by(DietPlan.updated_at.desc()).limit(LIST_CAP)
+    return list(session.scalars(stmt).unique().all())

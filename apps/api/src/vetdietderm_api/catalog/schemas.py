@@ -38,7 +38,7 @@ class NutrientValueStatus(StrEnum):
     unknown = "unknown"
 
 
-def _blank_to_none(value: str | None) -> str | None:
+def optional_food_label(value: str | None) -> str | None:
     if value is None:
         return None
     stripped = value.strip()
@@ -57,7 +57,7 @@ class FoodCreate(BaseModel):
     @field_validator("category", "subcategory", mode="before")
     @classmethod
     def empty_optional_to_none(cls, value: str | None) -> str | None:
-        return _blank_to_none(value)
+        return optional_food_label(value)
 
 
 class FoodUpdate(BaseModel):
@@ -72,7 +72,7 @@ class FoodUpdate(BaseModel):
     @field_validator("category", "subcategory", mode="before")
     @classmethod
     def empty_optional_to_none(cls, value: str | None) -> str | None:
-        return _blank_to_none(value)
+        return optional_food_label(value)
 
     @model_validator(mode="after")
     def required_fields_cannot_be_null(self) -> "FoodUpdate":

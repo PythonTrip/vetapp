@@ -11,7 +11,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 
 from tests.integration.test_owner_cabinet import cabinet, register  # noqa: F401
-from vetdietderm_api.owners import router as owners
+from vetdietderm_api.owners import sessions as owner_sessions, telegram_accounts
 from vetdietderm_api.owners.models import ClinicBot, OwnerAccount, TelegramIdentity
 from vetdietderm_api.owners.telegram import validate_init_data
 from vetdietderm_api.settings import Settings
@@ -58,7 +58,8 @@ def test_invalid_or_expired_data(raw):
 @pytest.fixture
 def telegram(cabinet, monkeypatch):
     settings = Settings(DATABASE_URL="sqlite://", FRONTEND_URL="http://testserver", TELEGRAM_BOT_TOKEN="unused-deployment-token")
-    monkeypatch.setattr(owners, "get_settings", lambda: settings)
+    monkeypatch.setattr(telegram_accounts, "get_settings", lambda: settings)
+    monkeypatch.setattr(owner_sessions, "get_settings", lambda: settings)
     staff, _, factory, user = cabinet
     staff.get("/join-codes/current").raise_for_status()
     with factory() as db:
@@ -77,13 +78,13 @@ def test_link_login_replay_logout_and_doctor_binding(telegram, workspace):
     staff, owner, factory, user = telegram
     code = staff.get("/join-codes/current", headers={"X-Vetapp-Workspace": workspace}).json()["code"]
     account = register(owner, code).json()
-    old_session = owner.cookies.get(owners.COOKIE)
+    old_session = owner.cookies.get(owner_sessions.COOKIE)
     raw = signed(query_id="link")
     assert owner.post("/owner/telegram/link", json=link_body(code, raw, password="wrong")).status_code == 401
     result = owner.post("/owner/telegram/link", json=link_body(code, raw))
     assert result.status_code == 200, result.text
     assert result.json()["uuid"] == account["uuid"]
-    assert owner.cookies.get(owners.COOKIE) != old_session
+    assert owner.cookies.get(owner_sessions.COOKIE) != old_session
     assert "HttpOnly" in result.headers["set-cookie"]
     assert owner.post("/owner/telegram/login", json={"code": code, "init_data": raw}).status_code == 409
     owner.post("/owner/logout")

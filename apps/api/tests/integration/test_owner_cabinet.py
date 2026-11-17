@@ -16,6 +16,7 @@ from vetdietderm_api.db import Base
 from vetdietderm_api.main import create_app
 from vetdietderm_api.owners import repository as repo
 from vetdietderm_api.owners import router as owners
+from vetdietderm_api.owners import sessions as owner_sessions
 from vetdietderm_api.owners.models import OwnerAccount, OwnerRegistration, OwnerSession, StaffEmailReservation
 from vetdietderm_api.patients.models import Client, Patient
 
@@ -32,8 +33,9 @@ def cabinet(monkeypatch):
     factory = sessionmaker(bind=engine, expire_on_commit=False)
     from vetdietderm_api import db as database
     monkeypatch.setattr(database, "get_engine", lambda: engine)
-    for module in (auth, owners):
+    for module in (auth, owner_sessions):
         monkeypatch.setattr(module, "get_session_factory", lambda: factory)
+    for module in (auth, owners, owner_sessions):
         monkeypatch.setattr(module, "get_settings", lambda: SimpleNamespace(
             FRONTEND_URL="http://testserver", OWNER_FRONTEND_URL=None, AUTH_COOKIE_SECURE=False))
     user = dict(user_id=str(uuid4()), email="Doctor@example.com", display_name="Доктор Иванова",

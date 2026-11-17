@@ -44,11 +44,10 @@ def list_nutrients(session: Session) -> list[Nutrient]:
 
 
 def _food_predicates(
-    query: str,
+    needle: str,
     category_filters: Sequence[tuple[str | None, str | None, bool]],
 ) -> list:
     predicates = []
-    needle = query.strip()
     if needle:
         predicates.append(Food.name.ilike(_ilike_pattern(needle), escape="\\"))
     if category_filters:
@@ -83,6 +82,13 @@ def list_food_categories(session: Session) -> list[FoodCategoryGroup]:
     ]
 
 
+def _food_name_order(needle: str) -> tuple:
+    by_name = (func.lower(Food.name), Food.name, Food.uuid)
+    if not needle:
+        return by_name
+    return (case((func.lower(Food.name) == needle.lower(), 0), else_=1), *by_name)
+
+
 def search_foods(
     session: Session,
     query: str,
@@ -91,19 +97,10 @@ def search_foods(
 ) -> list[Food]:
     stmt = select(Food)
     needle = query.strip()
-    stmt = stmt.where(*_food_predicates(query, category_filters))
+    stmt = stmt.where(*_food_predicates(needle, category_filters))
     if food_type is not None:
         stmt = stmt.where(Food.type == food_type.value)
-    if needle:
-        stmt = stmt.order_by(
-            case((func.lower(Food.name) == needle.lower(), 0), else_=1),
-            func.lower(Food.name),
-            Food.name,
-            Food.uuid,
-        )
-    else:
-        stmt = stmt.order_by(func.lower(Food.name), Food.name, Food.uuid)
-    stmt = stmt.limit(LIST_CAP)
+    stmt = stmt.order_by(*_food_name_order(needle)).limit(LIST_CAP)
     return list(session.scalars(stmt).all())
 
 
@@ -112,20 +109,12 @@ def list_food_matrix(
     query: FoodMatrixQuery,
     category_filters: Sequence[tuple[str | None, str | None, bool]],
 ) -> FoodMatrixPage:
-    predicates = _food_predicates(query.q, category_filters)
-    foods_stmt = select(Food, func.count().over().label("total_count")).where(*predicates)
     needle = query.q.strip()
+    predicates = _food_predicates(needle, category_filters)
+    foods_stmt = select(Food, func.count().over().label("total_count")).where(*predicates)
 
     if query.sort == "name":
-        if needle:
-            foods_stmt = foods_stmt.order_by(
-                case((func.lower(Food.name) == needle.lower(), 0), else_=1),
-                func.lower(Food.name),
-                Food.name,
-                Food.uuid,
-            )
-        else:
-            foods_stmt = foods_stmt.order_by(func.lower(Food.name), Food.name, Food.uuid)
+        foods_stmt = foods_stmt.order_by(*_food_name_order(needle))
     else:
         sort_nutrient_uuid = session.scalar(
             select(Nutrient.uuid).where(

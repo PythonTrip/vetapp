@@ -6,7 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from vetdietderm_api.db import Base
 from vetdietderm_api.ids import uuid6
-from vetdietderm_api.owners.models import utc_now
+from vetdietderm_api.clock import utc_now
 
 
 class ChatThread(Base):

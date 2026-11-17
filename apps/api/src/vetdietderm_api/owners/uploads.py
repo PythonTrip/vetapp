@@ -1,13 +1,15 @@
 """Private owner media; files are never published as unauthenticated URLs."""
 from pathlib import PurePosixPath
+from uuid import UUID
 
 from fastapi import HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from vetdietderm_api.attachments import storage
 from vetdietderm_api.owners import repository as owners
-from vetdietderm_api.owners.models import OwnerAnimal, OwnerUpload
+from vetdietderm_api.owners.models import OwnerAccount, OwnerAnimal, OwnerUpload
 from vetdietderm_api.owners.schemas import AnimalRead
 
 
@@ -77,3 +79,18 @@ def download(row, *, inline=False):
     return FileResponse(path, media_type=row.content_type, filename=row.filename,
         content_disposition_type="inline" if inline and row.content_type.startswith("image/") else "attachment",
         headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"})
+
+
+def get_owner_upload(db: Session, owner: OwnerAccount, upload_id: UUID) -> OwnerUpload:
+    row = db.scalar(select(OwnerUpload).where(OwnerUpload.uuid == upload_id, OwnerUpload.owner_account_uuid == owner.uuid))
+    if row is None:
+        raise HTTPException(404, "Файл не найден")
+    # Resolve ownership again, so a removed animal does not leave a readable URL.
+    current = next((animal.uuid for animal in owners.list_animals(db, owner) if animal.uuid == row.animal_uuid), None)
+    if current is None:
+        previous = db.get(OwnerAnimal, row.animal_uuid)
+        current = previous.patient_uuid if previous else None
+    if current is None:
+        raise HTTPException(404, "Животное не найдено")
+    animal_ids(db, owner, current)
+    return row

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from vetdietderm_api.assessments import plans, repository
+from vetdietderm_api.assessments import plans, repository, service
 from vetdietderm_api.assessments.schemas import (
     AssessmentRequest,
     AssessmentResponse,
@@ -44,8 +44,8 @@ def energy_estimate(
 @assessments_router.post("", response_model=AssessmentResponse)
 @logger.catch(reraise=True, exclude=HTTPException)
 def create_assessment(payload: AssessmentRequest, session: SessionDep) -> AssessmentResponse:
-    foods = repository.load_foods(session, [item.food_uuid for item in payload.components])
-    return STANDARD_REGISTRY.active().assess(payload, foods)
+    result, _ = service.assess(session, payload)
+    return result
 
 
 @plans_router.get("", response_model=list[DietPlanSummary])
@@ -54,7 +54,7 @@ def list_diet_plans(
     session: SessionDep,
     patient_id: Annotated[UUID | None, Query(alias="patientId")] = None,
 ) -> list[DietPlanSummary]:
-    return [plans.to_summary(item) for item in plans.list_plans(session, patient_id)]
+    return [plans.to_summary(item) for item in repository.list_plans(session, patient_id)]
 
 
 @plans_router.post("", response_model=DietPlanRead, status_code=201)
@@ -67,7 +67,7 @@ def create_diet_plan(payload: DietPlanWrite, session: SessionDep) -> DietPlanRea
 @logger.catch(reraise=True)
 def read_diet_plan(plan_id: UUID, session: SessionDep) -> DietPlanRead:
     # Pure storage read: never load current guidelines or call the engine here.
-    return plans.to_read(plans.get_plan(session, plan_id))
+    return plans.to_read(repository.get_plan(session, plan_id))
 
 
 @plans_router.patch("/{plan_id}", response_model=DietPlanRead)
