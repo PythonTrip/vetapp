@@ -6,7 +6,7 @@ title: Booking by Problem
 created: 2026-11-07
 filename: docs/prd/2026-11-07_booking-by-problem_prd.md
 project_doc: docs/PROJECT.md
-status: draft
+status: closed
 scope_type: cycle
 source: product-discovery
 related_issue_batch: null
@@ -16,7 +16,7 @@ related_issue_batch: null
 
 ## Cycle Summary
 
-Roadmap **#10**, stage **Pro**, status **⬜ Planned**. Predecessor is Clinic Bot (#9), closed on the shipped clinic door. Specialty Depth moved from #10 to **#11** and stays later. This draft does not start implementation.
+Roadmap **#10**, stage **Pro**, status **✅ Done**. Closed 2026-11-17 on the shipped problem request, one optional clinic questionnaire, staff visit classification, and one manual ruble charge. Predecessor is Clinic Bot (#9), closed on the shipped clinic door. Specialty Depth stays **#11** and is the next cycle. This record does not start that cycle.
 
 ## Goal
 

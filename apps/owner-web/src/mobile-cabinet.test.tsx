@@ -17,22 +17,31 @@ describe("mobile owner cabinet", () => {
     const create = vi.spyOn(ownerVisits, "create").mockResolvedValue(visit);
     const close = vi.fn();
     render(<VisitRequestForm animalId="cat" animalName="Луна" animals={[{ uuid: "cat", name: "Луна", species: "cat" }, { uuid: "dog", name: "Оскар", species: "dog" }]} onChanged={vi.fn()} onClose={close} />);
-    await screen.findByText("Для этого типа визита анкета не требуется.");
+    expect(await screen.findByRole("heading", { name: "Кому нужна консультация?" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Тип визита")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("radio", { name: "Оскар", exact: true }));
+    expect(screen.getByRole("button", { name: "Продолжить" })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Опишите проблему *"), { target: { value: "   " } });
+    expect(screen.getByRole("button", { name: "Продолжить" })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Опишите проблему *"), { target: { value: "Хромает" } });
     fireEvent.click(screen.getByRole("button", { name: "Продолжить" }));
     expect(screen.getByRole("heading", { name: "Расскажите о питомце" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Продолжить" }));
     expect(screen.queryByRole("heading", { name: "Выберите ветеринара" })).not.toBeInTheDocument();
     expect(screen.queryByRole("radio", { name: /Врач/ })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Тип визита")).not.toBeInTheDocument();
     expect(create).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Продолжить" })).toBeDisabled();
     fireEvent.change(screen.getByLabelText("Предлагаемые дата и время"), { target: { value: "2099-11-01T15:00" } });
     fireEvent.click(screen.getByRole("button", { name: "Продолжить" }));
-    expect(screen.getByText("Оскар · Первичный")).toBeInTheDocument();
+    expect(screen.getByText("Оскар · Хромает")).toBeInTheDocument();
+    expect(screen.queryByText("Первичный")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Отправить заявку" }));
     await screen.findByRole("heading", { name: "Заявка отправлена" });
-    expect(create).toHaveBeenCalledWith("dog", expect.objectContaining({ proposed_starts_at: new Date("2099-11-01T15:00").toISOString() }));
-    expect(create.mock.calls[0][1]).not.toHaveProperty("reason");
+    expect(create).toHaveBeenCalledWith("dog", {
+      reason: "Хромает", proposed_starts_at: new Date("2099-11-01T15:00").toISOString(), answers: [],
+    });
+    expect(create.mock.calls[0][1]).not.toHaveProperty("visit_type");
     fireEvent.click(screen.getByRole("button", { name: "К консультациям" }));
     expect(close).toHaveBeenCalledWith("dog");
   });
