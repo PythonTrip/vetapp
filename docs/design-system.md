@@ -1,5 +1,5 @@
 ---
-name: VetDietDerm
+name: Vet Space
 version: "1.1"
 description: "Clinical Calm — визуальная система светлой темы"
 colors:
@@ -90,7 +90,7 @@ components:
     padding: "24px"
 ---
 
-# VetDietDerm — Design System
+# Vet Space — Design System
 
 ## Overview
 

@@ -1,1 +1,1 @@
-"""VetDietDerm FastAPI application package."""
+"""Vet Space FastAPI application package."""

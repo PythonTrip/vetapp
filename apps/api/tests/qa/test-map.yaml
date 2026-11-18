@@ -1,6 +1,6 @@
 schema_version: 1
 project:
-  name: VetDietDerm API
+  name: Vet Space API
   evidence_level: repository_inferred
   commit: 0d87f973dfa74c7c66c6363d8245c83d47896d3f
   owner: unassigned

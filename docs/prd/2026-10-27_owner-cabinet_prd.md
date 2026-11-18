@@ -26,7 +26,7 @@ The clinician workspace remains the system of record. The owner never receives t
 
 ## Current Project Context
 
-VetDietDerm today is a clinician workbench. Client (the owner) and Patient (the animal) are separate. A clinician creates both. The owner has no login.
+Vet Space today is a clinician workbench. Client (the owner) and Patient (the animal) are separate. A clinician creates both. The owner has no login.
 
 - Schedule appointments are created by the clinician. Visit types are consultation, recheck, procedure, and telemedicine. Statuses are scheduled, completed, cancelled, and no_show.
 - The patient gallery stores photos and PDFs on disk (8 MiB; JPEG, PNG, WebP, GIF, PDF). The owner cannot see it.

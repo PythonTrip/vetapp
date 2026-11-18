@@ -7,7 +7,7 @@ export default function Home() {
         <div>
           <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-primary">
             <PawPrint className="h-3.5 w-3.5" />
-            VetDietDerm
+            Vet Space
           </div>
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
             Рабочее место специалиста

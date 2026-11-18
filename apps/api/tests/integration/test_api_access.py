@@ -15,7 +15,7 @@ def test_health_ready_and_openapi_boundaries(api_client: TestClient) -> None:
 
     openapi = api_client.get("/openapi.json")
     assert openapi.status_code == 200
-    assert openapi.json()["info"]["title"] == "VetDietDerm API"
+    assert openapi.json()["info"]["title"] == "Vet Space API"
 
     ready = api_client.get("/ready")
     assert ready.status_code == 200

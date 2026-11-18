@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { PlatformProvider } from "./platform-provider";
 export const metadata: Metadata = {
-  title: "VetDietDerm — кабинет владельца",
+  title: "Vet Space — кабинет владельца",
   description: "Животные, переписка с врачом и заявки на визит",
 };
 export default function RootLayout({ children }: { children: React.ReactNode }) {

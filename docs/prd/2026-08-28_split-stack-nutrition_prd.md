@@ -30,7 +30,7 @@ A veterinary nutritionist on a local or VPS instance can, in one sitting, option
 - Cycle 2 described Postgres guidelines **inside that monolith**. That path is cancelled.
 - PostgreSQL already exists at `127.0.0.1:15432` (local and VPS). Vercel and Neon are removed as product/deploy targets.
 - Rebuild is greenfield: do not migrate Pet, Consultation, photos, or old Diet Plans.
-- `docs/Nutrient SPEC.md` is the catalog/value contract. `docs/VetDietDerm_FEDIAF_Data_Architecture_Spec.md` remains the FEDIAF semantics reference; its Prisma/Next runtime assumptions do not apply.
+- `docs/Nutrient SPEC.md` is the catalog/value contract. `docs/VetSpace_FEDIAF_Data_Architecture_Spec.md` remains the FEDIAF semantics reference; its Prisma/Next runtime assumptions do not apply.
 
 ## New Functionality
 

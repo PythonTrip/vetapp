@@ -21,9 +21,9 @@ class StatusResponse(BaseModel):
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     get_settings()
-    logger.info("VetDietDerm API starting")
+    logger.info("Vet Space API starting")
     yield
-    logger.info("VetDietDerm API stopped")
+    logger.info("Vet Space API stopped")
 
 
 @logger.catch(reraise=True)
@@ -31,7 +31,7 @@ def create_app() -> FastAPI:
     settings = get_settings()
     load_models()
     application = FastAPI(
-        title="VetDietDerm API",
+        title="Vet Space API",
         version="0.1.0",
         lifespan=lifespan,
     )

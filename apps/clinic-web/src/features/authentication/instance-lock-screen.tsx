@@ -59,7 +59,7 @@ export function InstanceLockScreen({ children }: { children: React.ReactNode }) 
     if (invite) return <div className="mx-auto max-w-3xl p-4 sm:p-8"><OrganizationSettings onAccepted={() => { setInvite(false); router.replace("/settings"); }} /><Button variant="link" onClick={() => { setInvite(false); router.replace("/patients"); }}>Продолжить без приглашения</Button></div>;
     return <React.Fragment key={`${user?.user_id}:${user?.organization?.org_id ?? ""}:${user?.organization?.org_role ?? ""}`}>{children}</React.Fragment>;
   }
-  const titles = { login: "Войти в VetDietDerm", register: "Создать аккаунт", verify: "Подтвердить почту", forgot: "Восстановить пароль", reset: "Новый пароль" };
+  const titles = { login: "Войти в Vet Space", register: "Создать аккаунт", verify: "Подтвердить почту", forgot: "Восстановить пароль", reset: "Новый пароль" };
   const actions = { login: "Войти", register: "Зарегистрироваться", verify: "Подтвердить", forgot: "Отправить инструкции", reset: "Сохранить пароль" };
   return <main className="flex min-h-dvh items-center justify-center bg-background px-4 py-8">
     <section className="w-full max-w-md space-y-6 rounded-2xl border bg-card p-6 sm:p-8">

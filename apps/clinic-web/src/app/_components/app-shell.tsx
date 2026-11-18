@@ -96,7 +96,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <PawPrint className="h-5 w-5" />
             </div>
             <div className="flex flex-col leading-none">
-              <span className="font-bold text-[15px] tracking-tight">VetDietDerm</span>
+              <span className="font-bold text-[15px] tracking-tight">Vet Space</span>
               <span className="text-[10px] font-medium text-muted-foreground">
                 {clinicName}
               </span>
@@ -154,7 +154,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-emerald-600 text-primary-foreground">
                 <PawPrint className="h-4 w-4" />
               </div>
-              <span className="text-sm font-bold">VetDietDerm</span>
+              <span className="text-sm font-bold">Vet Space</span>
             </Link>
             <ThemeToggle />
           </header>
@@ -188,7 +188,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <footer className="col-span-full row-start-2 flex shrink-0 items-center justify-between border-t bg-sidebar/50 px-6 py-3 text-[11px] text-muted-foreground backdrop-blur">
           <div className="flex items-center gap-1.5">
             <PawPrint className="h-3.5 w-3.5 text-primary" />
-            <span className="font-medium text-foreground/80">VetDietDerm</span>
+            <span className="font-medium text-foreground/80">Vet Space</span>
             <span className="hidden sm:inline">· Рабочее место ветеринарного специалиста</span>
           </div>
           <span>Расчёты носят информационный характер</span>

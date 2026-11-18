@@ -17,11 +17,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "VetDietDerm — рабочее место ветеринарного нутрициолога",
+  title: "Vet Space — рабочее место ветеринарного нутрициолога",
   description:
     "Рабочее место ветеринарного нутрициолога: пациенты, рацион и оценка по FEDIAF 2025.",
   keywords: ["ветеринария", "нутрициология", "FEDIAF", "пациенты", "рацион"],
-  authors: [{ name: "VetDietDerm" }],
+  authors: [{ name: "Vet Space" }],
   icons: { icon: "/logo.svg" },
 };
 

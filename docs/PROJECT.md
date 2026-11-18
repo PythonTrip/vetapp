@@ -1,15 +1,15 @@
 ---
 project_id: vetdietderm
-title: VetDietDerm
+title: Vet Space
 updated: 2026-11-18
 source: product-discovery
 ---
 
-# Project: VetDietDerm
+# Project: Vet Space
 
 ## Project Description
 
-VetDietDerm is a veterinary clinical workbench for specialists who manage patients, consultations, and follow-up. The first focus segments are veterinary dermatologists and nutritionists. The product does not replace clinical judgment: calculators and guidance must show sources, versions, and leave the final decision to the clinician.
+Vet Space is a veterinary clinical workbench for specialists who manage patients, consultations, and follow-up. The first focus segments are veterinary dermatologists and nutritionists. The product does not replace clinical judgment: calculators and guidance must show sources, versions, and leave the final decision to the clinician.
 
 ## Target Users
 

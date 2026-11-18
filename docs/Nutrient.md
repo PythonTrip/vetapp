@@ -8,7 +8,7 @@ related: docs/PROJECT.md
 
 # Nutrient
 
-Reference note for the VetDietDerm Nutrition (dietetics) module: purpose, data sources, and data categories on the split stack.
+Reference note for the Vet Space Nutrition (dietetics) module: purpose, data sources, and data categories on the split stack.
 
 ## 1. Module overview
 

@@ -1,6 +1,6 @@
 schema_version: 1
 project:
-  name: VetDietDerm Owner Web
+  name: Vet Space Owner Web
   evidence_level: repository_inferred
   commit: 0308862f9d870ce387a7dbb9cc0055a6796906d0
   owner: unassigned
