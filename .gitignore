@@ -80,3 +80,7 @@ graphify-out/
 **/coverage/
 **/data/attachments/
 **/.uv-cache*/
+
+.codex/
+.cursor/
+.claude/
