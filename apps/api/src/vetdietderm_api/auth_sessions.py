@@ -35,6 +35,38 @@ def session_hash(request: Request) -> str:
     return hashlib.sha256(key.encode()).hexdigest()
 
 
+def _session_row(db: Session, request: Request) -> BrowserSession:
+    row = db.scalar(select(BrowserSession).where(
+        BrowserSession.key_hash == session_hash(request)).with_for_update())
+    if row is None or row.expires <= time.time():
+        raise HTTPException(401, "Сессия истекла. Войдите снова")
+    return row
+
+
+def _refresh(db: Session, row: BrowserSession, upstream: AuthTransport) -> None:
+    try:
+        result = upstream("POST", "/auth/refresh", {"refresh_token": row.refresh_token})
+    except HTTPException:
+        # Timeout may have consumed the one-time token: never reuse it.
+        db.delete(row)
+        db.commit()
+        raise
+    if result.status_code == 401 or result.status_code >= 500:
+        db.delete(row)
+        db.commit()
+        checked(result)
+    store_pair(row, checked(result))
+
+
+def _drop_session(open_session: Callable[[], Session], request: Request) -> None:
+    with open_session() as db:
+        row = db.scalar(select(BrowserSession).where(
+            BrowserSession.key_hash == session_hash(request)).with_for_update())
+        if row is not None:
+            db.delete(row)
+            db.commit()
+
+
 def authenticated_call(
     request: Request,
     method: str,
@@ -45,41 +77,27 @@ def authenticated_call(
     open_session: Callable[[], Session],
     upstream: AuthTransport,
 ):
-    # Canonical AuthClient lifecycle, adapted to a cross-process PostgreSQL lock.
+    # The row lock only covers token rotation. A fresh access token is copied
+    # out and the connection is returned before the protected call, so parallel
+    # product reads do not hold pool connections for the duration of /me.
     with open_session() as db:
-        row = db.scalar(select(BrowserSession).where(
-            BrowserSession.key_hash == session_hash(request)).with_for_update())
-        if row is None or row.expires <= time.time():
-            raise HTTPException(401, "Сессия истекла. Войдите снова")
-
-        def refresh():
-            try:
-                result = upstream("POST", "/auth/refresh", {"refresh_token": row.refresh_token})
-            except HTTPException:
-                # Timeout may have consumed the one-time token: never reuse it.
-                db.delete(row)
-                db.commit()
-                raise
-            if result.status_code == 401 or result.status_code >= 500:
-                db.delete(row)
-                db.commit()
-                checked(result)
-            store_pair(row, checked(result))
-
+        row = _session_row(db, request)
         refreshed = force_refresh or row.access_expires <= time.time() + 30
         if refreshed:
-            refresh()
-        try:
-            result = upstream(method, path, body, row.access_token)
-            if result.status_code == 401 and not refreshed:
-                refresh()
-                result = upstream(method, path, body, row.access_token)
-            if result.status_code == 401:
-                db.delete(row)
-        finally:
-            # Persist rotated tokens even if the subsequent protected call fails.
+            _refresh(db, row, upstream)
+        token = row.access_token
+        db.commit()
+    result = upstream(method, path, body, token)
+    if result.status_code == 401 and not refreshed:
+        with open_session() as db:
+            row = _session_row(db, request)
+            _refresh(db, row, upstream)
+            token = row.access_token
             db.commit()
-        return checked(result)
+        result = upstream(method, path, body, token)
+    if result.status_code == 401:
+        _drop_session(open_session, request)
+    return checked(result)
 
 
 def start(request: Request, pair: dict, open_session: Callable[[], Session]) -> str:

@@ -85,100 +85,109 @@ def clinic_invite_transfer(
     try:
         # Keep this transaction separate from progress commits and token rotation.
         # Share the provisioning lock so recovery cannot create a replacement clinic.
-        with get_session_factory()() as guard, get_session_factory()() as db:
-            if guard.get_bind().dialect.name == "postgresql":
+        # Product reads have no invite body. One indexed lookup is enough when no
+        # transfer is open; the advisory lock is taken only for real recovery.
+        with get_session_factory()() as guard:
+            postgresql = guard.get_bind().dialect.name == "postgresql"
+            if postgresql and body is None and guard.scalar(select(ClinicInviteTransfer.user_id).where(
+                ClinicInviteTransfer.user_id == user,
+                ClinicInviteTransfer.phase != "done",
+            )) is None:
+                return None
+            if postgresql:
                 guard.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
                               {"key": f"vetapp:clinic:{user}"})
-            transfer = db.scalar(select(ClinicInviteTransfer).where(
-                ClinicInviteTransfer.user_id == user, ClinicInviteTransfer.phase != "done").with_for_update())
-            if transfer is None and fingerprint:
-                transfer = db.get(ClinicInviteTransfer, (user, fingerprint))
-            if transfer is None and body is None:
-                return None
-            if transfer is not None and transfer.phase == "done":
-                return {"user_id": str(user), "email": profile["email"],
-                        "display_name": profile.get("display_name"),
-                        "org_role": transfer_memberships(request, authenticated_call).get(transfer.destination_id, {}).get("org_role")}
+            with get_session_factory()() as db:
+                transfer = db.scalar(select(ClinicInviteTransfer).where(
+                    ClinicInviteTransfer.user_id == user, ClinicInviteTransfer.phase != "done").with_for_update())
+                if transfer is None and fingerprint:
+                    transfer = db.get(ClinicInviteTransfer, (user, fingerprint))
+                if transfer is None and body is None:
+                    return None
+                if transfer is not None and transfer.phase == "done":
+                    return {"user_id": str(user), "email": profile["email"],
+                            "display_name": profile.get("display_name"),
+                            "org_role": transfer_memberships(request, authenticated_call).get(transfer.destination_id, {}).get("org_role")}
 
-            memberships = transfer_memberships(request, authenticated_call)
-            if transfer is None:
-                if not fingerprint:
-                    raise HTTPException(422, "Не указан токен приглашения")
-                org = profile.get("organization") or {}
-                source = UUID(org["org_id"]) if org.get("org_id") else None
-                if source is None and memberships:
-                    if len(memberships) != 1:
-                        raise HTTPException(503, TRANSFER_RETRY)
-                    source = next(iter(memberships))
-                if source is None:
-                    # No source clinic yet, but legacy personal patients and owners still refuse.
-                    check_empty_clinic(db, None, user)
-                    accepted = authenticated_call(request, "POST", "/invites/accept", {"token": token})
-                    authenticated_call(request, "GET", "/me", force_refresh=True)
-                    return accepted
-                check_empty_clinic(db, source, user)
-                if source not in memberships or (memberships[source]["org_role"] != "owner"
-                                                  and profile.get("role") != "super_admin"):
-                    raise HTTPException(409, OWNER_REQUIRED)
-                transfer = ClinicInviteTransfer(user_id=user, invite_hash=fingerprint, source_id=source,
-                                               membership_ids=sorted(map(str, memberships)), phase="accepting")
-                db.add(transfer)
-                db.commit()  # Durable before the invite can be consumed.
-                try:
-                    authenticated_call(request, "POST", "/invites/accept", {"token": token})
-                except HTTPException as exc:
-                    if exc.status_code in {400, 403, 404, 409, 422, 429}:
-                        # These responses guarantee no membership was created.
-                        db.delete(transfer)
-                        db.commit()
-                        raise
-                    raise HTTPException(503, TRANSFER_RETRY) from exc
-                transfer.phase = "accepted"
-                db.commit()
                 memberships = transfer_memberships(request, authenticated_call)
-
-            if transfer.destination_id is None:
-                added = set(memberships) - {UUID(value) for value in transfer.membership_ids}
-                if len(added) != 1:
-                    raise HTTPException(503, TRANSFER_RETRY)
-                transfer.destination_id = added.pop()
-                transfer.phase = "accepted"
-                db.commit()
-            destination = transfer.destination_id
-            if destination not in memberships or destination == transfer.source_id:
-                raise HTTPException(503, TRANSFER_RETRY)
-
-            if transfer.phase in {"accepted", "closing"}:
-                check_empty_clinic(db, transfer.source_id, user)
-                if transfer.source_id in memberships:
-                    if (memberships[transfer.source_id]["org_role"] != "owner"
-                            and profile.get("role") != "super_admin"):
+                if transfer is None:
+                    if not fingerprint:
+                        raise HTTPException(422, "Не указан токен приглашения")
+                    org = profile.get("organization") or {}
+                    source = UUID(org["org_id"]) if org.get("org_id") else None
+                    if source is None and memberships:
+                        if len(memberships) != 1:
+                            raise HTTPException(503, TRANSFER_RETRY)
+                        source = next(iter(memberships))
+                    if source is None:
+                        # No source clinic yet, but legacy personal patients and owners still refuse.
+                        check_empty_clinic(db, None, user)
+                        accepted = authenticated_call(request, "POST", "/invites/accept", {"token": token})
+                        authenticated_call(request, "GET", "/me", force_refresh=True)
+                        return accepted
+                    check_empty_clinic(db, source, user)
+                    if source not in memberships or (memberships[source]["org_role"] != "owner"
+                                                      and profile.get("role") != "super_admin"):
                         raise HTTPException(409, OWNER_REQUIRED)
-                    transfer.phase = "closing"
-                    db.commit()  # A lost DELETE response can be reconciled on retry.
-                    authenticated_call(request, "DELETE", f"/organizations/{transfer.source_id}")
-                elif transfer.phase != "closing":
-                    # Source access was lost before we attempted an authorized close.
-                    raise HTTPException(503, TRANSFER_RETRY)
-                memberships = transfer_memberships(request, authenticated_call)
-                if transfer.source_id in memberships or destination not in memberships:
-                    raise HTTPException(503, TRANSFER_RETRY)
-                transfer.phase = "closed"
-                db.commit()
+                    transfer = ClinicInviteTransfer(user_id=user, invite_hash=fingerprint, source_id=source,
+                                                   membership_ids=sorted(map(str, memberships)), phase="accepting")
+                    db.add(transfer)
+                    db.commit()  # Durable before the invite can be consumed.
+                    try:
+                        authenticated_call(request, "POST", "/invites/accept", {"token": token})
+                    except HTTPException as exc:
+                        if exc.status_code in {400, 403, 404, 409, 422, 429}:
+                            # These responses guarantee no membership was created.
+                            db.delete(transfer)
+                            db.commit()
+                            raise
+                        raise HTTPException(503, TRANSFER_RETRY) from exc
+                    transfer.phase = "accepted"
+                    db.commit()
+                    memberships = transfer_memberships(request, authenticated_call)
 
-            refreshed = authenticated_call(request, "GET", "/me", force_refresh=True)
-            # Recheck both current membership and selected context after rotation.
-            memberships = transfer_memberships(request, authenticated_call)
-            org = refreshed.get("organization") or {}
-            if (str(refreshed.get("user_id")) != str(user) or destination not in memberships
-                    or org.get("org_id") != str(destination) or org.get("status") != "active"
-                    or transfer.source_id in memberships):
-                raise HTTPException(503, TRANSFER_RETRY)
-            check_empty_clinic(db, transfer.source_id, user)
-            move_empty_clinic(db, user, transfer.source_id, destination, commit=False)
-            transfer.phase = "done"
-            db.commit()  # Rows, source-resource cleanup and completion are atomic.
-            return {"user_id": str(user), "email": refreshed["email"],
-                    "display_name": refreshed.get("display_name"), "org_role": org["org_role"]}
+                if transfer.destination_id is None:
+                    added = set(memberships) - {UUID(value) for value in transfer.membership_ids}
+                    if len(added) != 1:
+                        raise HTTPException(503, TRANSFER_RETRY)
+                    transfer.destination_id = added.pop()
+                    transfer.phase = "accepted"
+                    db.commit()
+                destination = transfer.destination_id
+                if destination not in memberships or destination == transfer.source_id:
+                    raise HTTPException(503, TRANSFER_RETRY)
+
+                if transfer.phase in {"accepted", "closing"}:
+                    check_empty_clinic(db, transfer.source_id, user)
+                    if transfer.source_id in memberships:
+                        if (memberships[transfer.source_id]["org_role"] != "owner"
+                                and profile.get("role") != "super_admin"):
+                            raise HTTPException(409, OWNER_REQUIRED)
+                        transfer.phase = "closing"
+                        db.commit()  # A lost DELETE response can be reconciled on retry.
+                        authenticated_call(request, "DELETE", f"/organizations/{transfer.source_id}")
+                    elif transfer.phase != "closing":
+                        # Source access was lost before we attempted an authorized close.
+                        raise HTTPException(503, TRANSFER_RETRY)
+                    memberships = transfer_memberships(request, authenticated_call)
+                    if transfer.source_id in memberships or destination not in memberships:
+                        raise HTTPException(503, TRANSFER_RETRY)
+                    transfer.phase = "closed"
+                    db.commit()
+
+                refreshed = authenticated_call(request, "GET", "/me", force_refresh=True)
+                # Recheck both current membership and selected context after rotation.
+                memberships = transfer_memberships(request, authenticated_call)
+                org = refreshed.get("organization") or {}
+                if (str(refreshed.get("user_id")) != str(user) or destination not in memberships
+                        or org.get("org_id") != str(destination) or org.get("status") != "active"
+                        or transfer.source_id in memberships):
+                    raise HTTPException(503, TRANSFER_RETRY)
+                check_empty_clinic(db, transfer.source_id, user)
+                move_empty_clinic(db, user, transfer.source_id, destination, commit=False)
+                transfer.phase = "done"
+                db.commit()  # Rows, source-resource cleanup and completion are atomic.
+                return {"user_id": str(user), "email": refreshed["email"],
+                        "display_name": refreshed.get("display_name"), "org_role": org["org_role"]}
     except SQLAlchemyError as exc:
         raise HTTPException(503, TRANSFER_RETRY) from exc

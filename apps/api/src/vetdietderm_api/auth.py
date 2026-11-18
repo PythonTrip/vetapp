@@ -147,11 +147,14 @@ def ensure_clinic_link(request: Request, user: dict) -> None:
         link = db.get(ClinicLink, clinic_id)
         if link is None:
             freeze_clinic_link(db, clinic_id, organization_members(request), user)
-        else:
-            db.execute(update(JoinCode).where(JoinCode.code == link.code,
-                                             JoinCode.organization_name.is_distinct_from(org.get("name")))
-                       .values(organization_name=org.get("name")))
-            db.commit()
+            return
+        code = db.scalar(select(JoinCode).where(JoinCode.code == link.code))
+        if code is not None and code.organization_name == org.get("name"):
+            return
+        db.execute(update(JoinCode).where(JoinCode.code == link.code,
+                                         JoinCode.organization_name.is_distinct_from(org.get("name")))
+                   .values(organization_name=org.get("name")))
+        db.commit()
 
 
 def require_clinical_access(request: Request, user: Annotated[dict, Depends(require_user)]) -> None:

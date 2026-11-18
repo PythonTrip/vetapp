@@ -21,8 +21,12 @@ def normalize_email(email: str) -> str:
 
 def reserve_staff_email(db: Session, email: str, user_id: str) -> None:
     email = normalize_email(email)
+    owner = UUID(str(user_id))
+    existing = db.get(StaffEmailReservation, email)
+    if existing is not None and existing.user_id == owner:
+        return
     insert = pg_insert if db.get_bind().dialect.name == "postgresql" else sqlite_insert
-    stmt = insert(StaffEmailReservation).values(email=email, user_id=UUID(str(user_id)), updated_at=utc_now())
+    stmt = insert(StaffEmailReservation).values(email=email, user_id=owner, updated_at=utc_now())
     db.execute(stmt.on_conflict_do_update(index_elements=["email"], set_={
         "user_id": stmt.excluded.user_id, "updated_at": stmt.excluded.updated_at}))
     db.commit()
