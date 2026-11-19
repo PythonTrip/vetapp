@@ -242,6 +242,12 @@ def replace_nutrient_values(
             detail=f"Неизвестные коды нутриентов: {', '.join(unknown_codes)}",
         )
 
+    locked = session.scalar(
+        select(Food).where(Food.uuid == food_uuid).with_for_update()
+    )
+    if locked is None:
+        raise _not_found()
+
     session.execute(
         delete(FoodNutrientValue).where(
             FoodNutrientValue.food_uuid == food_uuid,

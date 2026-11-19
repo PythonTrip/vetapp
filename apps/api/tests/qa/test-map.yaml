@@ -2,11 +2,21 @@ schema_version: 1
 project:
   name: Vet Space API
   evidence_level: repository_inferred
-  commit: 0d87f973dfa74c7c66c6363d8245c83d47896d3f
+  commit: 4301b5ea4c40595a0e5084456214bf0268221ed7
   owner: unassigned
 approvals:
-  core: {status: pending, approver: null, approved_at: null, evidence: null, fingerprint: null}
-  scope: {status: pending, approver: null, approved_at: null, evidence: null, fingerprint: null}
+  core:
+    status: approved
+    approver: Requesting user (Codex chat)
+    approved_at: "2026-11-19"
+    evidence: 'User replied «Да» to the explicit request to retain the current Core checks.'
+    fingerprint: 560535a30774328747e3ef5142b23a8b4d7ab6669448a349f9504d8c31b54cde
+  scope:
+    status: approved
+    approver: Requesting user (Codex chat)
+    approved_at: "2026-11-19"
+    evidence: 'User replied «Да» to the five PostgreSQL scenarios, expected results, disposable environment, exclusions and nonblocking schedule.'
+    fingerprint: 767fb5a04bd8dd2ad2c5df9e93e704da605b165802e2d0be2e21048c727a9759
 policy:
   mandatory_core_events: &core_events [pull_request, main_push, release_candidate]
 scope:
@@ -14,22 +24,37 @@ scope:
     - Clinical records, appointments and attachment persistence through FastAPI.
     - Nutrition catalog, assessment and saved diet plan snapshots.
     - Clinic access controls and owner visit requests.
+    - Targeted PostgreSQL correctness checks for competing writes, Alembic migrations, and API readiness during migration.
   environments:
     - {id: api_postgres, purpose: In-process FastAPI requests with a disposable PostgreSQL instance and temporary file storage.}
     - {id: api_sqlite, purpose: In-process FastAPI requests with in-memory SQLite and temporary file storage.}
-  real_dependencies: [FastAPI and SQLAlchemy, PostgreSQL for clinical and nutrition integration, Temporary attachment filesystem, In-process FEDIAF 2025 provider]
+    - {id: postgres_alembic, purpose: Dedicated disposable PostgreSQL databases for fresh installation and upgrade of synthetic legacy rows through the real Alembic chain.}
+    - {id: compose_postgres, purpose: "Isolated release-candidate Compose stack with disposable PostgreSQL, an API container, web services, and a temporary attachment volume."}
+  real_dependencies: [FastAPI and SQLAlchemy, PostgreSQL for clinical and nutrition integration, Temporary attachment filesystem, In-process FEDIAF 2025 provider, Alembic for schema changes, Docker Compose for startup checks]
   stubbed_dependencies:
     - {name: module-auth, reason: The fixtures provide synthetic users and clinic roles without calling the external service.}
-  test_data: Use synthetic clinic, owner, patient, visit and ration data. The PostgreSQL fixture creates and drops an isolated schema. Use a disposable database instance.
+  test_data: Use synthetic clinic, owner, patient, visit and ration data. Use disposable PostgreSQL with test-only credentials. API fixtures use isolated schemas, Alembic cases use separate databases, and concurrent cases use separate connections, explicit synchronization and bounded waits. Read committed results through a fresh connection.
   not_core:
-    - Live module-auth, Telegram, deployed network and migration behavior are outside these test fixtures.
+    - Existing API fixtures exercise ORM-created schemas. The targeted migration and readiness checks use separate Alembic and Compose environments.
     - The wider visit matrix runs on SQLite. The focused confirmation rollback and retry check uses PostgreSQL.
-  exclusions: []
+  exclusions:
+    - id: EXCL-API-PG-PRODUCTION
+      subject: Live production, real credentials and production data
+      residual_risk: Disposable environments do not establish the effective settings or operational health of the deployed database.
+      owner: unassigned
+      review_by: Before setting a release gate
+      decision: approved
+    - id: EXCL-API-PG-PERFORMANCE
+      subject: Query latency, query counts and index effectiveness
+      residual_risk: Correctness results provide no workload-based performance or capacity evidence.
+      owner: unassigned
+      review_by: Before defining performance budgets
+      decision: approved
 capabilities:
   - id: CAP-API-CLINICAL
     name: Clinical records and appointments
     core: true
-    decision: proposed
+    decision: approved
     risk: high
     why: A lost or mislinked record interrupts treatment and follow-up.
     outcome: Patient records, encounter changes, appointments and attachments persist with the correct relationships.
@@ -39,7 +64,7 @@ capabilities:
   - id: CAP-API-NUTRITION
     name: Reproducible nutrition plans
     core: true
-    decision: proposed
+    decision: approved
     risk: high
     why: Changes to foods or standards can make a saved clinical decision hard to reproduce.
     outcome: Saved plans retain the original snapshot and standard provenance until an explicit replacement.
@@ -49,7 +74,7 @@ capabilities:
   - id: CAP-API-CLINIC-ACCESS
     name: Clinic data isolation
     core: true
-    decision: proposed
+    decision: approved
     risk: critical
     why: Incorrect authorization can disclose or modify another clinic's records.
     outcome: Clinic membership scopes access and a read-only actor cannot create client records.
@@ -59,12 +84,22 @@ capabilities:
   - id: CAP-API-VISITS
     name: Owner request and staff confirmation
     core: true
-    decision: proposed
+    decision: approved
     risk: high
     why: Incorrect confirmation creates schedule entries or accepts registrations prematurely.
     outcome: A request preserves submitted data and enters the schedule only on valid staff confirmation.
     layers: [api, database]
     evidence: Repository docs/PROJECT.md, docs/prd/2026-11-07_booking-by-problem_prd.md and the SQLite and PostgreSQL visit integration suites.
+    owner: unassigned
+  - id: CAP-API-POSTGRES
+    name: PostgreSQL transaction and schema correctness
+    core: false
+    decision: approved
+    risk: high
+    why: Overlapping writes can leave invalid clinical data, and schema or startup mismatches can prevent requests from reaching the API.
+    outcome: Competing writes preserve business invariants, migrated databases preserve legacy records, and the API is ready before dependent web services start.
+    layers: [api, database, deployment]
+    evidence: Project data and startup contracts, Booking by Problem PRD, PostgreSQL audit of revision 4301b5e, and the existing PostgreSQL integration fixture.
     owner: unassigned
 features:
   - id: FEAT-API-CLINICAL
@@ -87,6 +122,31 @@ features:
     feature: Preserve owner submissions and schedule confirmed visits
     places: [apps/api/src/vetdietderm_api/visits/router.py, apps/api/src/vetdietderm_api/visits/service.py, apps/api/src/vetdietderm_api/questionnaires/service.py, apps/api/src/vetdietderm_api/owners/registrations.py, apps/api/src/vetdietderm_api/appointments/router.py]
     expected: Submitted answers survive questionnaire edits. Valid confirmation creates a typed appointment. Invalid confirmation leaves the request and registration pending.
+  - id: FEAT-API-PG-NUTRIENTS
+    module: PostgreSQL
+    feature: Replace the as-fed nutrient set atomically under concurrent writes
+    places: [apps/api/src/vetdietderm_api/catalog/router.py, apps/api/src/vetdietderm_api/catalog/repository.py]
+    expected: The persisted as-fed rows equal one complete replacement and contain exactly one row per submitted nutrient. Other bases remain intact.
+  - id: FEAT-API-PG-CONFIRMATION
+    module: PostgreSQL
+    feature: Confirm a visit once under concurrent staff requests
+    places: [apps/api/src/vetdietderm_api/visits/router.py, apps/api/src/vetdietderm_api/visits/service.py, apps/api/src/vetdietderm_api/visits/repository.py, apps/api/src/vetdietderm_api/owners/registrations.py]
+    expected: One confirmation accepts the registration and creates one linked appointment. A competing confirmation leaves the committed result intact.
+  - id: FEAT-API-PG-CHARGE
+    module: PostgreSQL
+    feature: Preserve a paid charge when a concurrent edit is already in progress
+    places: [apps/api/src/vetdietderm_api/appointments/router.py, apps/api/src/vetdietderm_api/appointments/repository.py]
+    expected: Once payment of a recorded amount commits, the amount and paid flag remain unchanged by a competing amount edit.
+  - id: FEAT-API-PG-MIGRATIONS
+    module: PostgreSQL
+    feature: Install and upgrade the database with Alembic
+    places: [apps/api/alembic/env.py, apps/api/alembic/versions, apps/api/src/vetdietderm_api/appointments/repository.py]
+    expected: Both a fresh database and a database upgraded from an earlier revision reach the repository head and serve clinical reads and writes. Upgrades retain existing records, initialize new fields, and enforce the charge constraint.
+  - id: FEAT-API-PG-READINESS
+    module: PostgreSQL
+    feature: Gate dependent web startup on migration and API readiness
+    places: [infra/docker-compose.yml, apps/api/src/vetdietderm_api/main.py, apps/api/src/vetdietderm_api/db.py]
+    expected: A reachable database with a pending migration cannot make the API healthy. The API is listening and can use the migrated database before the web services start.
 checks:
   - id: CHECK-API-CLINICAL
     feature_id: FEAT-API-CLINICAL
@@ -178,6 +238,91 @@ checks:
     status: implemented
     test_ref: tests/integration/test_visit_confirmation_postgres.py::test_missing_visit_file_rolls_back_confirmation_and_allows_retry
     owner: unassigned
+  - id: CHECK-API-PG-NUTRIENTS-CONCURRENT
+    feature_id: FEAT-API-PG-NUTRIENTS
+    capability_ids: [CAP-API-POSTGRES]
+    scenario: Submit two overlapping PUT replacements for the same food without existing as-fed rows, using separate admin sessions and independently committed transactions.
+    expected: Both requests complete successfully. Direct SQL finds exactly set A or set B, including correct values and no duplicates. A pre-existing value on another basis is unchanged.
+    oracle: The replacement endpoint and documented nutrient identity, with fixed payloads that have a shared nutrient with different values and one distinct nutrient each. Compare all physical as-fed rows to the specified payloads, independent of the API read mapper.
+    level: integration
+    core_smoke: false
+    environment: api_postgres
+    real: [FastAPI catalog route, PostgreSQL transactions and row locks]
+    stubbed: [module-auth]
+    data: One synthetic food, three known nutrients, one value on a different basis, and two admin sessions. Synchronize at the write boundary without replacing the repository or SQL statements.
+    triggers: *core_events
+    blocking_on: []
+    safe_in_production: false
+    status: planned
+    owner: unassigned
+  - id: CHECK-API-PG-VISIT-CONFIRM-CONCURRENT
+    feature_id: FEAT-API-PG-CONFIRMATION
+    capability_ids: [CAP-API-POSTGRES, CAP-API-VISITS]
+    scenario: Use two authorized staff sessions to submit overlapping confirmations of one pending request, with different valid appointment times.
+    expected: One confirmation succeeds and the other returns 409. A fresh database read finds one accepted registration, one scheduled appointment linked to the original request with the winning time, and one gallery copy of the uploaded file.
+    oracle: The Booking by Problem atomic confirmation contract, the original request ID, two fixed times, and independent counts of the linked appointment and copied attachment.
+    level: integration
+    core_smoke: false
+    environment: api_postgres
+    real: [FastAPI visit routes, PostgreSQL transactions and row locks, Temporary attachment filesystem]
+    stubbed: [module-auth]
+    data: One pending registration, one animal, one visit request with a synthetic PDF, and two editor sessions in the same clinic.
+    triggers: *core_events
+    blocking_on: []
+    safe_in_production: false
+    status: planned
+    owner: unassigned
+  - id: CHECK-API-PG-CHARGE-CONCURRENT
+    feature_id: FEAT-API-PG-CHARGE
+    capability_ids: [CAP-API-POSTGRES, CAP-API-VISITS]
+    scenario: Start an amount edit while a separate transaction holds the appointment lock and is marking the original amount paid. Confirm the editor reached the write boundary before releasing the paying transaction.
+    expected: Payment succeeds. The overlapping edit returns 422. A fresh SQL read returns the original amount and paid true, and the linked owner sees that same paid amount.
+    oracle: The Booking by Problem rule that payment freezes the amount, fixed distinct ruble amounts, and independent persisted row and owner-facing reads.
+    level: integration
+    core_smoke: false
+    environment: api_postgres
+    real: [FastAPI appointment and owner routes, PostgreSQL transactions and row locks]
+    stubbed: [module-auth]
+    data: One completed appointment linked to an owner, one recorded unpaid amount, and two editor sessions in the same clinic.
+    triggers: *core_events
+    blocking_on: []
+    safe_in_production: false
+    status: planned
+    owner: unassigned
+  - id: CHECK-API-PG-ALEMBIC
+    feature_id: FEAT-API-PG-MIGRATIONS
+    capability_ids: [CAP-API-POSTGRES]
+    scenario: Upgrade a fresh database to head. In a separate database, migrate to 0039_owner_problem_request, seed a legacy appointment linked to a visit request, then upgrade to head and rerun the upgrade.
+    expected: Both databases report the repository Alembic head and support an appointment read and write via FastAPI. Legacy IDs, relationship, time and status are retained, with amount_rub NULL and paid false after upgrade. In both databases a direct write marking an appointment paid without an amount is rejected by ck_appointments_charge.
+    oracle: Project schema and deployment contract, the legacy defaults and named constraint in 0040_visit_charge.py, and fixed pre-upgrade rows checked directly after applying the real migration chain.
+    level: integration
+    core_smoke: false
+    environment: postgres_alembic
+    real: [Alembic, PostgreSQL, FastAPI appointment routes]
+    stubbed: [module-auth]
+    data: Two disposable databases. Seed the legacy appointment and its dependencies with SQL valid at the earlier revision.
+    triggers: *core_events
+    blocking_on: []
+    safe_in_production: false
+    status: planned
+    owner: unassigned
+  - id: CHECK-API-PG-COMPOSE-READINESS
+    feature_id: FEAT-API-PG-READINESS
+    capability_ids: [CAP-API-POSTGRES]
+    scenario: Start Compose with the owner profile while a controlled PostgreSQL lock delays a real pending migration and ordinary SELECT 1 remains successful. Observe a healthcheck attempt before releasing the lock.
+    expected: The API is not healthy and dependent web services do not start while migration is held. After release the database reaches head, the API responds to HTTP, and both web services can proxy a database-backed API request with a synthetic staff or owner session as appropriate.
+    oracle: Project Alembic startup order and the API-health dependency declared by both web services. Compare observed container state, the independently read Alembic revision and proxied HTTP responses.
+    level: e2e
+    core_smoke: false
+    environment: compose_postgres
+    real: [Docker Compose, Alembic, PostgreSQL, Uvicorn, Web API proxies]
+    stubbed: [module-auth]
+    data: Isolated Compose project and network, fresh attachment volume, test-only credentials, synthetic staff and owner and one controlled PostgreSQL lock released during cleanup.
+    triggers: [release_candidate]
+    blocking_on: []
+    safe_in_production: false
+    status: planned
+    owner: unassigned
 impact_rules:
   - paths:
       - apps/api/tests/integration/conftest.py
@@ -202,7 +347,17 @@ impact_rules:
     checks: [CHECK-API-VISITS]
   - paths: [apps/api/src/vetdietderm_api/visits, apps/api/src/vetdietderm_api/questionnaires, apps/api/src/vetdietderm_api/owners, apps/api/src/vetdietderm_api/chat/repository.py, apps/api/src/vetdietderm_api/attachments, apps/api/tests/integration/test_visit_confirmation_postgres.py]
     checks: [CHECK-API-VISIT-CONFIRMATION-PG]
+  - paths: [apps/api/src/vetdietderm_api/catalog, apps/api/src/vetdietderm_api/db.py]
+    checks: [CHECK-API-PG-NUTRIENTS-CONCURRENT]
+  - paths: [apps/api/src/vetdietderm_api/visits, apps/api/src/vetdietderm_api/owners, apps/api/src/vetdietderm_api/attachments, apps/api/src/vetdietderm_api/db.py]
+    checks: [CHECK-API-PG-VISIT-CONFIRM-CONCURRENT]
+  - paths: [apps/api/src/vetdietderm_api/appointments, apps/api/src/vetdietderm_api/visits/repository.py, apps/api/src/vetdietderm_api/db.py]
+    checks: [CHECK-API-PG-CHARGE-CONCURRENT]
+  - paths: [apps/api/alembic, apps/api/alembic.ini, apps/api/src/vetdietderm_api/appointments]
+    checks: [CHECK-API-PG-ALEMBIC]
+  - paths: [infra/docker-compose.yml, infra/docker/api.Dockerfile, apps/api/alembic, apps/api/src/vetdietderm_api/main.py, apps/api/src/vetdietderm_api/db.py, packages/web-proxy]
+    checks: [CHECK-API-PG-COMPOSE-READINESS]
 metadata:
   discovery: PROJECT_CONTEXT_MISSING at apps/api/docs/PROJECT.md. Shared docs/PROJECT.md and relevant PRDs were used as repository evidence.
   references: Feature and impact paths are repository-relative. Test references are relative to apps/api.
-  reconciliation: The commit identifies the base of the working-tree API refactor reviewed for this draft. Pytest collection verified the four exact node references and the existing visit scenario suite.
+  reconciliation: The prior draft recorded collection of the four existing exact node references and the visit scenario suite. The targeted PostgreSQL checks are planned gaps without executable references. Existing PostgreSQL checks cover clinical persistence, nutrition snapshots, clinic isolation and confirmation rollback. The shared API PostgreSQL fixture uses ORM create_all and cannot verify the Alembic chain.
