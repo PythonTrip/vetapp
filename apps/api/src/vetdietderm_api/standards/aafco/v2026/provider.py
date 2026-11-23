@@ -9,7 +9,7 @@ from vetdietderm_api.standards.aafco.v2026.edition import DATASET_PATH
 from vetdietderm_api.standards.contract import NutritionStandardProvider
 from vetdietderm_api.standards.density import load_density_provider
 
-PROVIDER_VERSION = "aafco/v2026/1.0.0"
+PROVIDER_VERSION = "aafco/v2026/1.1.0"
 
 
 def load_provider() -> NutritionStandardProvider | None:

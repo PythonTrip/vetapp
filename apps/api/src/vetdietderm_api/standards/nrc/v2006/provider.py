@@ -6,7 +6,7 @@ from vetdietderm_api.standards.contract import NutritionStandardProvider
 from vetdietderm_api.standards.density import load_density_provider
 from vetdietderm_api.standards.nrc.v2006.edition import DATASET_PATH
 
-PROVIDER_VERSION = "nrc/v2006/1.0.0"
+PROVIDER_VERSION = "nrc/v2006/1.1.0"
 
 
 def load_provider() -> NutritionStandardProvider | None:

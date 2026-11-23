@@ -3,7 +3,9 @@
 Food values stay in catalog units. Published gram targets for minerals that the
 catalog stores in milligrams are scaled before comparison. Codes in the dataset
 are translated to catalog codes. A value that cannot be translated is reported
-and is not compared.
+and is not compared. An exclusive maximum fails when the intake equals the
+limit. Compound ratios sum the listed catalog codes and do not treat a missing
+fraction as zero.
 """
 
 from __future__ import annotations
@@ -17,7 +19,7 @@ from typing import Literal
 from uuid import UUID, uuid5
 
 from fastapi import HTTPException, status
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from vetdietderm_api.assessments.ration import PreparedRation, RationData, known_value
 from vetdietderm_api.assessments.schemas import (
@@ -46,10 +48,11 @@ from vetdietderm_api.standards.contract import (
     StandardMetadata,
 )
 
-ENGINE_ID = "density-standard/1.0.0"
+ENGINE_ID = "density-standard/1.1.0"
 EDITION_NAMESPACE = UUID("6ba7b811-9dad-11d1-80b4-00c04fd430c8")
 COVERAGE_THRESHOLD_PERCENT = 60.0
-LARGE_BREED_MATURE_WEIGHT_KG = 70 * 0.45359237
+LARGE_BREED_MATURE_WEIGHT_KG = 31.75
+_WEEKS_PER_MONTH = 365.25 / 12 / 7
 _MASS_IN_GRAMS = {"g": 1.0, "mg": 1e-3, "mcg": 1e-6, "µg": 1e-6}
 
 CATALOG_UNITS: dict[str, str] = {
@@ -144,6 +147,7 @@ CATALOG_CODES: dict[str, str] = {
     "BIOTIN": "B7",
     "TAUR_EXTRUDED": "Tau",
     "TAUR_CANNED": "Tau",
+    "TAU": "Tau",
 }
 
 DERIVED_SUMS: dict[str, tuple[str, ...]] = {
@@ -153,7 +157,11 @@ DERIVED_SUMS: dict[str, tuple[str, ...]] = {
 }
 
 RATIOS: dict[str, tuple[str, str]] = {"CA_P": ("Ca", "P")}
-UNMAPPED = frozenset({"VITK"})
+SUM_RATIOS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
+    "O6_O3_RATIO": (("LA", "AA"), ("ALA", "EPA", "DHA")),
+}
+UNMAPPED = frozenset({"VITK", "P_HIGH_SOLUBLE"})
+_KNOWN_CODES = frozenset(CATALOG_CODES) | frozenset(DERIVED_SUMS) | frozenset(RATIOS) | frozenset(SUM_RATIOS) | UNMAPPED
 
 
 class _JsonSource(BaseModel):
@@ -186,6 +194,13 @@ class _Catalogs(BaseModel):
     nutrients: list[_NutrientName]
 
 
+class _ConditionalMaximum(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    condition: str
+    maximum: float
+
+
 class _Target(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -197,6 +212,8 @@ class _Target(BaseModel):
     unit: str
     source_value_text: str | None = None
     note_ru: str | None = None
+    maximum_inclusive: bool = True
+    conditional_maximums: list[_ConditionalMaximum] = Field(default_factory=list)
 
 
 class _ProfileSource(BaseModel):
@@ -251,9 +268,15 @@ def _published_at(value: str) -> datetime:
     return parsed
 
 
+def _mass_unit(unit: str) -> str:
+    return unit.replace("μ", "µ")
+
+
 def _scale(value: float | None, source_unit: str, catalog_unit: str) -> float | None:
     if value is None:
         return None
+    source_unit = _mass_unit(source_unit)
+    catalog_unit = _mass_unit(catalog_unit)
     if source_unit == catalog_unit:
         return value
     if source_unit in _MASS_IN_GRAMS and catalog_unit in _MASS_IN_GRAMS:
@@ -261,11 +284,21 @@ def _scale(value: float | None, source_unit: str, catalog_unit: str) -> float | 
     return None
 
 
-def _comparison_status(value: float, minimum: float | None, maximum: float | None) -> AssessmentStatus:
+def _comparison_status(
+    value: float,
+    minimum: float | None,
+    maximum: float | None,
+    *,
+    maximum_inclusive: bool = True,
+) -> AssessmentStatus:
     if minimum is not None and value < minimum and not isclose(value, minimum, rel_tol=1e-12):
         return AssessmentStatus.below_minimum
-    if maximum is not None and value > maximum and not isclose(value, maximum, rel_tol=1e-12):
-        return AssessmentStatus.above_maximum
+    if maximum is not None:
+        if maximum_inclusive:
+            if value > maximum and not isclose(value, maximum, rel_tol=1e-12):
+                return AssessmentStatus.above_maximum
+        elif value > maximum or isclose(value, maximum, rel_tol=1e-12):
+            return AssessmentStatus.above_maximum
     if minimum is None and maximum is None:
         return AssessmentStatus.not_established
     return AssessmentStatus.met
@@ -279,12 +312,32 @@ def _life_stage(animal: AnimalProfile) -> str:
     return "adult"
 
 
-def _stage_matches(physiological_state: str | None, stage: str) -> bool:
+def _age_weeks(animal: AnimalProfile) -> float | None:
+    if animal.age_months is None:
+        return None
+    return animal.age_months * _WEEKS_PER_MONTH
+
+
+def _stage_matches(physiological_state: str | None, animal: AnimalProfile) -> bool:
+    stage = _life_stage(animal)
     if physiological_state in {None, "all"}:
         return True
     if physiological_state == "growth_reproduction":
         return stage in {"growth", "reproduction"}
-    return physiological_state == stage
+    if physiological_state in {"gestation_late", "lactation_peak"}:
+        return stage == "reproduction"
+    if physiological_state == "growth":
+        return stage == "growth"
+    if physiological_state not in {"growth_early", "growth_late"}:
+        return physiological_state == stage
+    if stage != "growth":
+        return False
+    weeks = _age_weeks(animal)
+    if weeks is None:
+        return True
+    if physiological_state == "growth_early":
+        return 4 <= weeks < 14
+    return weeks >= 14
 
 
 def _feed_form_applies(code: str, feed_form: str) -> bool | None:
@@ -313,6 +366,48 @@ def _missing_foods(ration: RationData, codes: tuple[str, ...]) -> list[str]:
         for food, _grams in ration.foods
         if any(known_value(food, code) is None for code in codes)
     ]
+
+
+def _catalog_unit(codes: tuple[str, ...]) -> str | None:
+    units = {CATALOG_UNITS[code] for code in codes}
+    if len(units) != 1:
+        return None
+    return next(iter(units))
+
+
+def _ratio_sides(code: str) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    if code in RATIOS:
+        left, right = RATIOS[code]
+        return (left,), (right,)
+    return SUM_RATIOS[code]
+
+
+def _large_breed_calcium(
+    target: _Target,
+    animal: AnimalProfile,
+    maximum: float | None,
+    note: str | None,
+) -> tuple[float | None, str | None]:
+    rule = next(
+        (
+            item
+            for item in target.conditional_maximums
+            if "70 lb" in item.condition.casefold() or "31.75" in item.condition
+        ),
+        None,
+    )
+    if rule is None or target.code != "CA":
+        return maximum, note
+    mature = animal.expected_mature_weight_kg
+    if _life_stage(animal) != "growth":
+        return maximum, note
+    if mature is None:
+        extra = "Ожидаемая взрослая масса не указана: предел кальция для крупных пород не применён."
+        return maximum, f"{note} {extra}".strip() if note else extra
+    if mature < LARGE_BREED_MATURE_WEIGHT_KG:
+        return maximum, note
+    applied = f"Применён предел кальция {rule.maximum:g} г/1000 ккал для щенка крупной породы."
+    return rule.maximum, f"{note} {applied}".strip() if note else applied
 
 
 def _daily_amount(ration: RationData, codes: tuple[str, ...]) -> float | None:
@@ -348,7 +443,7 @@ class DensityStandardProvider:
             if profile.calculation_basis != "published_per_1000_kcal":
                 raise ValueError(f"Unsupported calculation basis {profile.calculation_basis!r} in {profile.code}")
             for target in profile.nutrients:
-                if target.code not in CATALOG_CODES and target.code not in DERIVED_SUMS and target.code not in RATIOS and target.code not in UNMAPPED:
+                if target.code not in _KNOWN_CODES:
                     raise ValueError(f"Nutrient code {target.code!r} has no catalog mapping")
         meta = payload.database_meta
         categories: list[str] = []
@@ -397,14 +492,15 @@ class DensityStandardProvider:
         )
 
     def _suggest_profile(self, animal: AnimalProfile) -> tuple[_Profile | None, str]:
-        stage = _life_stage(animal)
         matches = [
             profile
             for profile in self._profiles_for(animal.species.value)
-            if _stage_matches(profile.physiological_state, stage)
+            if _stage_matches(profile.physiological_state, animal)
         ]
         if not matches:
             return None, "Для этого вида и стадии жизни в редакции нет профиля."
+        if len(matches) > 1:
+            return None, "Для этой стадии есть несколько профилей. Выберите профиль по возрасту."
         return matches[0], "Профиль соответствует виду и стадии жизни."
 
     def validate_profile(self, code: str, animal: AnimalProfile) -> ProfileCompatibility:
@@ -413,7 +509,7 @@ class DensityStandardProvider:
             return ProfileCompatibility(level="hard", code="profile_not_found", message="Профиль недоступен в выбранной редакции.")
         if profile.species_code != animal.species.value:
             return ProfileCompatibility(level="hard", code="profile_species_mismatch", message="Профиль предназначен для другого вида.")
-        if not _stage_matches(profile.physiological_state, _life_stage(animal)):
+        if not _stage_matches(profile.physiological_state, animal):
             return ProfileCompatibility(level="hard", code="profile_life_stage_mismatch", message="Профиль несовместим со стадией жизни пациента.")
         suggested, _reason = self._suggest_profile(animal)
         if suggested is not None and suggested.code != code:
@@ -545,24 +641,9 @@ class DensityStandardProvider:
             ration_energy=ration.energy,
         )
 
-    def _limits(self, target: _Target, animal: AnimalProfile, profile: _Profile) -> tuple[float | None, float | None, str | None]:
-        maximum = target.maximum
-        note = target.note_ru
-        mature = animal.expected_mature_weight_kg
-        large_breed_cap = (
-            target.code == "CA"
-            and profile.code == "dog_growth_reproduction"
-            and maximum == 6.25
-            and note is not None
-            and "4.5" in note
-            and mature is not None
-            and mature >= LARGE_BREED_MATURE_WEIGHT_KG
-        )
-        if large_breed_cap:
-            maximum = 4.5
-            applied = "Применён предел кальция 4.5 г/1000 ккал для щенка крупной породы."
-            note = f"{note} {applied}" if note else applied
-        return target.minimum, maximum, note
+    def _limits(self, target: _Target, animal: AnimalProfile) -> tuple[float | None, float | None, str | None, bool]:
+        maximum, note = _large_breed_calcium(target, animal, target.maximum, target.note_ru)
+        return target.minimum, maximum, note, target.maximum_inclusive
 
     def _row(self, target: _Target, profile: _Profile, request: AssessmentRequest, ration: RationData) -> AssessmentRow:
         name = self._names.get(target.code, target.code)
@@ -573,7 +654,7 @@ class DensityStandardProvider:
             table=profile.source.table,
             row=target.code,
         )
-        minimum, maximum, note = self._limits(target, request.animal, profile)
+        minimum, maximum, note, maximum_inclusive = self._limits(target, request.animal)
         applicability = _feed_form_applies(target.code, request.feed_form.value)
         if applicability is False:
             return _plain_row(
@@ -586,17 +667,32 @@ class DensityStandardProvider:
                 "Укажите форму корма: сухой или влажный.", ration, minimum, maximum,
             )
         if target.code in UNMAPPED:
+            if target.code == "P_HIGH_SOLUBLE":
+                detail = note or (
+                    "В каталоге есть общий фосфор, но нет элементарного фосфора из высокорастворимых солей. "
+                    "Этот предел не складывается с общим P."
+                )
+            else:
+                detail = note or "Для этого нутриента нет кода в каталоге продуктов."
             return _plain_row(
-                target, name, source, AssessmentStatus.insufficient_context,
-                "Для этого нутриента нет кода в каталоге продуктов.", ration, minimum, maximum,
+                target, name, source, AssessmentStatus.insufficient_context, detail, ration, minimum, maximum,
+            )
+        if target.code == "TAU":
+            detail = note or (
+                "NRC RA 0,10 г/1000 ккал относится к высокоусвояемым очищенным рационам. "
+                "Для сухого и консервированного корма значения NRC заданы в г/кг рациона и не переводятся "
+                "без подтверждённой энергетической плотности."
+            )
+            return _plain_row(
+                target, name, source, AssessmentStatus.insufficient_context, detail, ration, minimum, maximum,
             )
         if not target.established:
             return _plain_row(
                 target, name, source, AssessmentStatus.not_established,
                 note or "Минимум в источнике не установлен.", ration, minimum, maximum,
             )
-        if target.code in RATIOS:
-            return self._ratio_row(target, name, source, note, minimum, maximum, ration)
+        if target.code in RATIOS or target.code in SUM_RATIOS:
+            return self._ratio_row(target, name, source, note, minimum, maximum, maximum_inclusive, ration)
         codes = DERIVED_SUMS.get(target.code)
         catalog_code = CATALOG_CODES.get(target.code)
         if codes is None and catalog_code is not None:
@@ -645,7 +741,9 @@ class DensityStandardProvider:
             if me is None and not missing:
                 note = "Нет обменной энергии рациона, плотность на 1000 ккал не посчитать."
         else:
-            row_status = _comparison_status(concentration, scaled_minimum, scaled_maximum)
+            row_status = _comparison_status(
+                concentration, scaled_minimum, scaled_maximum, maximum_inclusive=maximum_inclusive,
+            )
         return AssessmentRow(
             code=catalog_code or target.code,
             name=name,
@@ -671,17 +769,24 @@ class DensityStandardProvider:
         note: str | None,
         minimum: float | None,
         maximum: float | None,
+        maximum_inclusive: bool,
         ration: RationData,
     ) -> AssessmentRow:
-        numerator, denominator = RATIOS[target.code]
-        missing = _missing_foods(ration, (numerator, denominator))
+        numerator, denominator = _ratio_sides(target.code)
+        if _catalog_unit(numerator) is None or _catalog_unit(numerator) != _catalog_unit(denominator):
+            return _plain_row(
+                target, name, source, AssessmentStatus.insufficient_context,
+                "Слагаемые соотношения записаны в разных единицах каталога.", ration, minimum, maximum,
+            )
+        parts = numerator + denominator
+        missing = _missing_foods(ration, parts)
         completeness = RowCompleteness(
             complete_components=len(ration.foods) - len(missing),
             total_components=len(ration.foods),
             missing_food_names=missing,
         )
-        numerator_daily = _daily_amount(ration, (numerator,))
-        denominator_daily = _daily_amount(ration, (denominator,))
+        numerator_daily = _daily_amount(ration, numerator)
+        denominator_daily = _daily_amount(ration, denominator)
         if numerator_daily is None or denominator_daily is None:
             row_status = AssessmentStatus.missing_product_data
             value = None
@@ -691,7 +796,9 @@ class DensityStandardProvider:
             note = "Соотношение не определено: знаменатель равен нулю."
         else:
             value = numerator_daily / denominator_daily
-            row_status = _comparison_status(value, minimum, maximum)
+            row_status = _comparison_status(
+                value, minimum, maximum, maximum_inclusive=maximum_inclusive,
+            )
         return AssessmentRow(
             code=target.code,
             name=name,
@@ -749,7 +856,7 @@ def _plain_row(
         code=CATALOG_CODES.get(target.code, target.code),
         name=name,
         unit=target.unit,
-        derived=target.code in DERIVED_SUMS or target.code in RATIOS,
+        derived=target.code in DERIVED_SUMS or target.code in RATIOS or target.code in SUM_RATIOS,
         ration_per_1000_kcal_me=None,
         target=_target_read(minimum, maximum, target.unit, target),
         published_target=_target_read(minimum, maximum, target.unit, target),
