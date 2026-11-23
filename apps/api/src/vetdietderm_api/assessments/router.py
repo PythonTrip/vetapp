@@ -37,8 +37,7 @@ def standards() -> list[StandardRead]:
             active=STANDARD_REGISTRY.active(metadata.standard_code) is provider,
             provider_version=metadata.provider_version, provider_checksum=metadata.provider_checksum,
             normative_categories=list(metadata.normative_categories),
-            reason="Для коммерческого использования требуется письменное разрешение FEDIAF."
-            if metadata.standard_code == "fediaf" else None,
+            commercial_use_verified=True,
         )
         for provider in STANDARD_REGISTRY.providers()
         for metadata in (provider.metadata,)

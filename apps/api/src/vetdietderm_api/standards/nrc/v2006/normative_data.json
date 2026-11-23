@@ -1,0 +1,303 @@
+{
+  "database_meta": {
+    "version": "2006",
+    "language": "ru",
+    "clinical_warning_ru": "Частично верифицированный набор NRC 2006, НЕ является полной базой и не должен использоваться как единственный источник для клинической балансировки рационов. Указаны только проверенные значения RA взрослой собаки; отсутствие записей для кошек и иных состояний означает НЕЗАПОЛНЕНО, а не отсутствие потребности. NRC MR, AI и SUL не взаимозаменяемы с RA.",
+    "source": {
+      "title": "Nutrient Requirements of Dogs and Cats",
+      "publication_date": "2006",
+      "url": "https://doi.org/10.17226/10668"
+    },
+    "data_scope_ru": "Частичный проверенный перенос: NRC 2006, таблица 15-5, RA собаки для поддержания. Другие таблицы требуют отдельной сверки оригинала.",
+    "secondary_verification_source_url": "https://www.ams.usda.gov/sites/default/files/media/Amino%20Acid%20Pet%20Food%20Petition.pdf"
+  },
+  "catalogs": {
+    "nutrients": [
+      {
+        "code": "CP",
+        "name_ru": "Белок",
+        "category_code": "main",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "ARG",
+        "name_ru": "Аргинин",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "HIS",
+        "name_ru": "Гистидин",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "ILE",
+        "name_ru": "Изолейцин",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "LEU",
+        "name_ru": "Лейцин",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "LYS",
+        "name_ru": "Лизин",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "MET",
+        "name_ru": "Метионин",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "MET_CYS",
+        "name_ru": "Метионин + цистин",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "PHE",
+        "name_ru": "Фенилаланин",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "PHE_TYR",
+        "name_ru": "Фенилаланин + тирозин",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "THR",
+        "name_ru": "Треонин",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "TRP",
+        "name_ru": "Триптофан",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "VAL",
+        "name_ru": "Валин",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "CA",
+        "name_ru": "Кальций",
+        "category_code": "mineral",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "P",
+        "name_ru": "Фосфор",
+        "category_code": "mineral",
+        "unit_per_1000_kcal_me": "g"
+      }
+    ]
+  },
+  "species_data": {
+    "dog": {
+      "nutrient_profiles": [
+        {
+          "code": "dog_adult_maintenance",
+          "species_code": "dog",
+          "name_ru": "Взрослая собака — поддержание",
+          "physiological_state": "adult",
+          "clinician_selectable": true,
+          "calculation_basis": "published_per_1000_kcal",
+          "basis": {
+            "energy": 1000,
+            "energy_unit": "kcal",
+            "energy_type": "metabolisable_energy"
+          },
+          "nutrients": [
+            {
+              "code": "CP",
+              "category": "RA",
+              "minimum": 25.0,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "25",
+              "footnote": null,
+              "note_ru": "MR: 20 г/1000 ккал; RA 25."
+            },
+            {
+              "code": "ARG",
+              "category": "RA",
+              "minimum": 0.88,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.88",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "HIS",
+              "category": "RA",
+              "minimum": 0.45,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.45",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "ILE",
+              "category": "RA",
+              "minimum": 0.58,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.58",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "LEU",
+              "category": "RA",
+              "minimum": 0.88,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.88",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "LYS",
+              "category": "RA",
+              "minimum": 0.88,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.88",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "MET",
+              "category": "RA",
+              "minimum": 0.38,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.38",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "MET_CYS",
+              "category": "RA",
+              "minimum": 0.88,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.88",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "PHE",
+              "category": "RA",
+              "minimum": 0.88,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.88",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "PHE_TYR",
+              "category": "RA",
+              "minimum": 1.85,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.85",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "THR",
+              "category": "RA",
+              "minimum": 0.78,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.78",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "TRP",
+              "category": "RA",
+              "minimum": 0.35,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.35",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "VAL",
+              "category": "RA",
+              "minimum": 0.98,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.98",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "CA",
+              "category": "RA",
+              "minimum": 1.0,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.0",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "P",
+              "category": "RA",
+              "minimum": 0.75,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.75",
+              "footnote": null,
+              "note_ru": null
+            }
+          ],
+          "source": {
+            "language": "en",
+            "table": "15-5",
+            "page": 359,
+            "url": "https://doi.org/10.17226/10668"
+          }
+        }
+      ]
+    },
+    "cat": {
+      "nutrient_profiles": []
+    }
+  }
+}

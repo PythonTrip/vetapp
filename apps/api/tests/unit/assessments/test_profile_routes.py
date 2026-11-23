@@ -31,8 +31,11 @@ def test_registry_catalog_and_profile_confirmation_use_the_http_contract(workben
     standards = client.get("/assessments/standards").json()
     by_code = {item["standard_code"]: item for item in standards}
     assert by_code["fediaf"]["available"]
-    assert by_code["nrc"]["normative_categories"] == ["MR", "RA", "AI", "SUL"]
-    assert not by_code["aafco"]["available"]
+    assert by_code["nrc"]["available"]
+    assert by_code["nrc"]["edition"] == "2006"
+    assert by_code["nrc"]["normative_categories"] == ["RA"]
+    assert by_code["aafco"]["available"]
+    assert by_code["aafco"]["edition"] == "2016"
     suggestions = client.post("/assessments/suggestions", json={"animal": payload["animal"]}).json()
     assert suggestions["suggested_profile_code"] == "dog_adult_mer110"
     assert {item["code"] for item in suggestions["profile_options"]} >= {"dog_adult_mer95", "dog_adult_mer110"}
@@ -121,19 +124,27 @@ def test_growth_override_requires_a_nonblank_clinician_comment(workbench, empty_
     assert result["context"]["profile_compatibility"]["comment_required"] is True
 
 
-@pytest.mark.parametrize(("code", "edition"), [("nrc", "2006"), ("aafco", "2026")])
-def test_unavailable_standards_never_fall_back_to_fediaf(workbench, code, edition) -> None:
+@pytest.mark.parametrize(
+    ("code", "edition", "profile"),
+    [("nrc", "2006", "dog_adult_maintenance"), ("aafco", "2016", "dog_adult_maintenance")],
+)
+def test_loaded_standards_do_not_fall_back_to_fediaf(workbench, code, edition, profile) -> None:
     client, payload = workbench
     response = client.post("/assessments/suggestions", json={
         "animal": payload["animal"], "standard_code": code, "edition": edition,
     })
-    assert response.status_code == 422
-    assert response.json()["detail"]["code"] == "standard_unavailable"
+    assert response.status_code == 200
+    body = response.json()
+    assert body["suggested_profile_code"] == profile
+    assert body["edition"]["standard_code"] == code
+    assert body["edition"]["code"] == edition
     response = client.post("/assessments", json={
         **payload, "profile_selection": {
-            "standard_code": code, "edition": edition, "profile_code": "dog_adult",
-            "source": "manual",
+            "standard_code": code, "edition": edition, "profile_code": profile, "source": "manual",
         },
     })
-    assert response.status_code == 422
-    assert response.json()["detail"]["code"] == "standard_unavailable"
+    assert response.status_code == 200
+    result = response.json()
+    assert result["edition"]["standard_code"] == code
+    assert result["normative_comparison_performed"] is True
+    assert result["context"]["nutrient_profile_code"] == profile

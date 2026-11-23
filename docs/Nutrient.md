@@ -38,7 +38,7 @@ Clinical posture: outputs are informational recommendations for complete/complem
 | Saved assessments | `DietPlan.assessment_snapshot_json` | Persistence; reopen shows the stored snapshot, not a live recompute |
 | Archival only (not runtime SoT) | `docs/data/fediaf_2025_*.csv`, `docs/data/fediaf_2025_veterinary_nutrition_ru.xlsx` | Historical conversion artifacts |
 
-Normative values load from `vetdietderm_api.standards.fediaf.v2025`. The JSON under `docs/data/` is an archive twin of that provider snapshot. The API process does not import or publish SQL guideline rows; schema `legacy_guidelines` remains for diagnostics only. NRC 2006, CSV-based FEDIAF generation, and TypeScript `fediaf-data.ts` are not in runtime.
+Normative values load from `vetdietderm_api.standards.fediaf.v2025`. The JSON under `docs/data/` is an archive twin of that provider snapshot. The API process does not import or publish SQL guideline rows; schema `legacy_guidelines` remains for diagnostics only. `standards/nrc/v2006` and `standards/aafco/v2026` load `normative_data.json` and compare intake per 1000 kcal. The AAFCO API edition is the dataset version, currently `2016`. A package without that file stays listed and rejects assessment. CSV-based FEDIAF generation and TypeScript `fediaf-data.ts` are not in runtime.
 
 Auto-selected adult, growth, and reproduction profiles use `published_per_1000_kcal`; daily requirements are derived with `target × working_energy_kcal / 1000`. Table VII-11 `daily_per_metabolic_bw` profiles remain stored as reference data. Null / not-established values mean “not set in the source table,” not zero.
 

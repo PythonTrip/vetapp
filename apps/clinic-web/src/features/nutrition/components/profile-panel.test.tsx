@@ -19,13 +19,13 @@ function renderPanel() {
       standard_code: "fediaf", edition: "", profile_code: "", source: "manual",
     });
     const [confirmed, setConfirmed] = React.useState(false);
-    return <ProfilePanel animal={{ species: "dog", age_months: 26 }} draft={draft} confirmed={confirmed}
-      stale={false}
-      onDraft={(selection) => { setDraft(selection); setConfirmed(false); }}
+    return <ProfilePanel animal={{ species: "dog", age_months: 26 }} selection={draft} confirmed={confirmed}
+      stale={false} summary={confirmed ? "FEDIAF 2025.09" : null}
       onConfirm={(selection) => { onConfirm(selection); setDraft(selection); setConfirmed(true); }} />;
   }
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(<QueryClientProvider client={client}><Form /></QueryClientProvider>);
+  fireEvent.click(screen.getByRole("button", { name: "Выбрать профиль" }));
   return onConfirm;
 }
 
@@ -53,26 +53,35 @@ beforeEach(() => {
 describe("profile confirmation", () => {
   it("only accepts a recommendation after the clinician applies it", async () => {
     const onConfirm = renderPanel();
-    const apply = await screen.findByRole("button", { name: "Применить рекомендованный" });
+    const apply = await screen.findByRole("button", { name: "Выбрать рекомендованный" });
     expect(screen.getByLabelText("Профиль")).toHaveValue("");
     expect(onConfirm).not.toHaveBeenCalled();
     fireEvent.click(apply);
+    expect(screen.getByLabelText("Профиль")).toHaveValue(recommendation);
+    expect(onConfirm).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Подтвердить профиль" }));
     expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ profile_code: recommendation, source: "recommendation" }));
     expect(screen.getByText("Профиль подтверждён")).toBeVisible();
   });
 
-  it("confirms a manually selected alternative and clears it on a standard change", async () => {
+  it("keeps the confirmed profile when a standard change is cancelled", async () => {
     const onConfirm = renderPanel();
-    await screen.findByRole("button", { name: "Применить рекомендованный" });
+    await screen.findByRole("button", { name: "Выбрать рекомендованный" });
     fireEvent.change(screen.getByLabelText("Профиль"), { target: { value: alternative } });
     expect(screen.getByText("Отличается от рекомендации.")).toBeVisible();
     expect(onConfirm).not.toHaveBeenCalled();
     fireEvent.change(screen.getByLabelText(/Комментарий врача/), { target: { value: "Контекст подтверждён" } });
     fireEvent.click(screen.getByRole("button", { name: "Подтвердить профиль" }));
     expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ profile_code: alternative, source: "manual", comment: "Контекст подтверждён" }));
+    fireEvent.click(screen.getByRole("button", { name: "Изменить профиль" }));
     fireEvent.change(screen.getByLabelText("Стандарт"), { target: { value: "nrc" } });
     expect(screen.getByText("Набор недоступен")).toBeVisible();
     expect(screen.getByRole("button", { name: "Подтвердить профиль" })).toBeDisabled();
-    expect(screen.queryByText("Профиль подтверждён")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Отмена" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByText("Профиль подтверждён")).toBeVisible();
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Изменить профиль" }));
+    expect(screen.getByLabelText("Профиль")).toHaveValue(alternative);
   });
 });

@@ -8,6 +8,8 @@ from vetdietderm_api.standards.registry import StandardNotFoundError
 def test_builtin_registry_resolves_active_and_explicit_edition() -> None:
     assert STANDARD_REGISTRY.active("fediaf") is provider
     assert STANDARD_REGISTRY.get("fediaf", "2025.09") is provider
+    assert STANDARD_REGISTRY.get("nrc", "2006").metadata.standard_code == "nrc"
+    assert STANDARD_REGISTRY.get("aafco", "2016").metadata.edition == "2016"
 
 
 def test_registry_rejects_mutating_an_existing_edition() -> None:

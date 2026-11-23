@@ -140,7 +140,10 @@ it("builds and saves a ration after explicit profile confirmation", async () => 
   const save = screen.getByRole("button", { name: "Сохранить план" });
   expect(save).toBeDisabled();
   await waitFor(() => expect(assessmentsApi.create).toHaveBeenCalledWith(expect.objectContaining({ profile_selection: null })));
-  fireEvent.click(await screen.findByRole("button", { name: "Применить рекомендованный" }));
+  fireEvent.click(screen.getByRole("button", { name: "Выбрать профиль" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Выбрать рекомендованный" }));
+  expect(save).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Подтвердить профиль" }));
   fireEvent.change(grams, { target: { value: "120" } });
   expect(save).toBeDisabled();
   await waitFor(() => expect(save).toBeEnabled());
@@ -171,6 +174,7 @@ it("opens a historical profile and reloads the context when the editing patient 
   expect(assessmentsApi.create).not.toHaveBeenCalled();
   expect(assessmentsApi.suggestions).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Редактировать и пересчитать" }));
+  fireEvent.click(screen.getByRole("button", { name: "Выбрать профиль" }));
   const confirm = screen.getByRole("button", { name: "Подтвердить профиль" });
   await waitFor(() => expect(confirm).toBeEnabled());
   fireEvent.click(confirm);
@@ -181,7 +185,9 @@ it("opens a historical profile and reloads the context when the editing patient 
     profile_selection: null,
   })));
   expect(screen.getByRole("button", { name: "Пересчитать и сохранить" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Изменить профиль" }));
   expect(screen.getByLabelText("Профиль")).toHaveValue(profile);
+  fireEvent.click(screen.getByRole("button", { name: "Отмена" }));
   fireEvent.click(screen.getByRole("button", { name: `Удалить ${food.name}` }));
   expect(screen.getByText("Рацион пока пуст")).toBeVisible();
 });

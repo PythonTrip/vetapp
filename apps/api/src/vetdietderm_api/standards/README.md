@@ -14,7 +14,10 @@ assessment. Requests naming those editions fail with `standard_unavailable`.
 
 Keep edition identities stable. Version corrected implementations and freeze
 the provider checksum with each result. Register a new published edition as a
-sibling package, for example `fediaf/v2026/`.
+sibling package, for example `fediaf/v2026/`. NRC and AAFCO use that layout.
+`load_provider` reads `normative_data.json` and compares ration density per
+1000 kcal. Without the file the edition stays on the standards list and
+assessment returns `standard_unavailable`.
 
 ## API and compatibility
 
@@ -41,9 +44,9 @@ the confirmation was recorded with the snapshot.
 
 | Edition | Dataset status |
 | --- | --- |
-| FEDIAF 2025.09 | The existing minimum recommendations remain available. The bundled dataset has no upper-limit columns. FEDIAF requires written permission for commercial use, which has not been verified for this installation. [Guidelines and usage terms](https://europeanpetfood.org/self-regulation/nutritional-guidelines/) |
-| NRC 2006 | The source is publicly readable. Commercial data reuse remains unverified. The catalog adapter preserves MR, RA, AI, and SUL as distinct categories. An intake below RA alone cannot establish clinical deficiency. [Book](https://www.nationalacademies.org/publications/10668) · [Reuse permissions](https://www.nationalacademies.org/request-rights-and-permissions) |
-| AAFCO 2026 | No licensed normative dataset was verified. Activation needs the dog and cat Adult Maintenance and Growth & Reproduction profiles and verification of applicable updates, including the feline calcium/phosphorus transition. [Official Publication](https://aafco.org/resources/publications) · [Ca/P update](https://www.aafco.org/news/ca-p-enforcement-update) |
+| FEDIAF 2025.09 | The existing minimum recommendations remain available. The bundled dataset has no upper-limit columns. [Guidelines](https://europeanpetfood.org/self-regulation/nutritional-guidelines/) |
+| NRC 2006 | Package `nrc/v2006`. The loaded dataset is the dog adult-maintenance RA column from table 15-5. Cat profiles are empty. MR, AI, and SUL are not in the file. An intake below RA alone cannot establish clinical deficiency. [Book](https://www.nationalacademies.org/publications/10668) |
+| AAFCO 2016 | Package `aafco/v2026`. `database_meta.version` is `2016`, and that is the edition code on the API. The file has dog and cat adult-maintenance and growth-and-reproduction profiles on a per-1000-kcal basis. [Source PDF](https://www.aafco.org/wp-content/uploads/2023/01/MBRC_minutes_Attachment_A.pdf) |
 
 FEDIAF Table VII-6 gives the dog age cohorts in whole years. The application uses
 completed years for the boundaries: 12–<36 months, 36–<96 months, and 96 months

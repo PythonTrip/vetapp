@@ -6,10 +6,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
   Check,
+  ChevronDown,
   CircleHelp,
   FolderOpen,
   Info,
   Loader2,
+  PawPrint,
   Plus,
   RefreshCw,
   Save,
@@ -110,6 +112,8 @@ function humanFieldLabel(field: string): string {
 const EMPTY_SELECTION: ProfileSelection = {
   standard_code: "fediaf", edition: "", profile_code: "", source: "manual",
 };
+const nutritionAction = "min-h-11 bg-teal-800 text-white hover:bg-teal-700 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-teal-800 dark:bg-teal-300 dark:text-teal-950 dark:hover:bg-teal-200 dark:focus-visible:outline-teal-300";
+const nutritionTab = "min-h-11 flex-none rounded-none border-0 border-b-2 px-2 text-xs data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-teal-800 data-[state=active]:shadow-none sm:px-4 sm:text-sm dark:data-[state=active]:border-primary dark:data-[state=active]:bg-transparent dark:data-[state=active]:text-teal-200";
 
 export function NutritionWorkspace() {
   const router = useRouter();
@@ -141,11 +145,11 @@ export function NutritionWorkspace() {
   const [selectedPatientId, setSelectedPatientId] = React.useState<string>(patientId);
   const selectedPatient = usePatientQuery(selectedPatientId);
   const patientContextPending = Boolean(selectedPatientId) && hydratedPatientId !== selectedPatientId;
-  const assessmentAnimal = React.useMemo(() => {
+  const { assessmentAnimal, animalInputError } = React.useMemo(() => {
     try {
-      return toAssessmentAnimal(animal);
-    } catch {
-      return null;
+      return { assessmentAnimal: toAssessmentAnimal(animal), animalInputError: null };
+    } catch (cause) {
+      return { assessmentAnimal: null, animalInputError: apiErrorMessage(cause) };
     }
   }, [animal]);
   const contextKey = JSON.stringify([selectedPatientId || null, assessmentAnimal]);
@@ -253,12 +257,6 @@ export function NutritionWorkspace() {
     setAssessmentDirty(true);
     setFormError(null);
   }, [assessment.reset]);
-
-  function changeProfile(selection: ProfileSelection) {
-    setProfileDraft(selection);
-    setConfirmed(null);
-    if (activeSelection) invalidateAssessment();
-  }
 
   function confirmProfile(selection: ProfileSelection) {
     setProfileDraft(selection);
@@ -371,6 +369,11 @@ export function NutritionWorkspace() {
   const resolvedProfileCode = historicalSnapshotLocked
     ? plan.data?.assessment_snapshot.nutrient_profile_code
     : activeSelection?.profile_code;
+  const profileSummary = resolvedProfileCode ? resolvedStandardLabel(
+    resolvedProfileCode,
+    displayedAssessment?.edition.code ?? activeSelection?.edition ?? "",
+    displayedAssessment?.edition.standard_code ?? activeSelection?.standard_code ?? "fediaf",
+  ) : null;
   const resolvedFormulaCode = displayedAssessment?.context.energy_formula_code
     ?? suggestions.data?.suggested_energy_formula_code;
   const resolvedFormulaName = suggestions.data?.energy_formula_options.find(
@@ -417,39 +420,35 @@ export function NutritionWorkspace() {
   }
 
   return (
-    <div className="mx-auto min-w-0 w-full max-w-[1600px] space-y-3 overflow-x-hidden p-3 sm:p-4 lg:p-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="mx-auto w-full min-w-0 max-w-[1600px] space-y-4 px-3 pt-5 pb-6 sm:px-6 sm:pt-7 lg:px-8">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <h1 className="truncate text-xl font-bold tracking-[-0.02em] sm:text-2xl">{plan.data?.name ?? "Питание / Расчёт рациона"}</h1>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {plan.data ? `Сохранённый план · ${plan.data.assessment_snapshot.standard_code.toUpperCase()} ${plan.data.edition_code}` : "Рабочее место ветеринарного диетолога · автоматический пересчёт"}
+          <p className="mb-1.5 text-sm font-semibold text-teal-800 dark:text-teal-200">Питание</p>
+          <h1 className="text-2xl font-bold tracking-tight wrap-break-word sm:text-3xl">{plan.data?.name ?? "Расчёт рациона"}</h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            {plan.data ? `Сохранённый план · ${plan.data.assessment_snapshot.standard_code.toUpperCase()} ${plan.data.edition_code}` : "Параметры пациента, суточная энергия и нутриентный состав"}
           </p>
         </div>
-        <div className="flex shrink-0 flex-wrap gap-2">
-          {!historicalSnapshotLocked ? <Button asChild type="button" size="sm" variant="outline">
-            <a href="#nutrition-profile">Профиль оценки</a>
-          </Button> : null}
-          <Button
+        <Button
           type="button"
-          size="sm"
+          className={cn(nutritionAction, "shrink-0 sm:w-auto")}
           onClick={() => setSaveOpen(true)}
           disabled={historicalSnapshotLocked || !assessment.data?.normative_comparison_performed || assessmentDirty || !activeSelection}
         >
           {planId ? <RefreshCw className="size-4" /> : <Save className="size-4" />}
           {planId ? "Пересчитать и сохранить" : "Сохранить план"}
-          </Button>
-        </div>
-      </div>
+        </Button>
+      </header>
 
-      <Tabs defaultValue="assessment" className="space-y-3">
-        <TabsList className="h-9 rounded-lg p-1">
-          <TabsTrigger value="assessment" className="h-7 rounded-md px-3 text-xs">Рацион</TabsTrigger>
-          <TabsTrigger value="plans" className="h-7 rounded-md px-3 text-xs">Недавние планы</TabsTrigger>
-          <TabsTrigger value="catalog" className="h-7 rounded-md px-3 text-xs">Каталог</TabsTrigger>
+      <Tabs defaultValue="assessment" className="min-w-0 gap-4">
+        <TabsList className="h-auto w-full min-w-0 justify-start gap-1 rounded-none border-b bg-transparent p-0">
+          <TabsTrigger value="assessment" className={nutritionTab}>Рацион</TabsTrigger>
+          <TabsTrigger value="plans" className={nutritionTab}>Недавние планы</TabsTrigger>
+          <TabsTrigger value="catalog" className={nutritionTab}>Каталог</TabsTrigger>
         </TabsList>
         <TabsContent value="catalog" data-catalog-workbench><FoodCatalog /></TabsContent>
         <TabsContent value="plans"><RecentPlans plans={recentPlans.data ?? []} pending={recentPlans.isPending} error={recentPlans.isError ? apiErrorMessage(recentPlans.error) : null} /></TabsContent>
-        <TabsContent value="assessment" className="space-y-3">
+        <TabsContent value="assessment" className="min-w-0 space-y-4 rounded-lg focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-teal-800 dark:focus-visible:outline-teal-300">
           {plan.data ? (
             <SnapshotNotice
               plan={plan.data}
@@ -459,8 +458,7 @@ export function NutritionWorkspace() {
             />
           ) : null}
 
-          <div className="min-w-0 space-y-3">
-          <fieldset disabled={historicalSnapshotLocked} className="min-w-0">
+          <fieldset disabled={historicalSnapshotLocked} className="min-w-0 space-y-4">
             <ClinicalContextSummary
               animal={animal}
               patient={selectedPatient.data ?? null}
@@ -468,71 +466,72 @@ export function NutritionWorkspace() {
               selectedPatientPending={Boolean(selectedPatientId) && selectedPatient.isPending}
               onPatientChange={handlePatientChange}
               patientError={selectedPatientId && selectedPatient.isError ? apiErrorMessage(selectedPatient.error) : null}
-              standard={resolvedProfileCode ? resolvedStandardLabel(
-                resolvedProfileCode,
-                displayedAssessment?.edition.code ?? activeSelection?.edition ?? "",
-                displayedAssessment?.edition.standard_code ?? activeSelection?.standard_code ?? "fediaf",
-              ) : "Профиль не подтверждён"}
-            >
-              <AnimalContextPanel
-                animal={animal}
-                disabled={historicalSnapshotLocked || patientContextPending}
-                onPatch={patchAnimal}
-                showExpectedMatureWeight={showExpectedMatureWeight}
-                adjustment={energyAdjustmentPercent}
-                onAdjustment={(value) => {
-                  setEnergyAdjustmentPercent(value);
-                  invalidateAssessment();
-                }}
-                rerFactor={rerFactor}
-                onRerFactor={(value) => {
-                  setRerFactor(value);
-                  invalidateAssessment();
-                }}
-              />
+              profile={historicalSnapshotLocked ? profileSummary : (
+                <ProfilePanel
+                  animal={patientContextPending ? null : assessmentAnimal}
+                  selection={profileDraft}
+                  confirmed={Boolean(activeSelection)}
+                  stale={confirmed !== null && !activeSelection}
+                  summary={profileSummary}
+                  onConfirm={confirmProfile}
+                />
+              )}
+            />
+            <div className="@container">
+              <div className="grid min-w-0 items-start gap-4 @min-[48rem]:grid-cols-[minmax(0,1.9fr)_minmax(18rem,1fr)]">
+                <AnimalContextPanel
+                  animal={animal}
+                  disabled={historicalSnapshotLocked || patientContextPending}
+                  inputError={animalInputError}
+                  onPatch={patchAnimal}
+                  showExpectedMatureWeight={showExpectedMatureWeight}
+                  adjustment={energyAdjustmentPercent}
+                  onAdjustment={(value) => {
+                    setEnergyAdjustmentPercent(value);
+                    invalidateAssessment();
+                  }}
+                  rerFactor={rerFactor}
+                  onRerFactor={(value) => {
+                    setRerFactor(value);
+                    invalidateAssessment();
+                  }}
+                />
 
-              <EnergyStrip
-                estimate={energyEstimate}
-                assessmentEnergy={resolvedEnergy}
-                formulaName={resolvedFormulaName}
-                adjustment={energyAdjustmentPercent}
-                rerFactor={rerFactor}
-                currentBodyWeightKg={animal.currentBodyWeightKg}
-              />
-            </ClinicalContextSummary>
+                <EnergyStrip
+                  estimate={energyEstimate}
+                  assessmentEnergy={resolvedEnergy}
+                  formulaName={resolvedFormulaName}
+                  adjustment={energyAdjustmentPercent}
+                  rerFactor={rerFactor}
+                  currentBodyWeightKg={animal.currentBodyWeightKg}
+                  patientStatus={patientContextPending ? selectedPatient.isError ? "error" : "loading" : "ready"}
+                  locked={historicalSnapshotLocked}
+                />
+              </div>
+            </div>
           </fieldset>
 
-            {!historicalSnapshotLocked ? <ProfilePanel
-              animal={patientContextPending ? null : assessmentAnimal}
-              draft={profileDraft}
-              confirmed={Boolean(activeSelection)}
-              stale={confirmed !== null && !activeSelection}
-              onDraft={changeProfile}
-              onConfirm={confirmProfile}
-            /> : null}
+          {formError ? <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-destructive/35 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+            <p role="alert">{formError}</p>
+            {assessment.error ? <Button variant="outline" size="sm" onClick={retryAssessment}>Повторить расчёт</Button> : null}
+          </div> : null}
 
-            {formError ? <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-destructive/35 bg-destructive/5 px-3 py-2 text-xs text-destructive">
-              <p role="alert">{formError}</p>
-              {assessment.error ? <Button variant="outline" size="sm" onClick={retryAssessment}>Повторить расчёт</Button> : null}
-            </div> : null}
-
-            <RationWorkbench
-              lines={lines}
-              readOnly={historicalSnapshotLocked}
-              onOpenAdd={() => setRationAddOpen(true)}
-              onGrams={setLineGrams}
-              onRemove={(id) => { setLines((current) => current.filter((line) => line.food.uuid !== id)); invalidateAssessment(); }}
-              inferredFeedForm={inferredFeedForm}
-              feedOverride={feedOverride}
-              onFeedOverride={(value) => { setFeedOverride(value); invalidateAssessment(); }}
-              assessment={displayedAssessment}
-              assessmentPending={assessment.isPending}
-              dirty={assessmentDirty}
-              workingEnergyKcal={workingEnergyKcal}
-              rationKcal={rationKcal}
-              nutrients={nutrients.data ?? []}
-            />
-          </div>
+          <RationWorkbench
+            lines={lines}
+            readOnly={historicalSnapshotLocked}
+            onOpenAdd={() => setRationAddOpen(true)}
+            onGrams={setLineGrams}
+            onRemove={(id) => { setLines((current) => current.filter((line) => line.food.uuid !== id)); invalidateAssessment(); }}
+            inferredFeedForm={inferredFeedForm}
+            feedOverride={feedOverride}
+            onFeedOverride={(value) => { setFeedOverride(value); invalidateAssessment(); }}
+            assessment={displayedAssessment}
+            assessmentPending={assessment.isPending}
+            dirty={assessmentDirty}
+            workingEnergyKcal={workingEnergyKcal}
+            rationKcal={rationKcal}
+            nutrients={nutrients.data ?? []}
+          />
         </TabsContent>
       </Tabs>
       <SavePlanDialog
@@ -620,11 +619,11 @@ function SavePlanDialog({ open, onOpenChange, editing, name, notes, selectedPati
       <DialogContent>
         <DialogHeader><DialogTitle>{editing ? "Пересчитать и сохранить" : "Сохранить план"}</DialogTitle><DialogDescription>{editing ? "Текущий snapshot будет заменён результатом нового серверного расчёта. История версий не создаётся." : "Сервер повторно проверит контекст и рассчитает snapshot перед записью."}</DialogDescription></DialogHeader>
         <div className="space-y-4">
-          <Field label="Название"><Input value={name} onChange={(event) => onName(event.target.value)} maxLength={255} /></Field>
+          <Field label="Название">{(id) => <Input id={id} value={name} onChange={(event) => onName(event.target.value)} maxLength={255} />}</Field>
           <p className="text-sm text-muted-foreground">
             {selectedPatient ? `Пациент · ${selectedPatient.name}` : "План без привязки к пациенту"}
           </p>
-          <Field label="Заметки"><Textarea value={notes} onChange={(event) => onNotes(event.target.value)} rows={4} /></Field>
+          <Field label="Заметки">{(id) => <Textarea id={id} value={notes} onChange={(event) => onNotes(event.target.value)} rows={4} />}</Field>
         </div>
         <DialogFooter><Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>Отмена</Button><Button type="button" onClick={onSave} disabled={pending || !name.trim()}>{pending ? <Loader2 className="h-4 w-4 animate-spin" /> : editing ? <RefreshCw className="h-4 w-4" /> : <Save className="h-4 w-4" />}{editing ? "Пересчитать и сохранить" : "Сохранить план"}</Button></DialogFooter>
       </DialogContent>
@@ -639,8 +638,7 @@ function ClinicalContextSummary({
   selectedPatientPending,
   onPatientChange,
   patientError,
-  standard,
-  children,
+  profile,
 }: {
   animal: NutritionAnimalForm;
   patient: PatientRecord | null;
@@ -648,8 +646,7 @@ function ClinicalContextSummary({
   selectedPatientPending: boolean;
   onPatientChange: (value: string) => void;
   patientError: string | null;
-  standard: string | null;
-  children: React.ReactNode;
+  profile: React.ReactNode;
 }) {
   const species = SPECIES_OPTIONS.find((item) => item.value === animal.species)?.label ?? animal.species;
   const lifeStage = LIFE_STAGE_OPTIONS.find((item) => item.value === animal.lifeStage)?.label ?? "Стадия не указана";
@@ -660,13 +657,14 @@ function ClinicalContextSummary({
     : "масса не указана";
   const ageText = animal.ageMonths && Number.isFinite(Number(animal.ageMonths.replace(",", ".")))
     ? `${formatNumber(Number(animal.ageMonths.replace(",", ".")), 0)} мес`
-    : "возраст —";
-  const bcsText = animal.bcs ? `BCS ${animal.bcs}/9` : "BCS не указан";
+    : null;
+  const meta = [species, lifeStage, ageText, weightText].filter(Boolean).join(" · ");
 
   return (
-    <section className="min-w-0 overflow-hidden rounded-xl border bg-background" aria-label="Параметры расчёта питания">
-      <div className="border-b bg-muted/15 px-4 py-2.5 sm:px-5">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-sm">
+    <section className="flex min-w-0 flex-wrap items-center justify-between gap-x-6 gap-y-4 rounded-xl border bg-card px-4 py-3 sm:px-5" aria-label="Пациент и профиль оценки">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="grid size-11 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><PawPrint className="size-5" aria-hidden="true" /></div>
+        <div className="min-w-0">
           <PatientPicker
             id="nutrition-patient-picker"
             value={selectedPatientId}
@@ -674,31 +672,23 @@ function ClinicalContextSummary({
             selectedPending={selectedPatientPending}
             onChange={onPatientChange}
             compact
-            className="h-7 w-auto max-w-[14rem] border-transparent bg-transparent px-0 font-semibold shadow-none hover:bg-transparent hover:text-primary"
+            className="min-h-11 w-auto max-w-full border-transparent bg-transparent px-0 text-left font-semibold shadow-none hover:bg-transparent hover:text-primary"
           />
-          <span className="text-muted-foreground" aria-hidden="true">·</span>
-          <span>{species}</span>
-          <span className="text-muted-foreground" aria-hidden="true">·</span>
-          <span>{ageText}</span>
-          <span className="text-muted-foreground" aria-hidden="true">·</span>
-          <span>{weightText}</span>
-          <span className="text-muted-foreground" aria-hidden="true">·</span>
-          <span>{bcsText}</span>
+          {!selectedPatientPending ? <p className="text-xs leading-5 text-muted-foreground">{meta}</p> : null}
+          {patientError ? <p className="mt-1 text-xs text-destructive" role="alert">{patientError}</p> : null}
         </div>
-        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2 text-xs">
-          <span className="min-w-0 truncate font-medium text-foreground">{standard}</span>
-          <span className="text-muted-foreground">· {lifeStage}</span>
-        </div>
-        {patientError ? <p className="mt-2 text-xs text-destructive" role="alert">{patientError}</p> : null}
       </div>
-      <div className="grid min-w-0 xl:grid-cols-[minmax(0,2.1fr)_minmax(300px,1fr)]">{children}</div>
+      <div className="min-w-0 max-w-full text-sm">{profile}</div>
     </section>
   );
 }
 
-function AnimalContextPanel({ animal, disabled, onPatch, showExpectedMatureWeight, adjustment, onAdjustment, rerFactor, onRerFactor }: {
+const patientFieldClass = "min-h-11 w-full min-w-0 shadow-none";
+
+function AnimalContextPanel({ animal, disabled, inputError, onPatch, showExpectedMatureWeight, adjustment, onAdjustment, rerFactor, onRerFactor }: {
   animal: NutritionAnimalForm;
   disabled: boolean;
+  inputError: string | null;
   onPatch: (patch: Partial<NutritionAnimalForm>) => void;
   showExpectedMatureWeight: boolean;
   adjustment: string;
@@ -708,80 +698,98 @@ function AnimalContextPanel({ animal, disabled, onPatch, showExpectedMatureWeigh
 }) {
   const showPregnancy = animal.lifeStage === "gestation" || animal.pregnant;
   const showLactation = animal.lifeStage === "lactation" || animal.lactating;
+  const weightMissing = !animal.currentBodyWeightKg.trim();
+  const fieldGrid = "grid min-w-0 gap-3 min-[380px]:grid-cols-2 sm:gap-x-4 @min-[61rem]:grid-cols-3";
+
   return (
-    <section className="min-w-0 px-4 py-5 sm:px-5 lg:px-6" aria-labelledby="clinical-context-details">
-      <h2 id="clinical-context-details" className="text-base font-semibold tracking-[-0.01em]">Параметры</h2>
-      <div className="mt-4 grid gap-x-5 gap-y-3 sm:grid-cols-2 lg:grid-cols-[13.75rem_14.5rem_8.75rem] lg:items-end lg:gap-x-2">
-        <Field label="Вид">
+    <section className="min-w-0 rounded-xl border bg-card p-4 sm:p-5" aria-labelledby="clinical-context-details">
+      <h2 id="clinical-context-details" className="text-lg font-semibold tracking-tight">Параметры пациента</h2>
+      <p className="mt-1 text-sm text-muted-foreground">Текущая масса нужна для расчёта энергии.</p>
+      {inputError && !disabled ? <p role="status" className="mt-2 text-sm text-destructive">{inputError}</p> : null}
+      <div className={cn(fieldGrid, "mt-4")}>
+        <Field label="Вид животного">{(id) => (
           <Select value={animal.species} onValueChange={(species) => onPatch({ species: species as NutritionAnimalForm["species"] })} disabled={disabled}>
-            <SelectTrigger className="w-full shadow-none"><SelectValue /></SelectTrigger>
+            <SelectTrigger id={id} className={patientFieldClass}><SelectValue /></SelectTrigger>
             <SelectContent>{SPECIES_OPTIONS.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent>
           </Select>
-        </Field>
-        <Field label="Стадия жизни">
+        )}</Field>
+        <Field label="Стадия жизни">{(id) => (
           <Select value={animal.lifeStage || "none"} onValueChange={(value) => onPatch({ lifeStage: value === "none" ? "" : value })} disabled={disabled}>
-            <SelectTrigger className="max-w-[22rem] shadow-none"><SelectValue /></SelectTrigger>
+            <SelectTrigger id={id} className={patientFieldClass}><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="none">Не указана</SelectItem>{LIFE_STAGE_OPTIONS.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent>
           </Select>
-        </Field>
-        <Field label="Возраст">
-          <UnitInput unit="мес" className="max-w-40" inputMode="decimal" value={animal.ageMonths} onChange={(event) => onPatch({ ageMonths: event.target.value })} disabled={disabled} />
-        </Field>
-        <Field label="Текущая масса">
-          <UnitInput unit="кг" className="max-w-40" inputMode="decimal" value={animal.currentBodyWeightKg} onChange={(event) => onPatch({ currentBodyWeightKg: event.target.value })} disabled={disabled} />
-        </Field>
-        <Field label="Целевая масса">
-          <UnitInput unit="кг" className="max-w-40" inputMode="decimal" value={animal.targetBodyWeightKg} onChange={(event) => onPatch({ targetBodyWeightKg: event.target.value })} disabled={disabled} />
-        </Field>
+        )}</Field>
+        <Field label="Возраст">{(id) => (
+          <UnitInput id={id} unit="мес" inputMode="decimal" value={animal.ageMonths} onChange={(event) => onPatch({ ageMonths: event.target.value })} disabled={disabled} />
+        )}</Field>
+        <Field label="Текущая масса" id="nutrition-current-weight">{(id) => (
+          <UnitInput id={id} unit="кг" className={weightMissing && !disabled ? "border-amber-600/60 dark:border-amber-400/60" : undefined} inputMode="decimal" value={animal.currentBodyWeightKg} onChange={(event) => onPatch({ currentBodyWeightKg: event.target.value })} disabled={disabled} />
+        )}</Field>
         {showExpectedMatureWeight ? (
-          <Field label="Ожидаемый взрослый вес">
-            <UnitInput unit="кг" className="max-w-40" inputMode="decimal" value={animal.expectedMatureWeightKg} onChange={(event) => onPatch({ expectedMatureWeightKg: event.target.value })} disabled={disabled} />
-          </Field>
-        ) : <div className="hidden lg:block" aria-hidden="true" />}
-        <Field label="BCS">
-          <Select value={animal.bcs || "none"} onValueChange={(value) => onPatch({ bcs: value === "none" ? "" : value })} disabled={disabled}>
-            <SelectTrigger className="max-w-40 shadow-none"><SelectValue /></SelectTrigger>
-            <SelectContent><SelectItem value="none">Не указан</SelectItem>{Array.from({ length: 9 }, (_, index) => String(index + 1)).map((value) => <SelectItem key={value} value={value}>{value} / 9</SelectItem>)}</SelectContent>
-          </Select>
-        </Field>
-        <Field label="Активность">
-          <Select value={animal.activity || "none"} onValueChange={(value) => onPatch({ activity: value === "none" ? "" : value })} disabled={disabled}>
-            <SelectTrigger className="w-full shadow-none"><SelectValue /></SelectTrigger>
-            <SelectContent><SelectItem value="none">Не указана</SelectItem>{ACTIVITY_OPTIONS.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent>
-          </Select>
-        </Field>
-        <Field label="Стерилизован">
-          <div className="flex h-9 max-w-40 items-center rounded-md border border-input bg-background px-3">
-            <CheckField label={animal.neutered ? "Да" : "Нет"} checked={animal.neutered} onChecked={(value) => onPatch({ neutered: value })} />
-          </div>
-        </Field>
-        <Field label="Корректировка энергии">
-          <UnitInput unit="%" className="max-w-44" inputMode="decimal" value={adjustment} onChange={(event) => onAdjustment(event.target.value)} />
-        </Field>
-        <Field label="Коэффициент RER">
-          <Input className="h-9 max-w-40 shadow-none" inputMode="decimal" value={rerFactor} onChange={(event) => onRerFactor(event.target.value)} />
-        </Field>
-        {(showPregnancy || showLactation) ? (
-          <div className="flex min-h-9 flex-wrap items-center gap-5 sm:pt-5">
-            {showPregnancy ? <CheckField label="Беременность" checked={animal.pregnant} onChecked={(value) => onPatch({ pregnant: value })} /> : null}
-            {showLactation ? <CheckField label="Лактация" checked={animal.lactating} onChecked={(value) => onPatch({ lactating: value })} /> : null}
-          </div>
+          <Field label="Ожидаемый взрослый вес">{(id) => (
+            <UnitInput id={id} unit="кг" inputMode="decimal" value={animal.expectedMatureWeightKg} onChange={(event) => onPatch({ expectedMatureWeightKg: event.target.value })} disabled={disabled} />
+          )}</Field>
         ) : null}
-        {showPregnancy && animal.species === "dog" ? <Field label="Неделя беременности"><Input aria-label="Неделя беременности" className="h-9 max-w-40 shadow-none" inputMode="numeric" value={animal.gestationWeek} onChange={(event) => onPatch({ gestationWeek: event.target.value })} disabled={disabled} /></Field> : null}
-        {showLactation ? <Field label="Неделя лактации"><Input aria-label="Неделя лактации" className="h-9 max-w-40 shadow-none" inputMode="numeric" value={animal.lactationWeek} onChange={(event) => onPatch({ lactationWeek: event.target.value })} disabled={disabled} /></Field> : null}
-        {showLactation ? <Field label="Размер помёта"><Input aria-label="Размер помёта" className="h-9 max-w-40 shadow-none" inputMode="numeric" value={animal.litterSize} onChange={(event) => onPatch({ litterSize: event.target.value })} disabled={disabled} /></Field> : null}
+        <Field label="Целевая масса">{(id) => (
+          <UnitInput id={id} unit="кг" inputMode="decimal" value={animal.targetBodyWeightKg} onChange={(event) => onPatch({ targetBodyWeightKg: event.target.value })} disabled={disabled} />
+        )}</Field>
       </div>
+
+      <div className="mt-5 border-t pt-4">
+        <h3 className="mb-3 text-sm font-semibold">Клинический контекст</h3>
+        <div className={fieldGrid}>
+          <Field label="Оценка упитанности (BCS)">{(id) => (
+            <Select value={animal.bcs || "none"} onValueChange={(value) => onPatch({ bcs: value === "none" ? "" : value })} disabled={disabled}>
+              <SelectTrigger id={id} className={patientFieldClass}><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="none">Не указана</SelectItem>{Array.from({ length: 9 }, (_, index) => String(index + 1)).map((value) => <SelectItem key={value} value={value}>{value} / 9</SelectItem>)}</SelectContent>
+            </Select>
+          )}</Field>
+          <Field label="Активность">{(id) => (
+            <Select value={animal.activity || "none"} onValueChange={(value) => onPatch({ activity: value === "none" ? "" : value })} disabled={disabled}>
+              <SelectTrigger id={id} className={patientFieldClass}><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="none">Не указана</SelectItem>{ACTIVITY_OPTIONS.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent>
+            </Select>
+          )}</Field>
+          <div className="flex items-end">
+            <CheckField label="Стерилизован(а)" checked={animal.neutered} disabled={disabled} onChecked={(value) => onPatch({ neutered: value })} />
+          </div>
+          {(showPregnancy || showLactation) ? (
+            <div className="col-span-full flex flex-wrap items-center gap-x-4">
+              {showPregnancy ? <CheckField label="Беременность" checked={animal.pregnant} disabled={disabled} onChecked={(value) => onPatch({ pregnant: value })} /> : null}
+              {showLactation ? <CheckField label="Лактация" checked={animal.lactating} disabled={disabled} onChecked={(value) => onPatch({ lactating: value })} /> : null}
+            </div>
+          ) : null}
+          {showPregnancy && animal.species === "dog" ? <Field label="Неделя беременности">{(id) => <Input id={id} className={patientFieldClass} inputMode="numeric" value={animal.gestationWeek} onChange={(event) => onPatch({ gestationWeek: event.target.value })} disabled={disabled} />}</Field> : null}
+          {showLactation ? <Field label="Неделя лактации">{(id) => <Input id={id} className={patientFieldClass} inputMode="numeric" value={animal.lactationWeek} onChange={(event) => onPatch({ lactationWeek: event.target.value })} disabled={disabled} />}</Field> : null}
+          {showLactation ? <Field label="Размер помёта">{(id) => <Input id={id} className={patientFieldClass} inputMode="numeric" value={animal.litterSize} onChange={(event) => onPatch({ litterSize: event.target.value })} disabled={disabled} />}</Field> : null}
+        </div>
+      </div>
+      <details className="group mt-4 border-t">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-sm text-sm font-medium focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring">
+          Коэффициенты расчёта <ChevronDown className="size-4 text-muted-foreground group-open:rotate-180" aria-hidden="true" />
+        </summary>
+        <div className="grid gap-3 pt-1 sm:grid-cols-2">
+          <Field label="Коэффициент RER">{(id) => (
+            <Input id={id} className={patientFieldClass} inputMode="decimal" value={rerFactor} onChange={(event) => onRerFactor(event.target.value)} disabled={disabled} />
+          )}</Field>
+          <Field label="Корректировка энергии">{(id) => (
+            <UnitInput id={id} unit="%" inputMode="decimal" value={adjustment} onChange={(event) => onAdjustment(event.target.value)} disabled={disabled} />
+          )}</Field>
+        </div>
+      </details>
     </section>
   );
 }
 
-function EnergyStrip({ estimate, assessmentEnergy, formulaName, adjustment, rerFactor, currentBodyWeightKg }: {
+function EnergyStrip({ estimate, assessmentEnergy, formulaName, adjustment, rerFactor, currentBodyWeightKg, patientStatus, locked }: {
   estimate: ReturnType<typeof useEnergyEstimate>;
   assessmentEnergy: AssessmentEnergyRecord | undefined;
   formulaName: string | null;
   adjustment: string;
   rerFactor: string;
   currentBodyWeightKg: string;
+  patientStatus: "ready" | "loading" | "error";
+  locked: boolean;
 }) {
   const workingEnergy = assessmentEnergy?.working_energy_kcal ?? estimate.data?.working_energy_kcal ?? null;
   const rangeMinimum = assessmentEnergy?.reference_energy_min_kcal
@@ -796,72 +804,88 @@ function EnergyStrip({ estimate, assessmentEnergy, formulaName, adjustment, rerF
   const adjustmentValue = Number(adjustment.replace(",", "."));
   const missingFields = assessmentEnergy?.missing_fields ?? estimate.data?.missing_fields ?? [];
   const outsideGrowthScope = missingFields.includes("growth_age_outside_formula_scope");
-  const visibleMissingFields = Array.from(new Set(missingFields.filter((field) => field !== "growth_age_outside_formula_scope").map(humanFieldLabel)));
+  const needsWeight = !Number.isFinite(currentWeight) || currentWeight <= 0;
+  const visibleMissingFields = Array.from(new Set(missingFields
+    .filter((field) => field !== "growth_age_outside_formula_scope")
+    .map(humanFieldLabel)))
+    .filter((field) => !needsWeight || field !== humanFieldLabel("current_body_weight_kg"));
+  const pending = !locked && !assessmentEnergy && (patientStatus === "loading" || (estimate.isPending && !needsWeight));
   return (
-    <section className="min-w-0 border-t bg-muted/25 px-4 py-5 sm:px-5 lg:px-6 xl:border-l xl:border-t-0" aria-labelledby="energy-result-title" aria-live="polite">
-      <h2 id="energy-result-title" className="text-base font-semibold tracking-[-0.01em]">Требования энергии</h2>
-      {estimate.isPending && !assessmentEnergy ? <Skeleton className="mt-6 h-16 w-48" /> : (
-        <div className="mt-4">
-          {workingEnergy == null ? (
-            <p className="max-w-64 text-lg font-semibold text-muted-foreground">Расчёт ещё не готов</p>
-          ) : (
-            <p className="tabular-nums text-[clamp(3.25rem,4vw,3.5rem)] font-bold leading-none tracking-[-0.035em] text-foreground">
-              {formatNumber(workingEnergy, 0)}
-              <span className="ml-2 inline-block text-base font-semibold tracking-normal text-muted-foreground">ккал/сут</span>
-            </p>
-          )}
-          <p className="mt-3 text-sm font-medium leading-5">{formulaName ?? "Метод определяется по контексту пациента"}</p>
+    <section className="min-w-0 rounded-xl border bg-card p-4 sm:p-5" aria-labelledby="energy-result-title">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 id="energy-result-title" className="text-lg font-semibold tracking-tight">Потребность в энергии</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Суточная оценка · ккал/сут</p>
         </div>
-      )}
-
-      <dl className="mt-5 border-t pt-1 text-sm">
-        <EnergyMetric
-          label="RER"
-          value={rer == null ? "—" : `${formatNumber(rer, 1)} ккал/сут`}
-          formula={rer == null ? "Нужна текущая масса" : `70 × ${formatNumber(currentWeight, 1)}^0,75`}
-        />
-        <EnergyMetric
-          label="RER × коэффициент"
-          value={rerAdjusted == null ? "—" : `${formatNumber(rerAdjusted, 1)} ккал/сут`}
-          formula={rer == null || !Number.isFinite(factor) || rerAdjusted == null
-            ? "Нужны масса и коэффициент"
-            : `${formatNumber(rer, 1)} × ${formatNumber(factor, 2)} = ${formatNumber(rerAdjusted, 1)}`}
-        />
-      </dl>
-
-      <dl className="border-t pt-2 text-sm">
-        <ResultMetric label="Корректировка энергии" value={Number.isFinite(adjustmentValue) ? `${formatNumber(adjustmentValue, 1)}%` : "—"} />
-        <ResultMetric label="Итог" value={workingEnergy == null ? "—" : `${formatNumber(workingEnergy, 0)} ккал/сут`} strong />
-      </dl>
-
-      {rangeMinimum != null && rangeMaximum != null ? (
-        <p className="mt-4 text-xs leading-5 text-muted-foreground">
-          Диапазон {formatNumber(rangeMinimum, 0)}–{formatNumber(rangeMaximum, 0)} ккал/сут
-          {midpointRule === "midpoint" ? " · рабочая точка — середина" : ""}
-        </p>
+        <Info className="mt-1 size-4 shrink-0 text-primary" aria-hidden="true" />
+      </div>
+      <div className="mt-4 rounded-lg bg-primary/5 p-4" role="status">
+        {pending ? (
+          <span className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="size-4 motion-safe:animate-spin" aria-hidden="true" />
+            {patientStatus === "loading" ? "Загрузка данных пациента…" : "Расчёт энергии…"}
+          </span>
+        ) : (
+          <>
+            {workingEnergy == null ? (
+              <p className="text-lg font-semibold">{patientStatus === "error" ? "Расчёт недоступен" : "Расчёт ещё не готов"}</p>
+            ) : (
+              <p className="text-5xl leading-none font-bold tracking-tight text-primary tabular-nums">
+                {formatNumber(workingEnergy, 0)}
+                <span className="ml-2 inline-block text-sm font-medium tracking-normal text-muted-foreground">ккал/сут</span>
+              </p>
+            )}
+            {formulaName ? <p className="mt-2 text-sm leading-5 text-muted-foreground">{formulaName}</p> : null}
+            {rangeMinimum != null && rangeMaximum != null ? (
+              <p className="mt-2 text-sm leading-5 text-muted-foreground">
+                Диапазон {formatNumber(rangeMinimum, 0)}–{formatNumber(rangeMaximum, 0)} ккал/сут
+                {midpointRule === "midpoint" ? " · рабочая точка — середина" : ""}
+              </p>
+            ) : null}
+          </>
+        )}
+      </div>
+      {!pending && patientStatus === "ready" && ((needsWeight && !locked) || visibleMissingFields.length > 0 || outsideGrowthScope) ? (
+        <div className="mt-3 rounded-lg border border-amber-600/25 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-200">
+          {needsWeight && !locked ? (
+            <Button type="button" variant="link" className="min-h-11 max-w-full justify-start px-0 text-left whitespace-normal text-inherit underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-current"
+              onClick={() => document.getElementById("nutrition-current-weight")?.focus()}>
+              Указать текущую массу
+            </Button>
+          ) : null}
+          {visibleMissingFields.length ? <p>Для расчёта нужны {visibleMissingFields.join(", ")}.</p> : null}
+          {outsideGrowthScope ? <p>Возраст пациента вне диапазона энергетической формулы роста.</p> : null}
+        </div>
       ) : null}
-      {estimate.error ? <p className="mt-4 text-sm text-destructive">{apiErrorMessage(estimate.error)}</p> : null}
-      {outsideGrowthScope ? <p className="mt-4 text-xs text-amber-800 dark:text-amber-300">Возраст пациента вне диапазона энергетической формулы роста.</p> : null}
-      {visibleMissingFields.length ? <p className="mt-4 text-xs text-amber-700 dark:text-amber-300">Для расчёта нужны: {visibleMissingFields.join(", ")}.</p> : null}
+      {estimate.error ? <p role="alert" className="mt-3 text-sm text-destructive">{apiErrorMessage(estimate.error)}</p> : null}
+
+      <dl className="mt-3 divide-y text-sm">
+        <ResultMetric
+          label="RER · базовая потребность"
+          value={rer == null ? "—" : `${formatNumber(rer, 1)} ккал/сут`}
+        />
+        <ResultMetric label="Множитель RER" value={Number.isFinite(factor) && factor > 0 ? `× ${formatNumber(factor)}` : "—"} />
+        <ResultMetric label="Корректировка энергии" value={Number.isFinite(adjustmentValue) ? `${formatNumber(adjustmentValue, 1)}%` : "—"} />
+      </dl>
+
+      <details className="group border-t text-sm text-muted-foreground">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-sm font-medium focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring">
+          Метод расчёта <ChevronDown className="size-4 shrink-0 group-open:rotate-180" aria-hidden="true" />
+        </summary>
+        <p>RER = 70 × масса<sup>0,75</sup>.</p>
+        {rer != null && rerAdjusted != null && Number.isFinite(factor) ? (
+          <p>RER × коэффициент = {formatNumber(rer, 1)} × {formatNumber(factor)} = {formatNumber(rerAdjusted, 1)} ккал/сут.</p>
+        ) : null}
+      </details>
     </section>
   );
 }
 
-function EnergyMetric({ label, value, formula }: { label: string; value: string; formula: string }) {
-  return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1 py-3">
-      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
-      <dd className="row-span-2 text-right font-semibold tabular-nums">{value}</dd>
-      <dd className="text-xs tabular-nums text-muted-foreground">{formula}</dd>
-    </div>
-  );
-}
-
-function ResultMetric({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
+function ResultMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-4 py-2">
       <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
-      <dd className={cn("text-right tabular-nums", strong ? "font-bold text-foreground" : "font-semibold")}>{value}</dd>
+      <dd className="text-right font-semibold tabular-nums">{value}</dd>
     </div>
   );
 }
@@ -1091,8 +1115,18 @@ function RationWorkbench({
   }
 
   return (
-    <Card className="min-w-0 overflow-hidden rounded-lg shadow-none">
-      <div className="flex flex-col gap-2 border-b px-3 py-2.5 lg:flex-row lg:items-center lg:justify-between">
+    <Card className="min-w-0 gap-0 overflow-hidden rounded-xl py-0 shadow-none">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-4 sm:px-5">
+        <div className="flex flex-wrap items-baseline gap-2">
+          <h2 className="text-lg font-semibold tracking-tight">Рацион</h2>
+          <span className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground tabular-nums">Продуктов · {lines.length}</span>
+        </div>
+        <Button type="button" className={nutritionAction} onClick={onOpenAdd} disabled={readOnly}>
+          <Plus aria-hidden="true" />Добавить продукт
+        </Button>
+      </div>
+      <div className="space-y-2 border-b px-4 pt-3 pb-4 sm:px-5">
+        <h3 className="text-sm font-semibold">Нутриентный состав</h3>
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs tabular-nums">
           <strong className="text-sm">
             {rationKcal == null ? "—" : formatNumber(rationKcal, 0)}
@@ -1127,21 +1161,17 @@ function RationWorkbench({
           </> : null}
           {assessmentPending ? <span className="flex items-center gap-1.5 text-primary" role="status"><Loader2 className="size-3.5 animate-spin" />Пересчёт…</span> : dirty && lines.length ? <span className="text-muted-foreground">Оценка ожидает пересчёта</span> : null}
         </div>
-        <Button type="button" size="sm" className="h-8 self-start rounded-md lg:self-auto" onClick={onOpenAdd} disabled={readOnly}>
-          <Plus className="size-4" />Добавить продукт
-        </Button>
       </div>
 
-      <div className="scrollbar-none flex gap-1 overflow-x-auto border-b bg-muted/30 px-2 py-1.5" role="tablist" aria-label="Группы нутриентов">
+      <div className="flex flex-wrap gap-2 border-b bg-muted/30 px-3 py-2" role="group" aria-label="Группы нутриентов">
         {NUTRIENT_MODES.map((item) => (
           <button
             key={item.value}
             type="button"
-            role="tab"
-            aria-selected={mode === item.value}
+            aria-pressed={mode === item.value}
             onClick={() => { setMode(item.value); setStatusFilter("all"); }}
             className={cn(
-              "flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "flex min-h-11 max-w-full items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-teal-800 dark:focus-visible:outline-teal-300",
               mode === item.value
                 ? "bg-background text-foreground shadow-sm ring-1 ring-border"
                 : "text-muted-foreground hover:bg-background/70 hover:text-foreground",
@@ -1198,7 +1228,7 @@ function RationWorkbench({
         </div>
       ) : null}
 
-      <div className="max-h-[calc(100dvh-20rem)] min-h-[22rem] overflow-auto scrollbar-thin">
+      <div role="region" aria-label="Таблица нутриентного состава" tabIndex={0} className="scrollbar-thin max-h-[max(14rem,calc(100dvh-20rem))] overflow-auto focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-ring">
         <table className="w-max min-w-full table-fixed border-collapse text-xs">
           <colgroup>
             <col className="hidden w-28 sm:table-column" />
@@ -1351,20 +1381,15 @@ function RationWorkbench({
                 ))}
               </tr>
             ))}
-            {!lines.length ? (
-              <tr>
-                <td colSpan={3 + Math.max(visibleNutrients.length, 1)} className="h-32 px-4 text-center">
-                  <p className="font-medium">Рацион пока пуст</p>
-                  <p className="mt-1 text-xs text-muted-foreground">Добавьте продукты — таблица и статусы обновятся автоматически.</p>
-                  <Button type="button" variant="outline" size="sm" className="mt-3 h-8" onClick={onOpenAdd}>
-                    <Plus className="size-3.5" />Добавить продукт
-                  </Button>
-                </td>
-              </tr>
-            ) : null}
           </tbody>
         </table>
       </div>
+      {!lines.length ? (
+        <div className="border-t px-4 py-5 text-sm sm:px-5">
+          <p className="font-medium">Рацион пока пуст</p>
+          <p className="mt-1 text-muted-foreground">Нутриентный состав появится после добавления продуктов.</p>
+        </div>
+      ) : null}
 
       {mode === "deviations" && statusFilter === "all" && assessment?.normative_comparison_performed && visibleNutrients.length === 0 ? (
         <div className="flex items-center gap-2 border-t px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300">
@@ -1480,20 +1505,27 @@ function targetText(target: AssessmentRecord["rows"][number]["target"]): string 
   return `≤ ${formatNumber(target.maximum)} ${target.unit}${suffix}`;
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="space-y-1.5"><Label>{label}</Label>{children}</div>;
+function Field({ label, id, children }: { label: string; id?: string; children: (id: string) => React.ReactNode }) {
+  const generatedId = React.useId();
+  const fieldId = id ?? generatedId;
+  return <div className="flex min-w-0 flex-col justify-end gap-1.5"><Label htmlFor={fieldId} className="leading-snug">{label}</Label>{children(fieldId)}</div>;
 }
 
 function UnitInput({ unit, className, ...props }: React.ComponentProps<typeof Input> & { unit: string }) {
   return (
-    <div className={cn("relative", className)}>
-      <Input className="h-9 pr-11 shadow-none" {...props} />
+    <div className="relative">
+      <Input className={cn(patientFieldClass, "pr-12", className)} {...props} />
       <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-medium text-muted-foreground">{unit}</span>
     </div>
   );
 }
 
-function CheckField({ label, checked, onChecked }: { label: string; checked: boolean; onChecked: (value: boolean) => void }) {
+function CheckField({ label, checked, disabled, onChecked }: { label: string; checked: boolean; disabled: boolean; onChecked: (value: boolean) => void }) {
   const id = React.useId();
-  return <div className="flex items-center gap-2"><Checkbox id={id} checked={checked} onCheckedChange={(value) => onChecked(value === true)} /><Label htmlFor={id} className="font-normal">{label}</Label></div>;
+  return (
+    <div className="flex min-h-11 items-center gap-2">
+      <Checkbox id={id} aria-labelledby={`${id}-label`} checked={checked} disabled={disabled} onCheckedChange={(value) => onChecked(value === true)} />
+      <Label id={`${id}-label`} htmlFor={id} className="min-h-11 font-normal">{label}</Label>
+    </div>
+  );
 }

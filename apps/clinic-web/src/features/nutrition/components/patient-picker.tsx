@@ -56,7 +56,7 @@ export function PatientPicker({
     ? compact ? selected.name : patientOptionLabel(selected)
     : value
       ? "Пациент не найден"
-      : compact ? "Ручной профиль" : MANUAL_PATIENT_LABEL;
+      : compact ? "Без пациента" : MANUAL_PATIENT_LABEL;
 
   function choose(nextId: string) {
     onChange(nextId);
@@ -88,7 +88,7 @@ export function PatientPicker({
           )}
         >
           <span className="flex min-w-0 items-center gap-2">
-            <PawPrint className="size-4 shrink-0 text-muted-foreground" />
+            {!compact ? <PawPrint className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" /> : null}
             {selectedPending && value ? (
               <Skeleton className="h-4 w-48" />
             ) : (

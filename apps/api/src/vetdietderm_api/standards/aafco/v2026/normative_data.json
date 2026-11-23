@@ -1,0 +1,2313 @@
+{
+  "database_meta": {
+    "version": "2016",
+    "language": "ru",
+    "clinical_warning_ru": "Нормы AAFCO предназначены для оценки полнорационных кормов здоровых животных соответствующей стадии жизни, не являются персональными лечебными назначениями. Проверяйте метод подтверждения полноценности, биодоступность, энергетическую плотность и применимые сноски. Источник: опубликованный проект пересмотра профилей AAFCO, принятых в редакции 2016 года.",
+    "source": {
+      "title": "AAFCO Dog and Cat Food Nutrient Profiles (2016 revision; calorie basis)",
+      "publication_date": "2016",
+      "url": "https://www.aafco.org/wp-content/uploads/2023/01/MBRC_minutes_Attachment_A.pdf"
+    },
+    "data_scope_ru": "4 профиля: собака/кошка, adult maintenance и growth & reproduction. Числа перенесены из опубликованных таблиц на 1000 ккал; особые ограничения и примечания сохранены."
+  },
+  "catalogs": {
+    "nutrients": [
+      {
+        "code": "CP",
+        "name_ru": "Белок",
+        "category_code": "main",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "ARG",
+        "name_ru": "Аргинин",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "HIS",
+        "name_ru": "Гистидин",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "ILE",
+        "name_ru": "Изолейцин",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "LEU",
+        "name_ru": "Лейцин",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "LYS",
+        "name_ru": "Лизин",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "MET",
+        "name_ru": "Метионин",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "MET_CYS",
+        "name_ru": "Метионин + цистин",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "PHE",
+        "name_ru": "Фенилаланин",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "PHE_TYR",
+        "name_ru": "Фенилаланин + тирозин",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "THR",
+        "name_ru": "Треонин",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "TRP",
+        "name_ru": "Триптофан",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "VAL",
+        "name_ru": "Валин",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "FAT",
+        "name_ru": "Жир",
+        "category_code": "main",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "LA",
+        "name_ru": "Линолевая кислота",
+        "category_code": "fatty_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "ALA",
+        "name_ru": "Альфа-линоленовая кислота",
+        "category_code": "fatty_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "EPA_DHA",
+        "name_ru": "ЭПК + ДГК",
+        "category_code": "fatty_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "CA",
+        "name_ru": "Кальций",
+        "category_code": "mineral",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "P",
+        "name_ru": "Фосфор",
+        "category_code": "mineral",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "CA_P",
+        "name_ru": "Соотношение кальция и фосфора",
+        "category_code": "ratio",
+        "unit_per_1000_kcal_me": "ratio"
+      },
+      {
+        "code": "K",
+        "name_ru": "Калий",
+        "category_code": "mineral",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "NA",
+        "name_ru": "Натрий",
+        "category_code": "mineral",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "CL",
+        "name_ru": "Хлорид",
+        "category_code": "mineral",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "MG",
+        "name_ru": "Магний",
+        "category_code": "mineral",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "FE",
+        "name_ru": "Железо",
+        "category_code": "trace_element",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "CU",
+        "name_ru": "Медь",
+        "category_code": "trace_element",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "MN",
+        "name_ru": "Марганец",
+        "category_code": "trace_element",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "ZN",
+        "name_ru": "Цинк",
+        "category_code": "trace_element",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "I",
+        "name_ru": "Йод",
+        "category_code": "trace_element",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "SE",
+        "name_ru": "Селен",
+        "category_code": "trace_element",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "VITA",
+        "name_ru": "Витамин A",
+        "category_code": "vitamin",
+        "unit_per_1000_kcal_me": "IU"
+      },
+      {
+        "code": "VITD",
+        "name_ru": "Витамин D",
+        "category_code": "vitamin",
+        "unit_per_1000_kcal_me": "IU"
+      },
+      {
+        "code": "VITE",
+        "name_ru": "Витамин E",
+        "category_code": "vitamin",
+        "unit_per_1000_kcal_me": "IU"
+      },
+      {
+        "code": "B1",
+        "name_ru": "Тиамин",
+        "category_code": "vitamin",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "B2",
+        "name_ru": "Рибофлавин",
+        "category_code": "vitamin",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "B5",
+        "name_ru": "Пантотеновая кислота",
+        "category_code": "vitamin",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "B3",
+        "name_ru": "Ниацин",
+        "category_code": "vitamin",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "B6",
+        "name_ru": "Пиридоксин",
+        "category_code": "vitamin",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "B9",
+        "name_ru": "Фолиевая кислота",
+        "category_code": "vitamin",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "B12",
+        "name_ru": "Витамин B12",
+        "category_code": "vitamin",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "CHOL",
+        "name_ru": "Холин",
+        "category_code": "other",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "ARA",
+        "name_ru": "Арахидоновая кислота",
+        "category_code": "fatty_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "CU_EXTRUDED",
+        "name_ru": "Медь (экструдированный корм)",
+        "category_code": "trace_element",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "CU_CANNED",
+        "name_ru": "Медь (консервированный корм)",
+        "category_code": "trace_element",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "VITK",
+        "name_ru": "Витамин K",
+        "category_code": "vitamin",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "BIOTIN",
+        "name_ru": "Биотин",
+        "category_code": "vitamin",
+        "unit_per_1000_kcal_me": "mg"
+      },
+      {
+        "code": "TAUR_EXTRUDED",
+        "name_ru": "Таурин (экструдированный корм)",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      },
+      {
+        "code": "TAUR_CANNED",
+        "name_ru": "Таурин (консервированный корм)",
+        "category_code": "amino_acid",
+        "unit_per_1000_kcal_me": "g"
+      }
+    ]
+  },
+  "species_data": {
+    "dog": {
+      "nutrient_profiles": [
+        {
+          "code": "dog_adult_maintenance",
+          "species_code": "dog",
+          "name_ru": "Собака — Поддержание взрослых",
+          "physiological_state": "adult",
+          "clinician_selectable": true,
+          "calculation_basis": "published_per_1000_kcal",
+          "basis": {
+            "energy": 1000,
+            "energy_unit": "kcal",
+            "energy_type": "metabolisable_energy"
+          },
+          "nutrients": [
+            {
+              "code": "CP",
+              "category": "MIN",
+              "minimum": 45.0,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "45.0",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "ARG",
+              "category": "MIN",
+              "minimum": 1.28,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.28",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "HIS",
+              "category": "MIN",
+              "minimum": 0.48,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.48",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "ILE",
+              "category": "MIN",
+              "minimum": 0.95,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.95",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "LEU",
+              "category": "MIN",
+              "minimum": 1.7,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.70",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "LYS",
+              "category": "MIN",
+              "minimum": 1.58,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.58",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "MET",
+              "category": "MIN",
+              "minimum": 0.83,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.83",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "MET_CYS",
+              "category": "MIN",
+              "minimum": 1.63,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.63",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "PHE",
+              "category": "MIN",
+              "minimum": 1.13,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.13",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "PHE_TYR",
+              "category": "MIN",
+              "minimum": 1.85,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.85",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "THR",
+              "category": "MIN",
+              "minimum": 1.2,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.20",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "TRP",
+              "category": "MIN",
+              "minimum": 0.4,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.40",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "VAL",
+              "category": "MIN",
+              "minimum": 1.23,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.23",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "FAT",
+              "category": "MIN",
+              "minimum": 13.8,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "13.8",
+              "footnote": "b",
+              "note_ru": "Минимальный жир установлен как технологически-пищевой ориентир; истинная потребность в общем жире не определена."
+            },
+            {
+              "code": "LA",
+              "category": "MIN",
+              "minimum": 2.8,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "2.8",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "ALA",
+              "category": "MIN",
+              "minimum": null,
+              "maximum": null,
+              "established": false,
+              "unit": "g",
+              "source_value_text": "ND",
+              "footnote": "c",
+              "note_ru": "ND — минимальная потребность не определена."
+            },
+            {
+              "code": "EPA_DHA",
+              "category": "MIN",
+              "minimum": null,
+              "maximum": null,
+              "established": false,
+              "unit": "g",
+              "source_value_text": "ND",
+              "footnote": "c",
+              "note_ru": "ND — минимальная потребность не определена."
+            },
+            {
+              "code": "CA",
+              "category": "MIN_MAX",
+              "minimum": 1.25,
+              "maximum": 6.25,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.25 / max 6.25 (4.5)",
+              "footnote": "d",
+              "note_ru": "Для щенков крупных пород (ожидаемая взрослая масса ≥70 фунтов) максимум кальция 4.5 г/1000 ккал; для прочих 6.25."
+            },
+            {
+              "code": "P",
+              "category": "MIN_MAX",
+              "minimum": 1.0,
+              "maximum": 4.0,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.00 / max 4.0",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "CA_P",
+              "category": "MIN_MAX",
+              "minimum": 1.0,
+              "maximum": 2.0,
+              "established": true,
+              "unit": "ratio",
+              "source_value_text": "1:1; max 2:1",
+              "footnote": null,
+              "note_ru": "Численные значения обозначают отношение Ca/P, а не граммы."
+            },
+            {
+              "code": "K",
+              "category": "MIN",
+              "minimum": 1.5,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.5",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "NA",
+              "category": "MIN",
+              "minimum": 0.2,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.20",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "CL",
+              "category": "MIN",
+              "minimum": 0.3,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.30",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "MG",
+              "category": "MIN",
+              "minimum": 0.15,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.15",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "FE",
+              "category": "MIN",
+              "minimum": 10.0,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "10",
+              "footnote": "e",
+              "note_ru": "Не засчитывать железо из добавленных карбоната/оксида из-за низкой биодоступности."
+            },
+            {
+              "code": "CU",
+              "category": "MIN",
+              "minimum": 1.83,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "1.83",
+              "footnote": "f",
+              "note_ru": "Не засчитывать медь из добавленного оксида из-за низкой биодоступности."
+            },
+            {
+              "code": "MN",
+              "category": "MIN",
+              "minimum": 1.25,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "1.25",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "ZN",
+              "category": "MIN",
+              "minimum": 20.0,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "20",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "I",
+              "category": "MIN_MAX",
+              "minimum": 0.25,
+              "maximum": 2.75,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "0.25 / max 2.75",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "SE",
+              "category": "MIN_MAX",
+              "minimum": 0.08,
+              "maximum": 0.5,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "0.08 / max 0.5",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "VITA",
+              "category": "MIN_MAX",
+              "minimum": 1250.0,
+              "maximum": 62500.0,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": "1250 / max 62500",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "VITD",
+              "category": "MIN_MAX",
+              "minimum": 125.0,
+              "maximum": 750.0,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": "125 / max 750",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "VITE",
+              "category": "MIN",
+              "minimum": 12.5,
+              "maximum": null,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": "12.5",
+              "footnote": "g",
+              "note_ru": "Рекомендуется витамин E к ПНЖК не менее 0.6 IU на 1 г ПНЖК."
+            },
+            {
+              "code": "B1",
+              "category": "MIN",
+              "minimum": 0.56,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "0.56",
+              "footnote": "h",
+              "note_ru": "Учитывать возможные потери тиамина при обработке."
+            },
+            {
+              "code": "B2",
+              "category": "MIN",
+              "minimum": 1.3,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "1.3",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B5",
+              "category": "MIN",
+              "minimum": 3.0,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "3.0",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B3",
+              "category": "MIN",
+              "minimum": 3.4,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "3.4",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B6",
+              "category": "MIN",
+              "minimum": 0.38,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "0.38",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B9",
+              "category": "MIN",
+              "minimum": 0.054,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "0.054",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B12",
+              "category": "MIN",
+              "minimum": 0.007,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "0.007",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "CHOL",
+              "category": "MIN",
+              "minimum": 340.0,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "340",
+              "footnote": null,
+              "note_ru": null
+            }
+          ],
+          "source": {
+            "language": "en",
+            "table": "AAFCO DOG FOOD NUTRIENT PROFILES — BASED ON CALORIE CONTENT",
+            "page": 6,
+            "url": "https://www.aafco.org/wp-content/uploads/2023/01/MBRC_minutes_Attachment_A.pdf"
+          }
+        },
+        {
+          "code": "dog_growth_reproduction",
+          "species_code": "dog",
+          "name_ru": "Собака — Рост и репродукция",
+          "physiological_state": "growth_reproduction",
+          "clinician_selectable": true,
+          "calculation_basis": "published_per_1000_kcal",
+          "basis": {
+            "energy": 1000,
+            "energy_unit": "kcal",
+            "energy_type": "metabolisable_energy"
+          },
+          "nutrients": [
+            {
+              "code": "CP",
+              "category": "MIN",
+              "minimum": 56.3,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "56.3",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "ARG",
+              "category": "MIN",
+              "minimum": 2.5,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "2.50",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "HIS",
+              "category": "MIN",
+              "minimum": 1.1,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.10",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "ILE",
+              "category": "MIN",
+              "minimum": 1.78,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.78",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "LEU",
+              "category": "MIN",
+              "minimum": 3.23,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "3.23",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "LYS",
+              "category": "MIN",
+              "minimum": 2.25,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "2.25",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "MET",
+              "category": "MIN",
+              "minimum": 0.88,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.88",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "MET_CYS",
+              "category": "MIN",
+              "minimum": 1.75,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.75",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "PHE",
+              "category": "MIN",
+              "minimum": 2.08,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "2.08",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "PHE_TYR",
+              "category": "MIN",
+              "minimum": 3.25,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "3.25",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "THR",
+              "category": "MIN",
+              "minimum": 2.6,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "2.60",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "TRP",
+              "category": "MIN",
+              "minimum": 0.5,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.50",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "VAL",
+              "category": "MIN",
+              "minimum": 1.7,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.70",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "FAT",
+              "category": "MIN",
+              "minimum": 21.3,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "21.3",
+              "footnote": "b",
+              "note_ru": "Минимальный жир установлен как технологически-пищевой ориентир; истинная потребность в общем жире не определена."
+            },
+            {
+              "code": "LA",
+              "category": "MIN",
+              "minimum": 3.3,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "3.3",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "ALA",
+              "category": "MIN",
+              "minimum": 0.2,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.2",
+              "footnote": "c",
+              "note_ru": "ND — минимальная потребность не определена."
+            },
+            {
+              "code": "EPA_DHA",
+              "category": "MIN",
+              "minimum": 0.1,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.1",
+              "footnote": "c",
+              "note_ru": "ND — минимальная потребность не определена."
+            },
+            {
+              "code": "CA",
+              "category": "MIN_MAX",
+              "minimum": 3.0,
+              "maximum": 6.25,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "3.0 / max 6.25 (4.5)",
+              "footnote": "d",
+              "note_ru": "Для щенков крупных пород (ожидаемая взрослая масса ≥70 фунтов) максимум кальция 4.5 г/1000 ккал; для прочих 6.25. Для универсального профиля рост/репродукция указан предел 6.25, при применении для крупных щенков необходим отдельный предел 4.5."
+            },
+            {
+              "code": "P",
+              "category": "MIN_MAX",
+              "minimum": 2.5,
+              "maximum": 4.0,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "2.5 / max 4.0",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "CA_P",
+              "category": "MIN_MAX",
+              "minimum": 1.0,
+              "maximum": 2.0,
+              "established": true,
+              "unit": "ratio",
+              "source_value_text": "1:1; max 2:1",
+              "footnote": null,
+              "note_ru": "Численные значения обозначают отношение Ca/P, а не граммы."
+            },
+            {
+              "code": "K",
+              "category": "MIN",
+              "minimum": 1.5,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.5",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "NA",
+              "category": "MIN",
+              "minimum": 0.8,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.80",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "CL",
+              "category": "MIN",
+              "minimum": 1.1,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.10",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "MG",
+              "category": "MIN",
+              "minimum": 0.15,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.15",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "FE",
+              "category": "MIN",
+              "minimum": 22.0,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "22",
+              "footnote": "e",
+              "note_ru": "Не засчитывать железо из добавленных карбоната/оксида из-за низкой биодоступности."
+            },
+            {
+              "code": "CU",
+              "category": "MIN",
+              "minimum": 3.1,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "3.1",
+              "footnote": "f",
+              "note_ru": "Не засчитывать медь из добавленного оксида из-за низкой биодоступности."
+            },
+            {
+              "code": "MN",
+              "category": "MIN",
+              "minimum": 1.8,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "1.8",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "ZN",
+              "category": "MIN",
+              "minimum": 25.0,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "25",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "I",
+              "category": "MIN_MAX",
+              "minimum": 0.25,
+              "maximum": 2.75,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "0.25 / max 2.75",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "SE",
+              "category": "MIN_MAX",
+              "minimum": 0.09,
+              "maximum": 0.5,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "0.09 / max 0.5",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "VITA",
+              "category": "MIN_MAX",
+              "minimum": 1250.0,
+              "maximum": 62500.0,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": "1250 / max 62500",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "VITD",
+              "category": "MIN_MAX",
+              "minimum": 125.0,
+              "maximum": 750.0,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": "125 / max 750",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "VITE",
+              "category": "MIN",
+              "minimum": 12.5,
+              "maximum": null,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": "12.5",
+              "footnote": "g",
+              "note_ru": "Рекомендуется витамин E к ПНЖК не менее 0.6 IU на 1 г ПНЖК."
+            },
+            {
+              "code": "B1",
+              "category": "MIN",
+              "minimum": 0.56,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "0.56",
+              "footnote": "h",
+              "note_ru": "Учитывать возможные потери тиамина при обработке."
+            },
+            {
+              "code": "B2",
+              "category": "MIN",
+              "minimum": 1.3,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "1.3",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B5",
+              "category": "MIN",
+              "minimum": 3.0,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "3.0",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B3",
+              "category": "MIN",
+              "minimum": 3.4,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "3.4",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B6",
+              "category": "MIN",
+              "minimum": 0.38,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "0.38",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B9",
+              "category": "MIN",
+              "minimum": 0.054,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "0.054",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B12",
+              "category": "MIN",
+              "minimum": 0.007,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "0.007",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "CHOL",
+              "category": "MIN",
+              "minimum": 340.0,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "340",
+              "footnote": null,
+              "note_ru": null
+            }
+          ],
+          "source": {
+            "language": "en",
+            "table": "AAFCO DOG FOOD NUTRIENT PROFILES — BASED ON CALORIE CONTENT",
+            "page": 6,
+            "url": "https://www.aafco.org/wp-content/uploads/2023/01/MBRC_minutes_Attachment_A.pdf"
+          }
+        }
+      ]
+    },
+    "cat": {
+      "nutrient_profiles": [
+        {
+          "code": "cat_adult_maintenance",
+          "species_code": "cat",
+          "name_ru": "Кошка — Поддержание взрослых",
+          "physiological_state": "adult",
+          "clinician_selectable": true,
+          "calculation_basis": "published_per_1000_kcal",
+          "basis": {
+            "energy": 1000,
+            "energy_unit": "kcal",
+            "energy_type": "metabolisable_energy"
+          },
+          "nutrients": [
+            {
+              "code": "CP",
+              "category": "MIN",
+              "minimum": 65.0,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "65",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "ARG",
+              "category": "MIN",
+              "minimum": 2.6,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "2.60",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "HIS",
+              "category": "MIN",
+              "minimum": 0.78,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.78",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "ILE",
+              "category": "MIN",
+              "minimum": 1.3,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.30",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "LEU",
+              "category": "MIN",
+              "minimum": 3.1,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "3.10",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "LYS",
+              "category": "MIN",
+              "minimum": 2.08,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "2.08",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "MET",
+              "category": "MIN_MAX",
+              "minimum": 0.5,
+              "maximum": 3.75,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.5 / max 3.75",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "MET_CYS",
+              "category": "MIN",
+              "minimum": 1.0,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.00",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "PHE",
+              "category": "MIN",
+              "minimum": 1.05,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.05",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "PHE_TYR",
+              "category": "MIN",
+              "minimum": 3.83,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "3.83",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "THR",
+              "category": "MIN",
+              "minimum": 1.83,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.83",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "TRP",
+              "category": "MIN_MAX",
+              "minimum": 0.4,
+              "maximum": 4.25,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.40 / max 4.25",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "VAL",
+              "category": "MIN",
+              "minimum": 1.55,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.55",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "FAT",
+              "category": "MIN",
+              "minimum": 22.5,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "22.5",
+              "footnote": "b",
+              "note_ru": "Норма общего жира — практический, а не установленный физиологический минимум."
+            },
+            {
+              "code": "LA",
+              "category": "MIN",
+              "minimum": 1.4,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.40",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "ALA",
+              "category": "MIN",
+              "minimum": null,
+              "maximum": null,
+              "established": false,
+              "unit": "g",
+              "source_value_text": "ND",
+              "footnote": "c",
+              "note_ru": "ND — минимальная потребность не установлена."
+            },
+            {
+              "code": "ARA",
+              "category": "MIN",
+              "minimum": 0.05,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.05",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "EPA_DHA",
+              "category": "MIN",
+              "minimum": null,
+              "maximum": null,
+              "established": false,
+              "unit": "g",
+              "source_value_text": "ND",
+              "footnote": "c",
+              "note_ru": "ND — минимальная потребность не установлена."
+            },
+            {
+              "code": "CA",
+              "category": "MIN",
+              "minimum": 1.5,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.5",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "P",
+              "category": "MIN",
+              "minimum": 1.25,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.25",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "K",
+              "category": "MIN",
+              "minimum": 1.5,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.5",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "NA",
+              "category": "MIN",
+              "minimum": 0.5,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.5",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "CL",
+              "category": "MIN",
+              "minimum": 0.75,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.75",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "MG",
+              "category": "MIN",
+              "minimum": 0.1,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.10",
+              "footnote": "d",
+              "note_ru": "Риск струвитов связан с содержанием магния и pH мочи."
+            },
+            {
+              "code": "FE",
+              "category": "MIN",
+              "minimum": 20.0,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "20.0",
+              "footnote": "e",
+              "note_ru": "Не засчитывать железо из добавленных карбоната/оксида."
+            },
+            {
+              "code": "CU_EXTRUDED",
+              "category": "MIN",
+              "minimum": 1.25,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "1.25",
+              "footnote": "f",
+              "note_ru": "Не засчитывать медь из добавленного оксида."
+            },
+            {
+              "code": "CU_CANNED",
+              "category": "MIN",
+              "minimum": 1.25,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "1.25",
+              "footnote": "f",
+              "note_ru": "Не засчитывать медь из добавленного оксида."
+            },
+            {
+              "code": "MN",
+              "category": "MIN",
+              "minimum": 1.9,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "1.90",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "ZN",
+              "category": "MIN",
+              "minimum": 18.8,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "18.8",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "I",
+              "category": "MIN",
+              "minimum": 0.15,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "0.15",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "SE",
+              "category": "MIN",
+              "minimum": 0.075,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "0.075",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "VITA",
+              "category": "MIN_MAX",
+              "minimum": 833.0,
+              "maximum": 83325.0,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": "833 / max 83325",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "VITD",
+              "category": "MIN_MAX",
+              "minimum": 70.0,
+              "maximum": 7520.0,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": "70 / max 7520",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "VITE",
+              "category": "MIN",
+              "minimum": 10.0,
+              "maximum": null,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": "10",
+              "footnote": "g",
+              "note_ru": "Повышать витамин E при добавлении рыбьего жира по исходной сноске."
+            },
+            {
+              "code": "VITK",
+              "category": "MIN",
+              "minimum": 0.025,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "0.025",
+              "footnote": "h",
+              "note_ru": "Добавление витамина K может не требоваться, если доля рыбы не превышает 25% СВ."
+            },
+            {
+              "code": "B1",
+              "category": "MIN",
+              "minimum": 1.4,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "1.40",
+              "footnote": "i",
+              "note_ru": "Учитывать потери тиамина при обработке."
+            },
+            {
+              "code": "B2",
+              "category": "MIN",
+              "minimum": 1.0,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "1.00",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B5",
+              "category": "MIN",
+              "minimum": 1.44,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "1.44",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B3",
+              "category": "MIN",
+              "minimum": 15.0,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "15",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B6",
+              "category": "MIN",
+              "minimum": 1.0,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "1.0",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B9",
+              "category": "MIN",
+              "minimum": 0.2,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "0.20",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "BIOTIN",
+              "category": "MIN",
+              "minimum": 0.018,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "0.018",
+              "footnote": "j",
+              "note_ru": "Добавление биотина не требуется, если нет антимикробных или антивитаминных компонентов."
+            },
+            {
+              "code": "B12",
+              "category": "MIN",
+              "minimum": 0.005,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "0.005",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "CHOL",
+              "category": "MIN",
+              "minimum": 600.0,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "600",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "TAUR_EXTRUDED",
+              "category": "MIN",
+              "minimum": 0.25,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.25",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "TAUR_CANNED",
+              "category": "MIN",
+              "minimum": 0.5,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.50",
+              "footnote": null,
+              "note_ru": null
+            }
+          ],
+          "source": {
+            "language": "en",
+            "table": "AAFCO CAT FOOD NUTRIENT PROFILES — BASED ON CALORIE CONTENT",
+            "page": 16,
+            "url": "https://www.aafco.org/wp-content/uploads/2023/01/MBRC_minutes_Attachment_A.pdf"
+          }
+        },
+        {
+          "code": "cat_growth_reproduction",
+          "species_code": "cat",
+          "name_ru": "Кошка — Рост и репродукция",
+          "physiological_state": "growth_reproduction",
+          "clinician_selectable": true,
+          "calculation_basis": "published_per_1000_kcal",
+          "basis": {
+            "energy": 1000,
+            "energy_unit": "kcal",
+            "energy_type": "metabolisable_energy"
+          },
+          "nutrients": [
+            {
+              "code": "CP",
+              "category": "MIN",
+              "minimum": 75.0,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "75",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "ARG",
+              "category": "MIN",
+              "minimum": 3.1,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "3.10",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "HIS",
+              "category": "MIN",
+              "minimum": 0.83,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.83",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "ILE",
+              "category": "MIN",
+              "minimum": 1.4,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.40",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "LEU",
+              "category": "MIN",
+              "minimum": 3.2,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "3.20",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "LYS",
+              "category": "MIN",
+              "minimum": 3.0,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "3.00",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "MET",
+              "category": "MIN_MAX",
+              "minimum": 1.55,
+              "maximum": 3.75,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.55 / max 3.75",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "MET_CYS",
+              "category": "MIN",
+              "minimum": 2.75,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "2.75",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "PHE",
+              "category": "MIN",
+              "minimum": 1.3,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.30",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "PHE_TYR",
+              "category": "MIN",
+              "minimum": 4.8,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "4.80",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "THR",
+              "category": "MIN",
+              "minimum": 1.83,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.83",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "TRP",
+              "category": "MIN_MAX",
+              "minimum": 0.63,
+              "maximum": 4.25,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.63 / max 4.25",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "VAL",
+              "category": "MIN",
+              "minimum": 1.55,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.55",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "FAT",
+              "category": "MIN",
+              "minimum": 22.5,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "22.5",
+              "footnote": "b",
+              "note_ru": "Норма общего жира — практический, а не установленный физиологический минимум."
+            },
+            {
+              "code": "LA",
+              "category": "MIN",
+              "minimum": 1.4,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.40",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "ALA",
+              "category": "MIN",
+              "minimum": 0.05,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.05",
+              "footnote": "c",
+              "note_ru": "ND — минимальная потребность не установлена."
+            },
+            {
+              "code": "ARA",
+              "category": "MIN",
+              "minimum": 0.05,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.05",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "EPA_DHA",
+              "category": "MIN",
+              "minimum": 0.03,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.03",
+              "footnote": "c",
+              "note_ru": "ND — минимальная потребность не установлена."
+            },
+            {
+              "code": "CA",
+              "category": "MIN",
+              "minimum": 2.5,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "2.5",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "P",
+              "category": "MIN",
+              "minimum": 2.0,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "2.0",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "K",
+              "category": "MIN",
+              "minimum": 1.5,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "1.5",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "NA",
+              "category": "MIN",
+              "minimum": 0.5,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.5",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "CL",
+              "category": "MIN",
+              "minimum": 0.75,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.75",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "MG",
+              "category": "MIN",
+              "minimum": 0.2,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.20",
+              "footnote": "d",
+              "note_ru": "Риск струвитов связан с содержанием магния и pH мочи."
+            },
+            {
+              "code": "FE",
+              "category": "MIN",
+              "minimum": 20.0,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "20.0",
+              "footnote": "e",
+              "note_ru": "Не засчитывать железо из добавленных карбоната/оксида."
+            },
+            {
+              "code": "CU_EXTRUDED",
+              "category": "MIN",
+              "minimum": 3.75,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "3.75",
+              "footnote": "f",
+              "note_ru": "Не засчитывать медь из добавленного оксида."
+            },
+            {
+              "code": "CU_CANNED",
+              "category": "MIN",
+              "minimum": 2.1,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "2.10",
+              "footnote": "f",
+              "note_ru": "Не засчитывать медь из добавленного оксида."
+            },
+            {
+              "code": "MN",
+              "category": "MIN",
+              "minimum": 1.9,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "1.90",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "ZN",
+              "category": "MIN",
+              "minimum": 18.8,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "18.8",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "I",
+              "category": "MIN",
+              "minimum": 0.45,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "0.45",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "SE",
+              "category": "MIN",
+              "minimum": 0.075,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "0.075",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "VITA",
+              "category": "MIN_MAX",
+              "minimum": 1667.0,
+              "maximum": 83325.0,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": "1667 / max 83325",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "VITD",
+              "category": "MIN_MAX",
+              "minimum": 70.0,
+              "maximum": 7520.0,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": "70 / max 7520",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "VITE",
+              "category": "MIN",
+              "minimum": 10.0,
+              "maximum": null,
+              "established": true,
+              "unit": "IU",
+              "source_value_text": "10",
+              "footnote": "g",
+              "note_ru": "Повышать витамин E при добавлении рыбьего жира по исходной сноске."
+            },
+            {
+              "code": "VITK",
+              "category": "MIN",
+              "minimum": 0.025,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "0.025",
+              "footnote": "h",
+              "note_ru": "Добавление витамина K может не требоваться, если доля рыбы не превышает 25% СВ."
+            },
+            {
+              "code": "B1",
+              "category": "MIN",
+              "minimum": 1.4,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "1.40",
+              "footnote": "i",
+              "note_ru": "Учитывать потери тиамина при обработке."
+            },
+            {
+              "code": "B2",
+              "category": "MIN",
+              "minimum": 1.0,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "1.00",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B5",
+              "category": "MIN",
+              "minimum": 1.44,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "1.44",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B3",
+              "category": "MIN",
+              "minimum": 15.0,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "15",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B6",
+              "category": "MIN",
+              "minimum": 1.0,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "1.0",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "B9",
+              "category": "MIN",
+              "minimum": 0.2,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "0.20",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "BIOTIN",
+              "category": "MIN",
+              "minimum": 0.018,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "0.018",
+              "footnote": "j",
+              "note_ru": "Добавление биотина не требуется, если нет антимикробных или антивитаминных компонентов."
+            },
+            {
+              "code": "B12",
+              "category": "MIN",
+              "minimum": 0.005,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "0.005",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "CHOL",
+              "category": "MIN",
+              "minimum": 600.0,
+              "maximum": null,
+              "established": true,
+              "unit": "mg",
+              "source_value_text": "600",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "TAUR_EXTRUDED",
+              "category": "MIN",
+              "minimum": 0.25,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.25",
+              "footnote": null,
+              "note_ru": null
+            },
+            {
+              "code": "TAUR_CANNED",
+              "category": "MIN",
+              "minimum": 0.5,
+              "maximum": null,
+              "established": true,
+              "unit": "g",
+              "source_value_text": "0.50",
+              "footnote": null,
+              "note_ru": null
+            }
+          ],
+          "source": {
+            "language": "en",
+            "table": "AAFCO CAT FOOD NUTRIENT PROFILES — BASED ON CALORIE CONTENT",
+            "page": 16,
+            "url": "https://www.aafco.org/wp-content/uploads/2023/01/MBRC_minutes_Attachment_A.pdf"
+          }
+        }
+      ]
+    }
+  }
+}

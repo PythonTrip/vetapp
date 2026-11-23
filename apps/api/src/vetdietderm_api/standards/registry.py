@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from vetdietderm_api.standards.contract import NutritionStandardProvider
-from vetdietderm_api.standards.unavailable import AAFCO_2026, NRC_2006, UnavailableEdition
+from vetdietderm_api.standards.unavailable import UnavailableEdition
 
 
 class StandardNotFoundError(LookupError):
@@ -78,12 +78,26 @@ class StandardRegistry:
 STANDARD_REGISTRY = StandardRegistry()
 
 
+def _register_dataset_edition(
+    provider: NutritionStandardProvider | None,
+    edition: UnavailableEdition,
+) -> None:
+    if provider is None:
+        STANDARD_REGISTRY.register_unavailable(edition)
+        return
+    STANDARD_REGISTRY.register(provider, active=False)
+
+
 def _register_builtin_providers() -> None:
+    from vetdietderm_api.standards.aafco.v2026 import catalog_entry as aafco_catalog
+    from vetdietderm_api.standards.aafco.v2026 import load_provider as load_aafco
     from vetdietderm_api.standards.fediaf.v2025 import provider
+    from vetdietderm_api.standards.nrc.v2006 import catalog_entry as nrc_catalog
+    from vetdietderm_api.standards.nrc.v2006 import load_provider as load_nrc
 
     STANDARD_REGISTRY.register(provider, active=True)
-    STANDARD_REGISTRY.register_unavailable(NRC_2006)
-    STANDARD_REGISTRY.register_unavailable(AAFCO_2026)
+    _register_dataset_edition(load_nrc(), nrc_catalog())
+    _register_dataset_edition(load_aafco(), aafco_catalog())
 
 
 _register_builtin_providers()
