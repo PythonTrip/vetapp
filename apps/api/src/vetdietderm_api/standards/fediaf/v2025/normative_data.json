@@ -729,7 +729,7 @@
         },
         {
           "code": "dog_adult_mer95",
-          "clinician_selectable": false,
+          "clinician_selectable": true,
           "species_code": "dog",
           "name_ru": "Взрослая собака — MER 95",
           "physiological_state": "adult",
@@ -1201,7 +1201,7 @@
         },
         {
           "code": "dog_adult_mer110",
-          "clinician_selectable": false,
+          "clinician_selectable": true,
           "species_code": "dog",
           "name_ru": "Взрослая собака — MER 110",
           "physiological_state": "adult",
@@ -2949,7 +2949,7 @@
         },
         {
           "code": "cat_adult_mer75",
-          "clinician_selectable": false,
+          "clinician_selectable": true,
           "species_code": "cat",
           "name_ru": "Взрослая кошка — MER 75",
           "physiological_state": "adult",
@@ -3443,7 +3443,7 @@
         },
         {
           "code": "cat_adult_mer100",
-          "clinician_selectable": false,
+          "clinician_selectable": true,
           "species_code": "cat",
           "name_ru": "Взрослая кошка — MER 100",
           "physiological_state": "adult",

@@ -42,6 +42,7 @@ def load_foods(session: Session, food_uuids: list[UUID]) -> dict[UUID, FoodSnaps
         values[value.food_uuid][code] = FoodValue(
             value=numeric,
             value_status=value.value_status,
+            source=str(value.source_uuid) if value.source_uuid else None,
         )
     return {
         food.uuid: FoodSnapshot(

@@ -44,6 +44,7 @@ class MECalculation:
     unit: str
     source: FoodEnergySource
     method: FoodEnergyMethod
+    warning: str | None = None
 
 
 class FoodEnergyProduct(Protocol):
@@ -219,6 +220,7 @@ def resolve_me(
             unit=ME_UNIT,
             source=FoodEnergySource.calculated,
             method=FoodEnergyMethod.fediaf_natural,
+            warning="Для этого типа продукта требуется заявленная или измеренная ME.",
         )
     proximate = _proximate_values(product)
     value: Decimal | None = None
@@ -236,11 +238,20 @@ def resolve_me(
             proximate["MO"],
             species=species,
         )
+    warning = "Расчётная оценка по составу."
+    if proximate is None:
+        warning = "Для расчёта ME нужны белок, жир, сырая клетчатка, зола и влажность на 100 г продукта."
+    elif value is None:
+        warning = "Состав продукта находится за пределами применимости формулы ME."
+    elif method is FoodEnergyMethod.fediaf_nrc_predictive and species == "dog":
+        if proximate["CFi"] > Decimal("0.08") * (100 - proximate["MO"]):
+            warning = "При сырой клетчатке свыше 8% сухого вещества и высокой доле ферментируемых волокон формула может занижать ME."
     return MECalculation(
         value=value,
         unit=ME_UNIT,
         source=FoodEnergySource.calculated,
         method=method,
+        warning=warning,
     )
 
 

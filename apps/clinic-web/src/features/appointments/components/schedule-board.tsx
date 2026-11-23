@@ -36,7 +36,6 @@ import { useDebouncedValue } from "@/shared/hooks/use-debounced-value";
 import { apiErrorMessage } from "@/shared/api/error-message";
 import { speciesLabel } from "@/features/patients/form";
 import { consultationState, VISIT_STATUS_STYLES } from "@vetdietderm/owner-features/domain";
-import { useAuth } from "@/features/authentication/auth-provider";
 
 function startOfDay(date: Date): Date {
   const next = new Date(date);
@@ -55,9 +54,11 @@ function toDateInput(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-export function ScheduleBoard({ queue, requestCount }: { queue?: React.ReactNode; requestCount?: number }) {
-  const { user } = useAuth();
-  const viewer = user?.organization?.org_role === "viewer";
+export function ScheduleBoard({ queue, requestCount, viewer = false }: {
+  queue?: React.ReactNode;
+  requestCount?: number;
+  viewer?: boolean;
+}) {
   const [view, setView] = React.useState<"appointments" | "requests">("appointments");
   const [day, setDay] = React.useState(toDateInput(new Date()));
   const selected = new Date(`${day}T00:00:00`);

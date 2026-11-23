@@ -71,6 +71,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/assessments/standards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Standards */
+        get: operations["standards_assessments_standards_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/assessments/suggestions": {
         parameters: {
             query?: never;
@@ -1844,6 +1861,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/staff/assessments/standards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Standards */
+        get: operations["standards_v1_staff_assessments_standards_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/staff/assessments/suggestions": {
         parameters: {
             query?: never;
@@ -2795,6 +2829,8 @@ export interface components {
             current_body_weight_kg?: number | null;
             /** Expected Mature Weight Kg */
             expected_mature_weight_kg?: number | null;
+            /** Gestation Week */
+            gestation_week?: number | null;
             /**
              * Lactating
              * @default false
@@ -3011,6 +3047,13 @@ export interface components {
             /** @default unknown */
             feed_form?: components["schemas"]["FeedForm"];
             /**
+             * Profile Mode
+             * @default legacy_auto
+             * @enum {string}
+             */
+            profile_mode?: "legacy_auto" | "manual";
+            profile_selection?: components["schemas"]["ProfileSelection"] | null;
+            /**
              * Ration Species Mismatch Confirmed
              * @default false
              */
@@ -3057,6 +3100,7 @@ export interface components {
              * @enum {string}
              */
             overall?: "adequate" | "inadequate" | "indeterminate";
+            ration_energy?: components["schemas"]["RationEnergyRead"] | null;
             /** Rows */
             rows: components["schemas"]["AssessmentRow"][];
             /**
@@ -3070,16 +3114,23 @@ export interface components {
             /** Code */
             code: string;
             completeness: components["schemas"]["RowCompleteness"];
+            /** Contributions */
+            contributions?: components["schemas"]["NutrientContribution"][];
+            density_status?: components["schemas"]["AssessmentStatus"] | null;
             /** Derived */
             derived: boolean;
+            intake_bases?: components["schemas"]["NutrientIntakeBases"] | null;
             /** Name */
             name: string;
             /** Note Ru */
             note_ru?: string | null;
+            published_target?: components["schemas"]["TargetRead"] | null;
             /** Ration Daily Amount */
             ration_daily_amount?: number | null;
             /** Ration Per 1000 Kcal Me */
             ration_per_1000_kcal_me: number | null;
+            /** Ration Ratio */
+            ration_ratio?: number | null;
             source: components["schemas"]["SourceRead"];
             status: components["schemas"]["AssessmentStatus"];
             target: components["schemas"]["TargetRead"] | null;
@@ -3089,6 +3140,10 @@ export interface components {
         /** AssessmentSnapshot */
         AssessmentSnapshot: {
             assessment: components["schemas"]["AssessmentResponse"];
+            /** Confirmed At */
+            confirmed_at?: string | null;
+            /** Confirmed By */
+            confirmed_by?: string | null;
             /** Edition */
             edition: string;
             /** Energy Formula Code */
@@ -3521,6 +3576,11 @@ export interface components {
             /** Ration */
             ration: components["schemas"]["DietPlanRationComponent"][];
             /**
+             * Standard Code
+             * @default fediaf
+             */
+            standard_code?: string;
+            /**
              * Updated At
              * Format: date-time
              */
@@ -3550,6 +3610,11 @@ export interface components {
             /** Patient Uuid */
             patient_uuid: string | null;
             /**
+             * Standard Code
+             * @default fediaf
+             */
+            standard_code?: string;
+            /**
              * Updated At
              * Format: date-time
              */
@@ -3563,6 +3628,8 @@ export interface components {
         /** DietPlanWrite */
         DietPlanWrite: {
             assessment_request: components["schemas"]["AssessmentRequest"];
+            /** Expected Input Hash */
+            expected_input_hash?: string | null;
             /** Name */
             name: string;
             /** Notes */
@@ -3589,6 +3656,11 @@ export interface components {
             source_title: string;
             /** Source Url */
             source_url: string;
+            /**
+             * Standard Code
+             * @default fediaf
+             */
+            standard_code?: string;
         };
         /** EmailVerification */
         EmailVerification: {
@@ -3790,6 +3862,10 @@ export interface components {
             energy_formula_code: string | null;
             /** Explanation Ru */
             explanation_ru?: string | null;
+            /** Inputs */
+            inputs?: {
+                [key: string]: number;
+            };
             /** Missing Fields */
             missing_fields: string[];
             /** Range Working Point Rule */
@@ -3806,6 +3882,13 @@ export interface components {
             rer_factor_kcal_day: number | null;
             /** Rer Kcal Day */
             rer_kcal_day: number | null;
+            source?: components["schemas"]["EnergyEstimateSource"] | null;
+            /**
+             * Weight Basis
+             * @default current
+             * @enum {string}
+             */
+            weight_basis?: "current" | "target_override";
             /** Working Energy Kcal */
             working_energy_kcal: number | null;
         };
@@ -3817,6 +3900,11 @@ export interface components {
              * @default 100
              */
             energy_adjustment_percent?: number;
+            /**
+             * Rer Factor
+             * @default 1.6
+             */
+            rer_factor?: number;
         };
         /** EnergyEstimateResponse */
         EnergyEstimateResponse: {
@@ -3840,6 +3928,15 @@ export interface components {
             range_working_point_rule?: "midpoint" | null;
             /** Reference Energy Kcal */
             reference_energy_kcal?: number | null;
+            /**
+             * Rer Factor
+             * @default 1.6
+             */
+            rer_factor?: number;
+            /** Rer Factor Kcal Day */
+            rer_factor_kcal_day?: number | null;
+            /** Rer Kcal Day */
+            rer_kcal_day?: number | null;
             /** Size Class Code */
             size_class_code?: string | null;
             source: components["schemas"]["EnergyEstimateSource"];
@@ -4169,6 +4266,33 @@ export interface components {
          * @enum {string}
          */
         NutrientCategory: "main" | "mineral" | "vitamin" | "amino_acid" | "fatty_acid";
+        /** NutrientContribution */
+        NutrientContribution: {
+            /** Daily Amount */
+            daily_amount: number | null;
+            /**
+             * Food Uuid
+             * Format: uuid
+             */
+            food_uuid: string;
+        };
+        /** NutrientIntakeBases */
+        NutrientIntakeBases: {
+            /** Metabolic Exponent */
+            metabolic_exponent: number | null;
+            /** Per 100G As Fed */
+            per_100g_as_fed: number | null;
+            /** Per 100G Dry Matter */
+            per_100g_dry_matter: number | null;
+            /** Per 1000 Kcal Me */
+            per_1000_kcal_me: number | null;
+            /** Per Day */
+            per_day: number;
+            /** Per Kg Bw */
+            per_kg_bw: number | null;
+            /** Per Kg Metabolic Bw */
+            per_kg_metabolic_bw: number | null;
+        };
         /** NutrientRead */
         NutrientRead: {
             /** Base Unit */
@@ -4551,6 +4675,55 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** ProfileCompatibility */
+        ProfileCompatibility: {
+            /** Code */
+            code?: string | null;
+            /**
+             * Comment Required
+             * @default false
+             */
+            comment_required?: boolean;
+            /**
+             * Level
+             * @enum {string}
+             */
+            level: "compatible" | "soft" | "hard";
+            /** Message */
+            message?: string | null;
+        };
+        /** ProfileSelection */
+        ProfileSelection: {
+            /** Comment */
+            comment?: string | null;
+            /** Edition */
+            edition: string;
+            /** Profile Code */
+            profile_code: string;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "manual" | "recommendation";
+            /** Standard Code */
+            standard_code: string;
+        };
+        /** ProfileSuggestionOption */
+        ProfileSuggestionOption: {
+            /** Basis */
+            basis: string;
+            /** Category */
+            category: string;
+            /** Code */
+            code: string;
+            compatibility: components["schemas"]["ProfileCompatibility"];
+            /** Life Stage */
+            life_stage: string | null;
+            /** Name Ru */
+            name_ru: string;
+            /** Species */
+            species: string;
+        };
         /**
          * QuestionKind
          * @enum {string}
@@ -4617,6 +4790,41 @@ export interface components {
             /** Grams */
             grams: number;
         };
+        /** RationEnergyItem */
+        RationEnergyItem: {
+            /**
+             * Food Uuid
+             * Format: uuid
+             */
+            food_uuid: string;
+            /** Kcal Day */
+            kcal_day: number | null;
+            /** Me Kcal Per 100G */
+            me_kcal_per_100g: number | null;
+            /** Method */
+            method: string | null;
+            /** Quality */
+            quality: string;
+            /** Source */
+            source: string | null;
+            /** Warning */
+            warning?: string | null;
+        };
+        /** RationEnergyRead */
+        RationEnergyRead: {
+            /** Coverage Percent */
+            coverage_percent: number | null;
+            /** Difference Kcal Day */
+            difference_kcal_day: number | null;
+            /** Items */
+            items: components["schemas"]["RationEnergyItem"][];
+            /** Known Kcal Day */
+            known_kcal_day: number;
+            /** Requirement Kcal Day */
+            requirement_kcal_day: number | null;
+            /** Total Kcal Day */
+            total_kcal_day: number | null;
+        };
         /** RegistrationAccept */
         RegistrationAccept: {
             /** Client Uuid */
@@ -4676,6 +4884,8 @@ export interface components {
             feed_form: components["schemas"]["FeedForm"];
             /** Nutrient Profile Code */
             nutrient_profile_code: string | null;
+            profile_compatibility?: components["schemas"]["ProfileCompatibility"] | null;
+            profile_selection?: components["schemas"]["ProfileSelection"] | null;
             /**
              * Ration Species Mismatch Confirmed
              * @default false
@@ -4822,21 +5032,50 @@ export interface components {
             uuid: string;
             visit_type: components["schemas"]["vetdietderm_api__questionnaires__schemas__VisitType"] | null;
         };
+        /** StandardRead */
+        StandardRead: {
+            /**
+             * Active
+             * @default false
+             */
+            active?: boolean;
+            /** Available */
+            available: boolean;
+            /**
+             * Commercial Use Verified
+             * @default false
+             */
+            commercial_use_verified?: boolean;
+            /** Edition */
+            edition: string;
+            /** Normative Categories */
+            normative_categories?: string[];
+            /** Provider Checksum */
+            provider_checksum?: string | null;
+            /** Provider Version */
+            provider_version?: string | null;
+            /** Reason */
+            reason?: string | null;
+            /** Source Url */
+            source_url: string;
+            /** Standard Code */
+            standard_code: string;
+        };
         /** StatusResponse */
         StatusResponse: {
             /** Status */
             status: string;
         };
-        /** SuggestionOption */
-        SuggestionOption: {
-            /** Code */
-            code: string;
-            /** Name Ru */
-            name_ru: string;
-        };
         /** SuggestionRequest */
         SuggestionRequest: {
             animal: components["schemas"]["AnimalProfile"];
+            /** Edition */
+            edition?: string | null;
+            /**
+             * Standard Code
+             * @default fediaf
+             */
+            standard_code?: string;
         };
         /** SuggestionsResponse */
         SuggestionsResponse: {
@@ -4850,7 +5089,7 @@ export interface components {
             energy_suggestion: components["schemas"]["ContextSuggestion"] | null;
             nutrient_standard_suggestion: components["schemas"]["ContextSuggestion"] | null;
             /** Profile Options */
-            profile_options: components["schemas"]["SuggestionOption"][];
+            profile_options: components["schemas"]["ProfileSuggestionOption"][];
             /** Size Class Options */
             size_class_options: components["schemas"]["SizeClassSuggestionOption"][];
             /** Suggested Energy Formula Code */
@@ -4864,6 +5103,8 @@ export interface components {
         TargetRead: {
             /** Basis */
             basis: string;
+            /** Category */
+            category?: string | null;
             /** Maximum */
             maximum: number | null;
             /** Minimum */
@@ -5293,6 +5534,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    standards_assessments_standards_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StandardRead"][];
                 };
             };
         };
@@ -14474,6 +14735,146 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EnergyEstimateResponse"];
+                };
+            };
+            /** @description bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description method not allowed */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description rate limited */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description bad gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description gateway timeout */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    standards_v1_staff_assessments_standards_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
+                "X-Vetapp-CSRF"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StandardRead"][];
                 };
             };
             /** @description bad request */

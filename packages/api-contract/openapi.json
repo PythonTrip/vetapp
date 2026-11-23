@@ -258,6 +258,19 @@
             ],
             "title": "Expected Mature Weight Kg"
           },
+          "gestation_week": {
+            "anyOf": [
+              {
+                "maximum": 9,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gestation Week"
+          },
           "lactating": {
             "default": false,
             "title": "Lactating",
@@ -884,6 +897,25 @@
             "$ref": "#/components/schemas/FeedForm",
             "default": "unknown"
           },
+          "profile_mode": {
+            "default": "legacy_auto",
+            "enum": [
+              "legacy_auto",
+              "manual"
+            ],
+            "title": "Profile Mode",
+            "type": "string"
+          },
+          "profile_selection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProfileSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "ration_species_mismatch_confirmed": {
             "default": false,
             "title": "Ration Species Mismatch Confirmed",
@@ -977,6 +1009,16 @@
             "title": "Overall",
             "type": "string"
           },
+          "ration_energy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RationEnergyRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "rows": {
             "items": {
               "$ref": "#/components/schemas/AssessmentRow"
@@ -1012,9 +1054,36 @@
           "completeness": {
             "$ref": "#/components/schemas/RowCompleteness"
           },
+          "contributions": {
+            "items": {
+              "$ref": "#/components/schemas/NutrientContribution"
+            },
+            "title": "Contributions",
+            "type": "array"
+          },
+          "density_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssessmentStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "derived": {
             "title": "Derived",
             "type": "boolean"
+          },
+          "intake_bases": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NutrientIntakeBases"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "name": {
             "title": "Name",
@@ -1030,6 +1099,16 @@
               }
             ],
             "title": "Note Ru"
+          },
+          "published_target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TargetRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "ration_daily_amount": {
             "anyOf": [
@@ -1052,6 +1131,17 @@
               }
             ],
             "title": "Ration Per 1000 Kcal Me"
+          },
+          "ration_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ration Ratio"
           },
           "source": {
             "$ref": "#/components/schemas/SourceRead"
@@ -1092,6 +1182,29 @@
         "properties": {
           "assessment": {
             "$ref": "#/components/schemas/AssessmentResponse"
+          },
+          "confirmed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed At"
+          },
+          "confirmed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed By"
           },
           "edition": {
             "title": "Edition",
@@ -2444,6 +2557,11 @@
             "title": "Ration",
             "type": "array"
           },
+          "standard_code": {
+            "default": "fediaf",
+            "title": "Standard Code",
+            "type": "string"
+          },
           "updated_at": {
             "format": "date-time",
             "title": "Updated At",
@@ -2517,6 +2635,11 @@
             ],
             "title": "Patient Uuid"
           },
+          "standard_code": {
+            "default": "fediaf",
+            "title": "Standard Code",
+            "type": "string"
+          },
           "updated_at": {
             "format": "date-time",
             "title": "Updated At",
@@ -2546,6 +2669,18 @@
         "properties": {
           "assessment_request": {
             "$ref": "#/components/schemas/AssessmentRequest"
+          },
+          "expected_input_hash": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Input Hash"
           },
           "name": {
             "maxLength": 255,
@@ -2629,6 +2764,11 @@
           },
           "source_url": {
             "title": "Source Url",
+            "type": "string"
+          },
+          "standard_code": {
+            "default": "fediaf",
+            "title": "Standard Code",
             "type": "string"
           }
         },
@@ -3342,6 +3482,20 @@
             ],
             "title": "Explanation Ru"
           },
+          "inputs": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Inputs",
+            "type": "object"
+          },
           "missing_fields": {
             "items": {
               "type": "string"
@@ -3420,6 +3574,25 @@
             ],
             "title": "Rer Kcal Day"
           },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnergyEstimateSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "weight_basis": {
+            "default": "current",
+            "enum": [
+              "current",
+              "target_override"
+            ],
+            "title": "Weight Basis",
+            "type": "string"
+          },
           "working_energy_kcal": {
             "anyOf": [
               {
@@ -3458,6 +3631,13 @@
             "exclusiveMinimum": 0,
             "maximum": 300,
             "title": "Energy Adjustment Percent",
+            "type": "number"
+          },
+          "rer_factor": {
+            "default": 1.6,
+            "exclusiveMinimum": 0,
+            "maximum": 10,
+            "title": "Rer Factor",
             "type": "number"
           }
         },
@@ -3552,6 +3732,33 @@
               }
             ],
             "title": "Reference Energy Kcal"
+          },
+          "rer_factor": {
+            "default": 1.6,
+            "title": "Rer Factor",
+            "type": "number"
+          },
+          "rer_factor_kcal_day": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rer Factor Kcal Day"
+          },
+          "rer_kcal_day": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rer Kcal Day"
           },
           "size_class_code": {
             "anyOf": [
@@ -4487,6 +4694,117 @@
         ],
         "title": "NutrientCategory",
         "type": "string"
+      },
+      "NutrientContribution": {
+        "properties": {
+          "daily_amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Amount"
+          },
+          "food_uuid": {
+            "format": "uuid",
+            "title": "Food Uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "food_uuid",
+          "daily_amount"
+        ],
+        "title": "NutrientContribution",
+        "type": "object"
+      },
+      "NutrientIntakeBases": {
+        "properties": {
+          "metabolic_exponent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metabolic Exponent"
+          },
+          "per_1000_kcal_me": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per 1000 Kcal Me"
+          },
+          "per_100g_as_fed": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per 100G As Fed"
+          },
+          "per_100g_dry_matter": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per 100G Dry Matter"
+          },
+          "per_day": {
+            "title": "Per Day",
+            "type": "number"
+          },
+          "per_kg_bw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per Kg Bw"
+          },
+          "per_kg_metabolic_bw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per Kg Metabolic Bw"
+          }
+        },
+        "required": [
+          "per_day",
+          "per_100g_as_fed",
+          "per_100g_dry_matter",
+          "per_1000_kcal_me",
+          "per_kg_bw",
+          "per_kg_metabolic_bw",
+          "metabolic_exponent"
+        ],
+        "title": "NutrientIntakeBases",
+        "type": "object"
       },
       "NutrientRead": {
         "properties": {
@@ -5605,6 +5923,144 @@
         "title": "PrescriptionItem",
         "type": "object"
       },
+      "ProfileCompatibility": {
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "comment_required": {
+            "default": false,
+            "title": "Comment Required",
+            "type": "boolean"
+          },
+          "level": {
+            "enum": [
+              "compatible",
+              "soft",
+              "hard"
+            ],
+            "title": "Level",
+            "type": "string"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          }
+        },
+        "required": [
+          "level"
+        ],
+        "title": "ProfileCompatibility",
+        "type": "object"
+      },
+      "ProfileSelection": {
+        "properties": {
+          "comment": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "edition": {
+            "title": "Edition",
+            "type": "string"
+          },
+          "profile_code": {
+            "title": "Profile Code",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "manual",
+              "recommendation"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "standard_code": {
+            "title": "Standard Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "standard_code",
+          "edition",
+          "profile_code",
+          "source"
+        ],
+        "title": "ProfileSelection",
+        "type": "object"
+      },
+      "ProfileSuggestionOption": {
+        "properties": {
+          "basis": {
+            "title": "Basis",
+            "type": "string"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "compatibility": {
+            "$ref": "#/components/schemas/ProfileCompatibility"
+          },
+          "life_stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Life Stage"
+          },
+          "name_ru": {
+            "title": "Name Ru",
+            "type": "string"
+          },
+          "species": {
+            "title": "Species",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name_ru",
+          "species",
+          "life_stage",
+          "basis",
+          "category",
+          "compatibility"
+        ],
+        "title": "ProfileSuggestionOption",
+        "type": "object"
+      },
       "QuestionKind": {
         "enum": [
           "binary",
@@ -5768,6 +6224,153 @@
         "title": "RationComponent",
         "type": "object"
       },
+      "RationEnergyItem": {
+        "properties": {
+          "food_uuid": {
+            "format": "uuid",
+            "title": "Food Uuid",
+            "type": "string"
+          },
+          "kcal_day": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kcal Day"
+          },
+          "me_kcal_per_100g": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Me Kcal Per 100G"
+          },
+          "method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Method"
+          },
+          "quality": {
+            "title": "Quality",
+            "type": "string"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warning"
+          }
+        },
+        "required": [
+          "food_uuid",
+          "me_kcal_per_100g",
+          "kcal_day",
+          "method",
+          "source",
+          "quality"
+        ],
+        "title": "RationEnergyItem",
+        "type": "object"
+      },
+      "RationEnergyRead": {
+        "properties": {
+          "coverage_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverage Percent"
+          },
+          "difference_kcal_day": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Difference Kcal Day"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RationEnergyItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "known_kcal_day": {
+            "title": "Known Kcal Day",
+            "type": "number"
+          },
+          "requirement_kcal_day": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requirement Kcal Day"
+          },
+          "total_kcal_day": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Kcal Day"
+          }
+        },
+        "required": [
+          "items",
+          "total_kcal_day",
+          "known_kcal_day",
+          "requirement_kcal_day",
+          "coverage_percent",
+          "difference_kcal_day"
+        ],
+        "title": "RationEnergyRead",
+        "type": "object"
+      },
       "RegistrationAccept": {
         "properties": {
           "client_uuid": {
@@ -5915,6 +6518,26 @@
               }
             ],
             "title": "Nutrient Profile Code"
+          },
+          "profile_compatibility": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProfileCompatibility"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "profile_selection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProfileSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "ration_species_mismatch_confirmed": {
             "default": false,
@@ -6356,6 +6979,84 @@
         "title": "StaffVisitRead",
         "type": "object"
       },
+      "StandardRead": {
+        "properties": {
+          "active": {
+            "default": false,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "commercial_use_verified": {
+            "default": false,
+            "title": "Commercial Use Verified",
+            "type": "boolean"
+          },
+          "edition": {
+            "title": "Edition",
+            "type": "string"
+          },
+          "normative_categories": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Normative Categories",
+            "type": "array"
+          },
+          "provider_checksum": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Checksum"
+          },
+          "provider_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Version"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "source_url": {
+            "title": "Source Url",
+            "type": "string"
+          },
+          "standard_code": {
+            "title": "Standard Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "standard_code",
+          "edition",
+          "source_url",
+          "available"
+        ],
+        "title": "StandardRead",
+        "type": "object"
+      },
       "StatusResponse": {
         "properties": {
           "status": {
@@ -6369,28 +7070,26 @@
         "title": "StatusResponse",
         "type": "object"
       },
-      "SuggestionOption": {
-        "properties": {
-          "code": {
-            "title": "Code",
-            "type": "string"
-          },
-          "name_ru": {
-            "title": "Name Ru",
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "name_ru"
-        ],
-        "title": "SuggestionOption",
-        "type": "object"
-      },
       "SuggestionRequest": {
         "properties": {
           "animal": {
             "$ref": "#/components/schemas/AnimalProfile"
+          },
+          "edition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edition"
+          },
+          "standard_code": {
+            "default": "fediaf",
+            "title": "Standard Code",
+            "type": "string"
           }
         },
         "required": [
@@ -6441,7 +7140,7 @@
           },
           "profile_options": {
             "items": {
-              "$ref": "#/components/schemas/SuggestionOption"
+              "$ref": "#/components/schemas/ProfileSuggestionOption"
             },
             "title": "Profile Options",
             "type": "array"
@@ -6508,6 +7207,17 @@
           "basis": {
             "title": "Basis",
             "type": "string"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
           },
           "maximum": {
             "anyOf": [
@@ -7463,6 +8173,31 @@
           }
         },
         "summary": "Energy Estimate",
+        "tags": [
+          "assessments"
+        ]
+      }
+    },
+    "/assessments/standards": {
+      "get": {
+        "operationId": "standards_assessments_standards_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/StandardRead"
+                  },
+                  "title": "Response Standards Assessments Standards Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Standards",
         "tags": [
           "assessments"
         ]
@@ -19914,6 +20649,187 @@
           }
         ],
         "summary": "Energy Estimate",
+        "tags": [
+          "v1 staff",
+          "assessments"
+        ]
+      }
+    },
+    "/v1/staff/assessments/standards": {
+      "get": {
+        "operationId": "standards_v1_staff_assessments_standards_get",
+        "parameters": [
+          {
+            "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+            "in": "header",
+            "name": "X-Vetapp-CSRF",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+              "title": "X-Vetapp-Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/StandardRead"
+                  },
+                  "title": "Response Standards V1 Staff Assessments Standards Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "unauthenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "method not allowed"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "validation error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "rate limited"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "internal error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad gateway"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "service unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "gateway timeout"
+          }
+        },
+        "security": [
+          {
+            "StaffSession": []
+          }
+        ],
+        "summary": "Standards",
         "tags": [
           "v1 staff",
           "assessments"

@@ -40,6 +40,7 @@ from vetdietderm_api.standards.fediaf.v2025.resolver import suggest_formula, sug
                 current_body_weight_kg=4,
                 lactating=True,
                 lactation_week=2,
+                litter_size=2,
             ),
             "cat_reproduction",
             "lactation_lt3",
@@ -75,3 +76,29 @@ def test_dog_growth_size_class_boundaries(weight: float, expected_code: str) -> 
         expected_mature_weight_kg=weight,
     )
     assert provider.suggest(animal).suggested_size_class_code == expected_code
+
+
+@pytest.mark.parametrize(("age", "expected"), [
+    (26, "adult_age_1_2"), (35.999, "adult_age_1_2"),
+    (36, "adult_age_3_7"), (95.999, "adult_age_3_7"),
+    (96, "senior_over_7"),
+])
+def test_fediaf_age_cohorts_use_completed_years(age, expected):
+    animal = AnimalProfile(species=Species.dog, age_months=age)
+    assert suggest_formula(animal, provider.data)[0] == expected
+
+
+@pytest.mark.parametrize(("week", "expected"), [
+    (None, None), (4, "gestation_first_4w"), (5, "gestation_last_5w"),
+])
+def test_gestation_phase_uses_the_recorded_week(week, expected):
+    animal = AnimalProfile(species=Species.dog, pregnant=True, gestation_week=week)
+    assert suggest_formula(animal, provider.data)[0] == expected
+
+
+@pytest.mark.parametrize(("size", "expected"), [
+    (None, None), (2, "lactation_lt3"), (3, "lactation_3_4"), (5, "lactation_gt4"),
+])
+def test_cat_lactation_formula_depends_on_litter_size_instead_of_week(size, expected):
+    animal = AnimalProfile(species=Species.cat, lactating=True, lactation_week=2, litter_size=size)
+    assert suggest_formula(animal, provider.data)[0] == expected

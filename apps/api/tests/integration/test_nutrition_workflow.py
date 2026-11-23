@@ -209,7 +209,7 @@ def test_catalog_assessment_and_diet_plan_snapshot_are_integrated(
     assessment = AssessmentResponse.model_validate(
         _body(api_client.post("/assessments", json=assessment_request), 200)
     )
-    assert assessment.engine_id == "nutrition-engine/2.0.0"
+    assert assessment.engine_id == "nutrition-engine/2.1.0"
     assert assessment.edition == suggestions.edition
     assert assessment.edition.source_checksum
     assert assessment.context.nutrient_profile_code == suggestions.suggested_profile_code
@@ -283,6 +283,37 @@ def test_catalog_assessment_and_diet_plan_snapshot_are_integrated(
     assert saved_plan.assessment_snapshot.provider_version
     assert saved_plan.assessment_snapshot.provider_checksum
     original_hash = saved_plan.assessment_snapshot.result.input_hash
+    assert saved_plan.assessment_snapshot.confirmed_by is None
+
+    preview_request = {**assessment_request, "profile_mode": "manual"}
+    preview = AssessmentResponse.model_validate(
+        _body(api_client.post("/assessments", json=preview_request), 200)
+    )
+    assert preview.context.nutrient_profile_code is None
+    assert preview.normative_comparison_performed is False
+    assert preview.energy == assessment.energy
+    assert preview.ration_energy == assessment.ration_energy
+    rejected = api_client.post(
+        "/diet-plans", json={**plan_payload, "assessment_request": preview_request}
+    )
+    assert rejected.status_code == 422
+    assert rejected.json()["detail"]["code"] == "profile_confirmation_required"
+
+    selection = {
+        "standard_code": "fediaf",
+        "edition": suggestions.edition.code,
+        "profile_code": "dog_adult_mer110",
+        "source": "manual",
+        "comment": "Контрольный план по выбранному врачом профилю.",
+    }
+    manual_request = {**preview_request, "profile_selection": selection}
+    manual_assessment = AssessmentResponse.model_validate(
+        _body(api_client.post("/assessments", json=manual_request), 200)
+    )
+    assert manual_assessment.context.nutrient_profile_code == "dog_adult_mer110"
+    assert manual_assessment.context.nutrient_profile_code != suggestions.suggested_profile_code
+    assert manual_assessment.energy == assessment.energy
+    assert manual_assessment.context.profile_compatibility.level == "soft"
 
     plan_list = [
         DietPlanSummary.model_validate(item)
@@ -310,11 +341,26 @@ def test_catalog_assessment_and_diet_plan_snapshot_are_integrated(
     assert persisted_snapshot.ration[0].food_name == original_food_name
     assert persisted_snapshot.assessment_snapshot.result.input_hash == original_hash
 
+    stale_save = api_client.patch(
+        f"/diet-plans/{saved_plan.uuid}",
+        json={
+            **plan_payload,
+            "assessment_request": manual_request,
+            "expected_input_hash": manual_assessment.input_hash,
+        },
+    )
+    assert stale_save.status_code == 409
+    assert stale_save.json()["detail"]["code"] == "assessment_changed"
+    assert _body(api_client.get(f"/diet-plans/{saved_plan.uuid}"), 200) == persisted_snapshot.model_dump(mode="json")
+
     replacement_request = {
-        **assessment_request,
+        **manual_request,
         "energy_adjustment_percent": 95,
         "components": [{"food_uuid": str(food.uuid), "grams": 280}],
     }
+    fresh_assessment = AssessmentResponse.model_validate(
+        _body(api_client.post("/assessments", json=replacement_request), 200)
+    )
     replaced_plan = DietPlanRead.model_validate(
         _body(
             api_client.patch(
@@ -324,6 +370,7 @@ def test_catalog_assessment_and_diet_plan_snapshot_are_integrated(
                     "patient_uuid": patient["uuid"],
                     "notes": "Новая версия",
                     "assessment_request": replacement_request,
+                    "expected_input_hash": fresh_assessment.input_hash,
                 },
             ),
             200,
@@ -333,6 +380,17 @@ def test_catalog_assessment_and_diet_plan_snapshot_are_integrated(
     assert replaced_plan.ration[0].food_name == renamed_food.name
     assert replaced_plan.assessment_snapshot.request.energy_adjustment_percent == 95
     assert replaced_plan.assessment_snapshot.result.input_hash != original_hash
+    snapshot = replaced_plan.assessment_snapshot
+    assert snapshot.confirmed_by == "00000000-0000-0000-0000-000000000001"
+    assert snapshot.confirmed_at is not None
+    assert snapshot.request.profile_selection.model_dump() == selection
+    assert snapshot.nutrient_profile_code == "dog_adult_mer110"
+    assert snapshot.resolved_context.profile_compatibility.level == "soft"
+    assert snapshot.result == fresh_assessment
+    reloaded = DietPlanRead.model_validate(
+        _body(api_client.get(f"/diet-plans/{saved_plan.uuid}"), 200)
+    )
+    assert reloaded.assessment_snapshot == snapshot
     assert (
         replaced_plan.assessment_snapshot.provider_checksum
         == saved_plan.assessment_snapshot.provider_checksum

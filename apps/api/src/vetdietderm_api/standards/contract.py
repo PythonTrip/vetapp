@@ -2,16 +2,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Literal, Mapping, Protocol
+from typing import TYPE_CHECKING, Literal, Protocol
 from uuid import UUID
 
+from vetdietderm_api.assessments.ration import FoodSnapshot as FoodSnapshot, FoodValue as FoodValue
+
 if TYPE_CHECKING:
+    from vetdietderm_api.assessments.ration import PreparedRation
     from vetdietderm_api.assessments.schemas import (
         AnimalProfile,
         AssessmentRequest,
         AssessmentResponse,
-        EnergyEstimateRequest,
-        EnergyEstimateResponse,
+        ProfileCompatibility,
         SuggestionsResponse,
     )
 
@@ -31,21 +33,7 @@ class StandardMetadata:
     language: str
     clinical_warning_ru: str
     published_at: datetime
-
-
-@dataclass(frozen=True)
-class FoodValue:
-    value: float | None
-    value_status: str
-
-
-@dataclass(frozen=True)
-class FoodSnapshot:
-    uuid: UUID
-    name: str
-    type: str
-    feed_form: str
-    values: Mapping[str, FoodValue]
+    normative_categories: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -85,14 +73,14 @@ class NutritionStandardProvider(Protocol):
     @property
     def metadata(self) -> StandardMetadata: ...
 
-    def assess(
+    def assess_prepared(
         self,
         request: AssessmentRequest,
-        foods: Mapping[UUID, FoodSnapshot],
+        ration: PreparedRation,
     ) -> AssessmentResponse: ...
 
     def suggest(self, animal: AnimalProfile) -> SuggestionsResponse: ...
 
-    def estimate_energy(self, request: EnergyEstimateRequest) -> EnergyEstimateResponse: ...
+    def validate_profile(self, code: str, animal: AnimalProfile) -> ProfileCompatibility: ...
 
     def context_options(self, species: Literal["dog", "cat"]) -> StandardContextOptions: ...

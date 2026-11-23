@@ -11,6 +11,7 @@ export type NutritionAnimalForm = {
   activity: string;
   neutered: boolean;
   pregnant: boolean;
+  gestationWeek: string;
   lactating: boolean;
   lactationWeek: string;
   litterSize: string;
@@ -28,10 +29,11 @@ export const emptyNutritionAnimal = (): NutritionAnimalForm => ({
   targetBodyWeightKg: "",
   expectedMatureWeightKg: "",
   ageMonths: "",
-  lifeStage: "adult",
-  activity: "moderate",
-  neutered: true,
+  lifeStage: "",
+  activity: "",
+  neutered: false,
   pregnant: false,
+  gestationWeek: "",
   lactating: false,
   lactationWeek: "",
   litterSize: "",
@@ -59,6 +61,7 @@ export function toAssessmentAnimal(values: NutritionAnimalForm): AssessmentAnima
     activity: values.activity || null,
     neutered: values.neutered,
     pregnant: values.pregnant,
+    gestation_week: optionalNumber(values.gestationWeek, "Неделя беременности", true),
     lactating: values.lactating,
     lactation_week: optionalNumber(values.lactationWeek, "Неделя лактации"),
     litter_size: optionalNumber(values.litterSize, "Размер помёта"),
@@ -78,6 +81,7 @@ export function assessmentAnimalToNutritionForm(animal: AssessmentAnimal): Nutri
     activity: animal.activity ?? "",
     neutered: animal.neutered ?? false,
     pregnant: animal.pregnant ?? false,
+    gestationWeek: text(animal.gestation_week),
     lactating: animal.lactating ?? false,
     lactationWeek: text(animal.lactation_week),
     litterSize: text(animal.litter_size),
@@ -106,8 +110,11 @@ function ageMonthsFromBirthDate(birthDate: string | null): string {
   const birth = new Date(`${birthDate}T00:00:00`);
   if (Number.isNaN(birth.getTime())) return "";
   const now = new Date();
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const elapsedDays = Math.max(0, (today - birth.getTime()) / 86_400_000);
+  if (elapsedDays < 365) return String(Number((elapsedDays / (365.25 / 12)).toFixed(6)));
   const months = (now.getUTCFullYear() - birth.getUTCFullYear()) * 12 + now.getUTCMonth() - birth.getUTCMonth();
-  return String(Math.max(0, months));
+  return String(Math.max(0, months - Number(now.getUTCDate() < birth.getUTCDate())));
 }
 
 export function patientToNutritionAnimal(patient: PatientRecord): NutritionAnimalForm {
@@ -121,6 +128,7 @@ export function patientToNutritionAnimal(patient: PatientRecord): NutritionAnima
     activity: patient.activity ?? "",
     neutered: patient.neutered,
     pregnant: patient.pregnant,
+    gestationWeek: "",
     lactating: patient.lactating,
     lactationWeek: patient.lactation_week == null ? "" : String(patient.lactation_week),
     litterSize: patient.litter_size == null ? "" : String(patient.litter_size),

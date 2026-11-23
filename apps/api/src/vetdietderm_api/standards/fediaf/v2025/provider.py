@@ -5,12 +5,15 @@ from pathlib import Path
 from typing import Literal, Mapping
 from uuid import UUID
 
+from vetdietderm_api.assessments.ration import PreparedRation
 from vetdietderm_api.assessments.schemas import (
     AnimalProfile,
     AssessmentRequest,
     AssessmentResponse,
+    EnergyAssessment,
     EnergyEstimateRequest,
     EnergyEstimateResponse,
+    ProfileCompatibility,
     SuggestionsResponse,
 )
 from vetdietderm_api.standards.contract import (
@@ -24,7 +27,7 @@ from vetdietderm_api.standards.contract import (
 from vetdietderm_api.standards.fediaf.v2025 import assessment, resolver
 from vetdietderm_api.standards.fediaf.v2025.normative_data import load_standard_data
 
-PROVIDER_VERSION = "fediaf/v2025/1.1.0"
+PROVIDER_VERSION = "fediaf/v2025/1.2.0"
 
 
 def _provider_checksum() -> str:
@@ -56,6 +59,7 @@ class Fediaf2025Provider:
             language=edition.language,
             clinical_warning_ru=edition.clinical_warning_ru,
             published_at=edition.published_at,
+            normative_categories=("recommended_minimum",),
         )
 
     @property
@@ -74,8 +78,17 @@ class Fediaf2025Provider:
     ) -> AssessmentResponse:
         return assessment.assess_nutrition(request, self._data, foods)
 
+    def assess_prepared(self, request: AssessmentRequest, ration: PreparedRation) -> AssessmentResponse:
+        return assessment.assess_prepared(request, self._data, ration)
+
+    def energy_requirement(self, request: AssessmentRequest) -> EnergyAssessment:
+        return assessment.evaluate_energy_requirement(request, self._data)
+
     def suggest(self, animal: AnimalProfile) -> SuggestionsResponse:
         return resolver.suggest_context(animal, self._data)
+
+    def validate_profile(self, code: str, animal: AnimalProfile) -> ProfileCompatibility:
+        return resolver.validate_profile(code, animal, self._data)
 
     def estimate_energy(self, request: EnergyEstimateRequest) -> EnergyEstimateResponse:
         return assessment.evaluate_energy_scenario(request, self._data)

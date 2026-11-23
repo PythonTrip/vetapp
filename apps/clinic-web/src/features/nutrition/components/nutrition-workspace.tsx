@@ -17,9 +17,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { FoodCatalog } from "@/features/nutrition/components/food-catalog";
+import { ProfilePanel } from "@/features/nutrition/components/profile-panel";
 import { PatientPicker } from "@/features/nutrition/components/patient-picker";
 import { RationAddDialog } from "@/features/nutrition/components/ration-add-dialog";
-import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Checkbox } from "@/shared/ui/checkbox";
@@ -37,10 +37,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/shared/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { Textarea } from "@/shared/ui/textarea";
-import { type AssessmentRecord, type AssessmentEnergyRecord, type AssessmentRequestPayload, type AssessmentStatus, type DietPlanRecord, type DietPlanSummaryRecord, type FeedForm, type FoodRecord, type FoodSummaryRecord, type NutrientCategory, type NutrientRecord } from "@/features/nutrition/api";
+import { type AssessmentRecord, type AssessmentEnergyRecord, type AssessmentRequestPayload, type AssessmentStatus, type DietPlanRecord, type DietPlanSummaryRecord, type FeedForm, type FoodSummaryRecord, type NutrientCategory, type NutrientRecord, type ProfileSelection } from "@/features/nutrition/api";
 import { type PatientRecord } from "@/features/patients/api";
-import { useActiveGuidelineQuery, useAssessmentSuggestions, useCreateAssessment, useCreateDietPlan, useDietPlanQuery, useDietPlansQuery, useEnergyEstimate, useFoodEnergyValues, useNutrientsQuery, useUpdateDietPlan } from "@/features/nutrition/hooks";
+import { useAssessmentSuggestions, useCreateAssessment, useCreateDietPlan, useDietPlanQuery, useDietPlansQuery, useEnergyEstimate, useNutrientsQuery, useUpdateDietPlan } from "@/features/nutrition/hooks";
 import { usePatientQuery } from "@/features/patients/hooks";
+import { ApiError } from "@/shared/api/client";
 import { apiErrorMessage } from "@/shared/api/error-message";
 import { LIFE_STAGE_OPTIONS, ACTIVITY_OPTIONS, SPECIES_OPTIONS } from "@/features/patients/form";
 import {
@@ -75,7 +76,7 @@ function formatNumber(value: number | null, digits = 2): string {
   return value == null ? "—" : value.toLocaleString("ru-RU", { maximumFractionDigits: digits });
 }
 
-function resolvedStandardLabel(code: string | null | undefined, edition = "2025"): string {
+function resolvedStandardLabel(code: string, edition: string, standardCode: string): string {
   const labels: Record<string, string> = {
     dog_adult_maintenance: "Взрослая собака · суточные минимумы",
     dog_adult_mer95: "Взрослая собака · MER 95 · низкая активность",
@@ -88,7 +89,7 @@ function resolvedStandardLabel(code: string | null | undefined, edition = "2025"
     cat_growth: "Кошка · рост",
     cat_reproduction: "Кошка · репродукция",
   };
-  return code ? `FEDIAF ${edition} · ${labels[code] ?? "стандарт по выбранному контексту"}` : `FEDIAF ${edition} · определяется сервером`;
+  return `${standardCode.toUpperCase()} ${edition} · ${labels[code] ?? code}`;
 }
 
 function humanFieldLabel(field: string): string {
@@ -100,34 +101,23 @@ function humanFieldLabel(field: string): string {
     expected_mature_weight_kg: "ожидаемый взрослый вес",
     maintenance_energy_kcal_day: "базовый MER",
     lactation_week: "неделя лактации",
+    gestation_week: "неделя беременности",
     litter_size: "размер помёта",
   };
   return labels[field] ?? "дополнительные данные пациента";
 }
 
-function rationKcalTotal(lines: RationLine[], energyValues: Record<string, number | null>): number | null {
-  if (!lines.length) return null;
-  let total = 0;
-  for (const line of lines) {
-    const grams = Number(line.grams.replace(",", "."));
-    const density = energyValues[line.food.uuid];
-    if (density == null || !Number.isFinite(grams) || grams <= 0) return null;
-    total += density * grams / 100;
-  }
-  return total;
-}
-
-const CURRENT_NUTRITION_ENGINE_ID = "nutrition-engine/2.0.0";
+const EMPTY_SELECTION: ProfileSelection = {
+  standard_code: "fediaf", edition: "", profile_code: "", source: "manual",
+};
 
 export function NutritionWorkspace() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const patientId = searchParams.get("patientId") ?? "";
   const planId = searchParams.get("planId") ?? "";
-  const patient = usePatientQuery(patientId);
   const plan = useDietPlanQuery(planId);
   const recentPlans = useDietPlansQuery();
-  const guideline = useActiveGuidelineQuery(!planId);
   const assessment = useCreateAssessment();
   const createPlan = useCreateDietPlan();
   const updatePlan = useUpdateDietPlan();
@@ -140,13 +130,17 @@ export function NutritionWorkspace() {
   const [lines, setLines] = React.useState<RationLine[]>([]);
   const [rationAddOpen, setRationAddOpen] = React.useState(false);
   const [feedOverride, setFeedOverride] = React.useState<"auto" | "dry" | "wet">("auto");
+  const [assessmentAttempt, setAssessmentAttempt] = React.useState(0);
   const [formError, setFormError] = React.useState<string | null>(null);
+  const [profileDraft, setProfileDraft] = React.useState(EMPTY_SELECTION);
+  const [confirmed, setConfirmed] = React.useState<{ selection: ProfileSelection; contextKey: string } | null>(null);
   const [assessmentDirty, setAssessmentDirty] = React.useState(false);
   const [saveOpen, setSaveOpen] = React.useState(false);
   const [planName, setPlanName] = React.useState("План 1");
   const [planNotes, setPlanNotes] = React.useState("");
   const [selectedPatientId, setSelectedPatientId] = React.useState<string>(patientId);
   const selectedPatient = usePatientQuery(selectedPatientId);
+  const patientContextPending = Boolean(selectedPatientId) && hydratedPatientId !== selectedPatientId;
   const assessmentAnimal = React.useMemo(() => {
     try {
       return toAssessmentAnimal(animal);
@@ -154,32 +148,48 @@ export function NutritionWorkspace() {
       return null;
     }
   }, [animal]);
-  const suggestions = useAssessmentSuggestions(assessmentAnimal);
+  const contextKey = JSON.stringify([selectedPatientId || null, assessmentAnimal]);
+  const activeSelection = !patientContextPending && confirmed?.contextKey === contextKey ? confirmed.selection : null;
+  const historicalSnapshotLocked = Boolean(planId) && !historicalRecalculationStarted;
+  const suggestions = useAssessmentSuggestions(historicalSnapshotLocked || patientContextPending ? null : assessmentAnimal);
   const showExpectedMatureWeight = animal.species === "dog";
   const adjustmentValue = Number(energyAdjustmentPercent.replace(",", "."));
-  const energyEstimate = useEnergyEstimate(assessmentAnimal && Number.isFinite(adjustmentValue) && adjustmentValue > 0 ? {
+  const factorValue = Number(rerFactor.replace(",", "."));
+  const energyEstimate = useEnergyEstimate(!historicalSnapshotLocked && !patientContextPending && assessmentAnimal
+    && adjustmentValue > 0 && adjustmentValue <= 300 && factorValue > 0 && factorValue <= 10 ? {
     animal: assessmentAnimal,
     energy_adjustment_percent: adjustmentValue,
+    rer_factor: factorValue,
   } : null);
-  const foodEnergy = useFoodEnergyValues(lines.map((line) => line.food.uuid));
   const nutrients = useNutrientsQuery();
   const historicalPlan = Boolean(plan.data && (
-    plan.data.engine_id !== CURRENT_NUTRITION_ENGINE_ID
+    !plan.data.assessment_snapshot.request.profile_selection
     || !plan.data.assessment_snapshot.assessment.input_hash
   ));
-  const historicalSnapshotLocked = historicalPlan && !historicalRecalculationStarted;
-
   React.useEffect(() => {
     setHydratedPlanId(null);
     setHistoricalRecalculationStarted(false);
+    setProfileDraft(EMPTY_SELECTION);
+    setConfirmed(null);
   }, [planId]);
 
   React.useEffect(() => {
     const storedPlan = plan.data;
     if (!storedPlan || hydratedPlanId === storedPlan.uuid) return;
     const request = storedPlan.assessment_snapshot.request;
+    const snapshot = storedPlan.assessment_snapshot;
+    const previousSelection = request.profile_selection;
     const rationLines = planToRationLines(storedPlan);
-    setAnimal(assessmentAnimalToNutritionForm(request.animal));
+    const restoredAnimal = assessmentAnimalToNutritionForm(request.animal);
+    setProfileDraft(previousSelection ?? {
+      standard_code: snapshot.standard_code, edition: snapshot.edition,
+      profile_code: snapshot.nutrient_profile_code ?? "", source: "manual",
+    });
+    setConfirmed(previousSelection ? {
+      selection: previousSelection,
+      contextKey: JSON.stringify([storedPlan.patient_uuid, toAssessmentAnimal(restoredAnimal)]),
+    } : null);
+    setAnimal(restoredAnimal);
     setLines(rationLines);
     setRerFactor(String(request.rer_factor));
     setEnergyAdjustmentPercent(String(request.energy_adjustment_percent ?? 100));
@@ -199,29 +209,21 @@ export function NutritionWorkspace() {
   }, [assessment, hydratedPlanId, plan.data]);
 
   React.useEffect(() => {
-    if (planId) return;
-    if (!patientId) {
-      if (hydratedPatientId) {
-        setAnimal(emptyNutritionAnimal());
-        setRerFactor("1.6");
-        setEnergyAdjustmentPercent("100");
-        assessment.reset();
-        setAssessmentDirty(false);
-      }
-      setHydratedPatientId(null);
-      setSelectedPatientId("");
-      return;
-    }
-    if (!patient.data || patient.data.uuid !== patientId) return;
-    if (hydratedPatientId === patient.data.uuid) return;
-    setAnimal(patientToNutritionAnimal(patient.data));
-    setRerFactor(String(defaultRerFactor(patient.data.species, patient.data.neutered)));
+    if (!planId) setSelectedPatientId(patientId);
+  }, [patientId, planId]);
+
+  React.useEffect(() => {
+    if (historicalSnapshotLocked || selectedPatientId === (hydratedPatientId ?? "")) return;
+    const nextPatient = selectedPatientId ? selectedPatient.data : undefined;
+    if (selectedPatientId && nextPatient?.uuid !== selectedPatientId) return;
+
+    setAnimal(nextPatient ? patientToNutritionAnimal(nextPatient) : emptyNutritionAnimal());
+    setRerFactor(String(nextPatient ? defaultRerFactor(nextPatient.species, nextPatient.neutered) : 1.6));
     setEnergyAdjustmentPercent("100");
     assessment.reset();
-    setAssessmentDirty(false);
-    setSelectedPatientId(patient.data.uuid);
-    setHydratedPatientId(patient.data.uuid);
-  }, [assessment, hydratedPatientId, patient.data, patientId, planId]);
+    setAssessmentDirty(true);
+    setHydratedPatientId(nextPatient?.uuid ?? null);
+  }, [assessment.reset, historicalSnapshotLocked, hydratedPatientId, selectedPatient.data, selectedPatientId]);
 
   const replacePatientQuery = React.useCallback((nextPatientId: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -234,11 +236,10 @@ export function NutritionWorkspace() {
   const handlePatientChange = React.useCallback((nextPatientId: string) => {
     if (nextPatientId === selectedPatientId) return;
     setSelectedPatientId(nextPatientId);
-    if (planId) return;
-    replacePatientQuery(nextPatientId);
+    if (!planId) replacePatientQuery(nextPatientId);
     setEnergyAdjustmentPercent("100");
     assessment.reset();
-    setAssessmentDirty(false);
+    setAssessmentDirty(true);
     setFormError(null);
     if (!nextPatientId) {
       setAnimal(emptyNutritionAnimal());
@@ -248,19 +249,32 @@ export function NutritionWorkspace() {
   }, [assessment, planId, replacePatientQuery, selectedPatientId]);
 
   const invalidateAssessment = React.useCallback(() => {
+    assessment.reset();
     setAssessmentDirty(true);
-  }, []);
+    setFormError(null);
+  }, [assessment.reset]);
+
+  function changeProfile(selection: ProfileSelection) {
+    setProfileDraft(selection);
+    setConfirmed(null);
+    if (activeSelection) invalidateAssessment();
+  }
+
+  function confirmProfile(selection: ProfileSelection) {
+    setProfileDraft(selection);
+    setConfirmed({ selection, contextKey });
+    invalidateAssessment();
+  }
 
   function patchAnimal(patch: Partial<NutritionAnimalForm>) {
     setAnimal((current) => ({ ...current, ...patch }));
-    const keys = Object.keys(patch) as (keyof NutritionAnimalForm)[];
-    const invalidates = keys.some((key) => key !== "bcs");
-    if (invalidates) invalidateAssessment();
+    invalidateAssessment();
   }
 
   function startCurrentVersionRecalculation() {
     assessment.reset();
-    setAssessmentDirty(false);
+    setConfirmed(null);
+    setAssessmentDirty(true);
     setFormError(null);
     setHistoricalRecalculationStarted(true);
   }
@@ -280,7 +294,7 @@ export function NutritionWorkspace() {
   const inferredFeedForm = inferFeedForm(lines);
   const effectiveFeedForm: FeedForm = feedOverride === "auto" ? inferredFeedForm : feedOverride;
 
-  function buildAssessmentRequest(): AssessmentRequestPayload {
+  const buildAssessmentRequest = React.useCallback((): AssessmentRequestPayload => {
     const components = lines.map((line) => ({
       food_uuid: line.food.uuid,
       grams: Number(line.grams.trim().replace(",", ".")),
@@ -289,7 +303,7 @@ export function NutritionWorkspace() {
       throw new Error("Добавьте продукты и укажите массу каждого компонента больше 0 г");
     }
     const factor = Number(rerFactor.replace(",", "."));
-    if (!Number.isFinite(factor) || factor <= 0) throw new Error("Проверьте коэффициент RER");
+    if (!Number.isFinite(factor) || factor <= 0 || factor > 10) throw new Error("Проверьте коэффициент RER");
     const adjustment = Number(energyAdjustmentPercent.trim().replace(",", "."));
     if (!Number.isFinite(adjustment) || adjustment <= 0 || adjustment > 300) {
       throw new Error("Корректировка энергии должна быть от 0 до 300%");
@@ -301,19 +315,26 @@ export function NutritionWorkspace() {
       rer_factor: factor,
       energy_adjustment_percent: adjustment,
       ration_species_mismatch_confirmed: false,
+      profile_mode: "manual",
+      profile_selection: activeSelection,
       components,
     };
+  }, [activeSelection, animal, effectiveFeedForm, energyAdjustmentPercent, lines, rerFactor]);
+
+  function retryAssessment() {
+    invalidateAssessment();
+    setAssessmentAttempt((attempt) => attempt + 1);
   }
 
   async function saveDietPlan() {
     setFormError(null);
     try {
-      if (planId && (
-        !assessment.data
+      if (
+        !assessment.data?.normative_comparison_performed
         || assessmentDirty
-        || assessment.data.engine_id !== CURRENT_NUTRITION_ENGINE_ID
         || !assessment.data.input_hash
-      )) {
+        || !activeSelection
+      ) {
         throw new Error("Сначала выполните актуальную оценку по текущей версии nutrition engine");
       }
       const payload = {
@@ -321,6 +342,7 @@ export function NutritionWorkspace() {
         patient_uuid: selectedPatientId || null,
         notes: planNotes.trim() || null,
         assessment_request: buildAssessmentRequest(),
+        expected_input_hash: assessment.data.input_hash,
       };
       if (!payload.name) throw new Error("Введите название плана");
       const saved = planId
@@ -333,98 +355,58 @@ export function NutritionWorkspace() {
       });
       if (!planId) router.replace(`/nutrition?planId=${saved.uuid}`);
     } catch (cause) {
-      setFormError(apiErrorMessage(cause));
+      const message = apiErrorMessage(cause);
+      toast.error(message);
+      if (cause instanceof ApiError && cause.status === 409) {
+        retryAssessment();
+        setSaveOpen(false);
+      }
     }
   }
 
-  const storedAssessment = assessment.data
-    ?? (planId ? plan.data?.assessment_snapshot.assessment : undefined);
-  const displayedAssessment = React.useMemo<AssessmentRecord | undefined>(() => {
-    if (!storedAssessment) return undefined;
-    if (planId && !assessment.data) return storedAssessment;
-    const weight = Number(animal.currentBodyWeightKg.replace(",", "."));
-    const factor = Number(rerFactor.replace(",", "."));
-    const rer = Number.isFinite(weight) && weight > 0 ? 70 * weight ** 0.75 : null;
-    return {
-      ...storedAssessment,
-      energy: {
-        ...storedAssessment.energy,
-        rer_kcal_day: rer,
-        rer_factor: Number.isFinite(factor) && factor > 0 ? factor : storedAssessment.energy.rer_factor,
-        rer_factor_kcal_day: rer != null && Number.isFinite(factor) && factor > 0
-          ? rer * factor
-          : null,
-      },
-    };
-  }, [animal.currentBodyWeightKg, assessment.data, planId, rerFactor, storedAssessment]);
-  const rationKcal = React.useMemo(
-    () => rationKcalTotal(lines, foodEnergy.data),
-    [foodEnergy.data, lines],
-  );
-  const resolvedProfileCode = displayedAssessment?.context.nutrient_profile_code
-    ?? suggestions.data?.suggested_profile_code;
+  const displayedAssessment = historicalSnapshotLocked
+    ? plan.data?.assessment_snapshot.assessment
+    : assessmentDirty || patientContextPending ? undefined : assessment.data ?? undefined;
+  const rationKcal = displayedAssessment?.ration_energy?.total_kcal_day ?? null;
+  const resolvedProfileCode = historicalSnapshotLocked
+    ? plan.data?.assessment_snapshot.nutrient_profile_code
+    : activeSelection?.profile_code;
   const resolvedFormulaCode = displayedAssessment?.context.energy_formula_code
     ?? suggestions.data?.suggested_energy_formula_code;
   const resolvedFormulaName = suggestions.data?.energy_formula_options.find(
     (item) => item.code === resolvedFormulaCode,
-  )?.name_ru ?? null;
+  )?.name_ru ?? resolvedFormulaCode ?? null;
   const resolvedEnergy = displayedAssessment?.energy;
   const workingEnergyKcal = resolvedEnergy?.working_energy_kcal
     ?? energyEstimate.data?.working_energy_kcal
     ?? null;
-  const automaticAssessmentKey = React.useMemo(() => JSON.stringify({
-    animal,
-    rerFactor,
-    energyAdjustmentPercent,
-    feedOverride,
-    lines: lines.map((line) => [line.food.uuid, line.grams]),
-  }), [
-    animal,
-    energyAdjustmentPercent,
-    feedOverride,
-    lines,
-    rerFactor,
-  ]);
-  const lastAutomaticAssessmentKey = React.useRef("");
-
+  const mutateAssessment = assessment.mutateAsync;
   React.useEffect(() => {
-    if (historicalSnapshotLocked || automaticAssessmentKey === lastAutomaticAssessmentKey.current) return;
-    if (planId && !assessmentDirty && !historicalRecalculationStarted) {
-      lastAutomaticAssessmentKey.current = automaticAssessmentKey;
-      return;
-    }
+    if (!lines.length || historicalSnapshotLocked || patientContextPending) return;
 
     let payload: AssessmentRequestPayload;
     try {
       payload = buildAssessmentRequest();
-    } catch {
+    } catch (cause) {
+      setFormError(apiErrorMessage(cause));
       return;
     }
 
-    lastAutomaticAssessmentKey.current = automaticAssessmentKey;
+    let cancelled = false;
     const timer = window.setTimeout(() => {
-      setFormError(null);
-      void assessment.mutateAsync(payload)
-        .then((accepted) => {
-          if (accepted) setAssessmentDirty(false);
+      void mutateAssessment(payload)
+        .then((result) => {
+          if (!cancelled && result) setAssessmentDirty(false);
         })
-        .catch((cause) => setFormError(apiErrorMessage(cause)));
+        .catch((cause) => {
+          if (!cancelled) setFormError(apiErrorMessage(cause));
+        });
     }, 420);
-    return () => window.clearTimeout(timer);
-  }, [automaticAssessmentKey, assessment.mutateAsync, assessmentDirty, historicalRecalculationStarted, historicalSnapshotLocked, planId]);
-
-  React.useEffect(() => {
-    if (
-      planId
-      || !assessment.data
-      || !guideline.data
-      || (
-        assessment.data.edition.code === guideline.data.code
-        && assessment.data.edition.source_checksum === guideline.data.source_checksum
-      )
-    ) return;
-    setAssessmentDirty(true);
-  }, [assessment.data, guideline.data, planId]);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [assessmentAttempt, buildAssessmentRequest, mutateAssessment, historicalSnapshotLocked, patientContextPending, lines.length]);
 
   if (planId && plan.isPending) {
     return <div className="mx-auto w-full max-w-7xl space-y-4 p-4 sm:p-6 lg:p-8" aria-busy="true"><Skeleton className="h-10 w-80" /><Skeleton className="h-24 w-full" /><Skeleton className="h-96 w-full" /></div>;
@@ -440,20 +422,23 @@ export function NutritionWorkspace() {
         <div className="min-w-0">
           <h1 className="truncate text-xl font-bold tracking-[-0.02em] sm:text-2xl">{plan.data?.name ?? "Питание / Расчёт рациона"}</h1>
           <p className="mt-1 text-xs text-muted-foreground">
-            {plan.data ? `Сохранённый план · FEDIAF ${plan.data.edition_code}` : "Рабочее место ветеринарного диетолога · автоматический пересчёт"}
+            {plan.data ? `Сохранённый план · ${plan.data.assessment_snapshot.standard_code.toUpperCase()} ${plan.data.edition_code}` : "Рабочее место ветеринарного диетолога · автоматический пересчёт"}
           </p>
         </div>
-        <Button
+        <div className="flex shrink-0 flex-wrap gap-2">
+          {!historicalSnapshotLocked ? <Button asChild type="button" size="sm" variant="outline">
+            <a href="#nutrition-profile">Профиль оценки</a>
+          </Button> : null}
+          <Button
           type="button"
           size="sm"
           onClick={() => setSaveOpen(true)}
-          disabled={planId
-            ? historicalSnapshotLocked || !assessment.data || assessmentDirty
-            : !assessment.data}
+          disabled={historicalSnapshotLocked || !assessment.data?.normative_comparison_performed || assessmentDirty || !activeSelection}
         >
           {planId ? <RefreshCw className="size-4" /> : <Save className="size-4" />}
           {planId ? "Пересчитать и сохранить" : "Сохранить план"}
-        </Button>
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="assessment" className="space-y-3">
@@ -472,27 +457,26 @@ export function NutritionWorkspace() {
               recalculationStarted={historicalRecalculationStarted}
               onStartCurrentRecalculation={startCurrentVersionRecalculation}
             />
-          ) : <GuidelineWarning guideline={guideline} />}
+          ) : null}
 
-          <fieldset disabled={historicalSnapshotLocked} className="min-w-0 space-y-3">
+          <div className="min-w-0 space-y-3">
+          <fieldset disabled={historicalSnapshotLocked} className="min-w-0">
             <ClinicalContextSummary
               animal={animal}
               patient={selectedPatient.data ?? null}
               selectedPatientId={selectedPatientId}
               selectedPatientPending={Boolean(selectedPatientId) && selectedPatient.isPending}
               onPatientChange={handlePatientChange}
-              patientError={patientId && patient.isError ? apiErrorMessage(patient.error) : null}
-              standard={resolvedStandardLabel(
+              patientError={selectedPatientId && selectedPatient.isError ? apiErrorMessage(selectedPatient.error) : null}
+              standard={resolvedProfileCode ? resolvedStandardLabel(
                 resolvedProfileCode,
-                displayedAssessment?.edition.code ?? suggestions.data?.edition.code ?? guideline.data?.code ?? "2025",
-              )}
-              edition={displayedAssessment?.edition.code ?? guideline.data?.code ?? "2025"}
-              standardPending={suggestions.isPending}
-              standardError={suggestions.isError ? apiErrorMessage(suggestions.error) : null}
+                displayedAssessment?.edition.code ?? activeSelection?.edition ?? "",
+                displayedAssessment?.edition.standard_code ?? activeSelection?.standard_code ?? "fediaf",
+              ) : "Профиль не подтверждён"}
             >
               <AnimalContextPanel
                 animal={animal}
-                disabled={historicalSnapshotLocked || (Boolean(patientId) && patient.isPending)}
+                disabled={historicalSnapshotLocked || patientContextPending}
                 onPatch={patchAnimal}
                 showExpectedMatureWeight={showExpectedMatureWeight}
                 adjustment={energyAdjustmentPercent}
@@ -501,7 +485,10 @@ export function NutritionWorkspace() {
                   invalidateAssessment();
                 }}
                 rerFactor={rerFactor}
-                onRerFactor={setRerFactor}
+                onRerFactor={(value) => {
+                  setRerFactor(value);
+                  invalidateAssessment();
+                }}
               />
 
               <EnergyStrip
@@ -513,11 +500,25 @@ export function NutritionWorkspace() {
                 currentBodyWeightKg={animal.currentBodyWeightKg}
               />
             </ClinicalContextSummary>
+          </fieldset>
 
-            {formError ? <p className="rounded-lg border border-destructive/35 bg-destructive/5 px-3 py-2 text-xs text-destructive" role="alert">{formError}</p> : null}
+            {!historicalSnapshotLocked ? <ProfilePanel
+              animal={patientContextPending ? null : assessmentAnimal}
+              draft={profileDraft}
+              confirmed={Boolean(activeSelection)}
+              stale={confirmed !== null && !activeSelection}
+              onDraft={changeProfile}
+              onConfirm={confirmProfile}
+            /> : null}
+
+            {formError ? <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-destructive/35 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+              <p role="alert">{formError}</p>
+              {assessment.error ? <Button variant="outline" size="sm" onClick={retryAssessment}>Повторить расчёт</Button> : null}
+            </div> : null}
 
             <RationWorkbench
               lines={lines}
+              readOnly={historicalSnapshotLocked}
               onOpenAdd={() => setRationAddOpen(true)}
               onGrams={setLineGrams}
               onRemove={(id) => { setLines((current) => current.filter((line) => line.food.uuid !== id)); invalidateAssessment(); }}
@@ -529,11 +530,9 @@ export function NutritionWorkspace() {
               dirty={assessmentDirty}
               workingEnergyKcal={workingEnergyKcal}
               rationKcal={rationKcal}
-              foodRecords={foodEnergy.foods}
               nutrients={nutrients.data ?? []}
-              foodDataPending={foodEnergy.isPending}
             />
-          </fieldset>
+          </div>
         </TabsContent>
       </Tabs>
       <SavePlanDialog
@@ -542,13 +541,10 @@ export function NutritionWorkspace() {
         editing={Boolean(planId)}
         name={planName}
         notes={planNotes}
-        patientId={selectedPatientId}
         selectedPatient={selectedPatient.data ?? null}
-        selectedPatientPending={Boolean(selectedPatientId) && selectedPatient.isPending}
         pending={createPlan.isPending || updatePlan.isPending}
         onName={setPlanName}
         onNotes={setPlanNotes}
-        onPatientId={handlePatientChange}
         onSave={() => void saveDietPlan()}
       />
       <RationAddDialog
@@ -569,14 +565,14 @@ function SnapshotNotice({ plan, historical, recalculationStarted, onStartCurrent
 }) {
   return (
     <div className="rounded-lg border border-sky-300/70 bg-sky-50/70 px-3 py-2 text-xs text-sky-950 dark:bg-sky-950/25 dark:text-sky-200">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><span className="flex items-center gap-1.5 font-semibold"><Save className="size-3.5" /> Сохранённый расчёт</span><span>FEDIAF {plan.edition_code}</span><span>{historical ? "Предыдущая методика расчёта" : "Без пересчёта при открытии"}</span></div>
-      {historical && !recalculationStarted ? (
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><span className="flex items-center gap-1.5 font-semibold"><Save className="size-3.5" /> Сохранённый расчёт</span><span>{plan.assessment_snapshot.standard_code.toUpperCase()} {plan.edition_code}</span><span>{historical ? "Предыдущая методика расчёта" : "Без пересчёта при открытии"}</span></div>
+      {!recalculationStarted ? (
         <div className="mt-2 flex flex-wrap items-center gap-3 border-t border-sky-300/50 pt-2">
           <Button type="button" size="sm" onClick={onStartCurrentRecalculation}>
             <RefreshCw className="h-4 w-4" />
-            Пересчитать по текущей версии
+            Редактировать и пересчитать
           </Button>
-          <p>Сервер заново определит стандарт, энергетическую формулу и рабочую энергию.</p>
+          <p>Врач подтверждает профиль перед новой оценкой.</p>
         </div>
       ) : (
         <p className="mt-1.5 text-[11px]">
@@ -600,26 +596,23 @@ function RecentPlans({ plans, pending, error }: {
     <Card>
       <CardHeader><CardTitle className="text-base">Недавние планы</CardTitle><CardDescription>Не более 50 планов, включая ручные профили без Patient.</CardDescription></CardHeader>
       <CardContent className="space-y-2">
-        {plans.map((item) => <Link key={item.uuid} href={`/nutrition?planId=${item.uuid}`} className="flex flex-col gap-1 rounded-lg border p-3 transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"><span><strong>{item.name}</strong><span className="ml-2 text-xs text-muted-foreground">{item.patient?.name ?? "без пациента"}</span></span><span className="text-xs text-muted-foreground">FEDIAF {item.edition_code}</span></Link>)}
+        {plans.map((item) => <Link key={item.uuid} href={`/nutrition?planId=${item.uuid}`} className="flex flex-col gap-1 rounded-lg border p-3 transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"><span><strong>{item.name}</strong><span className="ml-2 text-xs text-muted-foreground">{item.patient?.name ?? "без пациента"}</span></span><span className="text-xs text-muted-foreground">{(item.standard_code ?? "fediaf").toUpperCase()} {item.edition_code}</span></Link>)}
         {!plans.length ? <p className="py-6 text-center text-sm text-muted-foreground">Сохранённых планов пока нет</p> : null}
       </CardContent>
     </Card>
   );
 }
 
-function SavePlanDialog({ open, onOpenChange, editing, name, notes, patientId, selectedPatient, selectedPatientPending, pending, onName, onNotes, onPatientId, onSave }: {
+function SavePlanDialog({ open, onOpenChange, editing, name, notes, selectedPatient, pending, onName, onNotes, onSave }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editing: boolean;
   name: string;
   notes: string;
-  patientId: string;
   selectedPatient: PatientRecord | null;
-  selectedPatientPending: boolean;
   pending: boolean;
   onName: (value: string) => void;
   onNotes: (value: string) => void;
-  onPatientId: (value: string) => void;
   onSave: () => void;
 }) {
   return (
@@ -628,34 +621,14 @@ function SavePlanDialog({ open, onOpenChange, editing, name, notes, patientId, s
         <DialogHeader><DialogTitle>{editing ? "Пересчитать и сохранить" : "Сохранить план"}</DialogTitle><DialogDescription>{editing ? "Текущий snapshot будет заменён результатом нового серверного расчёта. История версий не создаётся." : "Сервер повторно проверит контекст и рассчитает snapshot перед записью."}</DialogDescription></DialogHeader>
         <div className="space-y-4">
           <Field label="Название"><Input value={name} onChange={(event) => onName(event.target.value)} maxLength={255} /></Field>
-          <Field label="Пациент (необязательно)">
-            <PatientPicker
-              value={patientId}
-              selected={selectedPatient}
-              selectedPending={selectedPatientPending}
-              onChange={onPatientId}
-            />
-          </Field>
+          <p className="text-sm text-muted-foreground">
+            {selectedPatient ? `Пациент · ${selectedPatient.name}` : "План без привязки к пациенту"}
+          </p>
           <Field label="Заметки"><Textarea value={notes} onChange={(event) => onNotes(event.target.value)} rows={4} /></Field>
         </div>
         <DialogFooter><Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>Отмена</Button><Button type="button" onClick={onSave} disabled={pending || !name.trim()}>{pending ? <Loader2 className="h-4 w-4 animate-spin" /> : editing ? <RefreshCw className="h-4 w-4" /> : <Save className="h-4 w-4" />}{editing ? "Пересчитать и сохранить" : "Сохранить план"}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function GuidelineWarning({ guideline }: { guideline: ReturnType<typeof useActiveGuidelineQuery> }) {
-  if (guideline.isPending) return <Skeleton className="h-9 w-full" />;
-  if (guideline.isError) return (
-    <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive" role="alert">
-      Обязательное клиническое предупреждение недоступно: {apiErrorMessage(guideline.error)}
-    </div>
-  );
-  return (
-    <details className="rounded-lg border border-amber-300/60 bg-amber-50/70 px-3 py-2 text-xs text-amber-950 dark:bg-amber-950/20 dark:text-amber-200">
-      <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold"><AlertTriangle className="size-3.5" /> Клиническое предупреждение · FEDIAF {guideline.data?.code}</summary>
-      <p className="mt-2 max-w-5xl border-t border-amber-300/50 pt-2">{guideline.data?.clinical_warning_ru}</p>
-    </details>
   );
 }
 
@@ -667,9 +640,6 @@ function ClinicalContextSummary({
   onPatientChange,
   patientError,
   standard,
-  edition,
-  standardPending,
-  standardError,
   children,
 }: {
   animal: NutritionAnimalForm;
@@ -679,9 +649,6 @@ function ClinicalContextSummary({
   onPatientChange: (value: string) => void;
   patientError: string | null;
   standard: string | null;
-  edition: string;
-  standardPending: boolean;
-  standardError: string | null;
   children: React.ReactNode;
 }) {
   const species = SPECIES_OPTIONS.find((item) => item.value === animal.species)?.label ?? animal.species;
@@ -719,14 +686,10 @@ function ClinicalContextSummary({
           <span>{bcsText}</span>
         </div>
         <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2 text-xs">
-          {standardPending ? <Skeleton className="h-4 w-64" /> : (
-            <span className="min-w-0 truncate font-medium text-foreground">{standard ?? `FEDIAF ${edition} · определяется сервером`}</span>
-          )}
-          <Badge variant="secondary" className="h-5 shrink-0 rounded px-1.5 text-[10px] font-semibold">Авто</Badge>
+          <span className="min-w-0 truncate font-medium text-foreground">{standard}</span>
           <span className="text-muted-foreground">· {lifeStage}</span>
         </div>
         {patientError ? <p className="mt-2 text-xs text-destructive" role="alert">{patientError}</p> : null}
-        {standardError ? <p className="mt-2 text-xs text-destructive" role="alert">{standardError}</p> : null}
       </div>
       <div className="grid min-w-0 xl:grid-cols-[minmax(0,2.1fr)_minmax(300px,1fr)]">{children}</div>
     </section>
@@ -804,8 +767,9 @@ function AnimalContextPanel({ animal, disabled, onPatch, showExpectedMatureWeigh
             {showLactation ? <CheckField label="Лактация" checked={animal.lactating} onChecked={(value) => onPatch({ lactating: value })} /> : null}
           </div>
         ) : null}
-        {animal.lactating ? <Field label="Неделя лактации"><Input className="h-9 max-w-40 shadow-none" inputMode="numeric" value={animal.lactationWeek} onChange={(event) => onPatch({ lactationWeek: event.target.value })} disabled={disabled} /></Field> : null}
-        {animal.lactating ? <Field label="Размер помёта"><Input className="h-9 max-w-40 shadow-none" inputMode="numeric" value={animal.litterSize} onChange={(event) => onPatch({ litterSize: event.target.value })} disabled={disabled} /></Field> : null}
+        {showPregnancy && animal.species === "dog" ? <Field label="Неделя беременности"><Input aria-label="Неделя беременности" className="h-9 max-w-40 shadow-none" inputMode="numeric" value={animal.gestationWeek} onChange={(event) => onPatch({ gestationWeek: event.target.value })} disabled={disabled} /></Field> : null}
+        {showLactation ? <Field label="Неделя лактации"><Input aria-label="Неделя лактации" className="h-9 max-w-40 shadow-none" inputMode="numeric" value={animal.lactationWeek} onChange={(event) => onPatch({ lactationWeek: event.target.value })} disabled={disabled} /></Field> : null}
+        {showLactation ? <Field label="Размер помёта"><Input aria-label="Размер помёта" className="h-9 max-w-40 shadow-none" inputMode="numeric" value={animal.litterSize} onChange={(event) => onPatch({ litterSize: event.target.value })} disabled={disabled} /></Field> : null}
       </div>
     </section>
   );
@@ -826,14 +790,13 @@ function EnergyStrip({ estimate, assessmentEnergy, formulaName, adjustment, rerF
     ?? (estimate.data?.value?.kind === "range" ? estimate.data.value.max_kcal_day : null);
   const midpointRule = assessmentEnergy?.range_working_point_rule ?? estimate.data?.range_working_point_rule;
   const currentWeight = Number(currentBodyWeightKg.replace(",", "."));
-  const localFactor = Number(rerFactor.replace(",", "."));
-  const factor = assessmentEnergy?.rer_factor ?? localFactor;
-  const calculatedRer = Number.isFinite(currentWeight) && currentWeight > 0 ? 70 * currentWeight ** 0.75 : null;
-  const rer = assessmentEnergy?.rer_kcal_day ?? calculatedRer;
-  const rerAdjusted = assessmentEnergy?.rer_factor_kcal_day
-    ?? (rer != null && Number.isFinite(factor) && factor > 0 ? rer * factor : null);
+  const factor = assessmentEnergy?.rer_factor ?? estimate.data?.rer_factor ?? Number(rerFactor.replace(",", "."));
+  const rer = assessmentEnergy ? assessmentEnergy.rer_kcal_day : estimate.data?.rer_kcal_day ?? null;
+  const rerAdjusted = assessmentEnergy ? assessmentEnergy.rer_factor_kcal_day : estimate.data?.rer_factor_kcal_day ?? null;
   const adjustmentValue = Number(adjustment.replace(",", "."));
-  const visibleMissingFields = Array.from(new Set((estimate.data?.missing_fields ?? []).map(humanFieldLabel)));
+  const missingFields = assessmentEnergy?.missing_fields ?? estimate.data?.missing_fields ?? [];
+  const outsideGrowthScope = missingFields.includes("growth_age_outside_formula_scope");
+  const visibleMissingFields = Array.from(new Set(missingFields.filter((field) => field !== "growth_age_outside_formula_scope").map(humanFieldLabel)));
   return (
     <section className="min-w-0 border-t bg-muted/25 px-4 py-5 sm:px-5 lg:px-6 xl:border-l xl:border-t-0" aria-labelledby="energy-result-title" aria-live="polite">
       <h2 id="energy-result-title" className="text-base font-semibold tracking-[-0.01em]">Требования энергии</h2>
@@ -858,7 +821,7 @@ function EnergyStrip({ estimate, assessmentEnergy, formulaName, adjustment, rerF
           formula={rer == null ? "Нужна текущая масса" : `70 × ${formatNumber(currentWeight, 1)}^0,75`}
         />
         <EnergyMetric
-          label="MER"
+          label="RER × коэффициент"
           value={rerAdjusted == null ? "—" : `${formatNumber(rerAdjusted, 1)} ккал/сут`}
           formula={rer == null || !Number.isFinite(factor) || rerAdjusted == null
             ? "Нужны масса и коэффициент"
@@ -878,6 +841,7 @@ function EnergyStrip({ estimate, assessmentEnergy, formulaName, adjustment, rerF
         </p>
       ) : null}
       {estimate.error ? <p className="mt-4 text-sm text-destructive">{apiErrorMessage(estimate.error)}</p> : null}
+      {outsideGrowthScope ? <p className="mt-4 text-xs text-amber-800 dark:text-amber-300">Возраст пациента вне диапазона энергетической формулы роста.</p> : null}
       {visibleMissingFields.length ? <p className="mt-4 text-xs text-amber-700 dark:text-amber-300">Для расчёта нужны: {visibleMissingFields.join(", ")}.</p> : null}
     </section>
   );
@@ -930,10 +894,6 @@ const NUTRIENT_MODES: { value: NutrientTableMode; label: string }[] = [
   { value: "derived", label: "Расчётные показатели" },
 ];
 
-const CONTROL_NUTRIENT_CODE_SET = new Set(
-  NUTRIENT_COLUMNS.control.map((column) => column.code),
-);
-
 const STATUS_PRIORITY: Record<AssessmentStatus, number> = {
   above_maximum: 0,
   below_minimum: 1,
@@ -965,6 +925,7 @@ function foodCategoryLabel(line: RationLine): string {
 
 function RationWorkbench({
   lines,
+  readOnly,
   onOpenAdd,
   onGrams,
   onRemove,
@@ -976,11 +937,10 @@ function RationWorkbench({
   dirty,
   workingEnergyKcal,
   rationKcal,
-  foodRecords,
   nutrients,
-  foodDataPending,
 }: {
   lines: RationLine[];
+  readOnly: boolean;
   onOpenAdd: () => void;
   onGrams: (id: string, value: string) => void;
   onRemove: (id: string) => void;
@@ -992,12 +952,12 @@ function RationWorkbench({
   dirty: boolean;
   workingEnergyKcal: number | null;
   rationKcal: number | null;
-  foodRecords: Record<string, FoodRecord | undefined>;
   nutrients: NutrientRecord[];
-  foodDataPending: boolean;
 }) {
   const [mode, setMode] = React.useState<NutrientTableMode>("deviations");
   const [selectedFoodId, setSelectedFoodId] = React.useState<string | null>(null);
+  const [selectedNutrientKey, setSelectedNutrientKey] = React.useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = React.useState<AssessmentStatus | "all">("all");
   const [detailsOpen, setDetailsOpen] = React.useState(false);
   const rowRefs = React.useRef<Array<HTMLTableRowElement | null>>([]);
   const allTableNutrients = React.useMemo<TableNutrient[]>(() => {
@@ -1085,13 +1045,18 @@ function RationWorkbench({
     }
     return categoryNutrients;
   }, [allTableNutrients, assessment, controlTableNutrients]);
-  const visibleNutrients = nutrientsForMode(mode);
+  const visibleNutrients = nutrientsForMode(mode).filter((item) => (
+    statusFilter === "all" || item.assessmentRows?.some((row) => row.status === statusFilter)
+  ));
+  const selectedNutrient = allTableNutrients.find((item) => item.key === selectedNutrientKey);
 
   const target = workingEnergyKcal ?? 0;
   const hasTarget = target > 0;
-  const energyPercent = hasTarget && rationKcal != null ? rationKcal / target * 100 : null;
-  const energyDifference = hasTarget && rationKcal != null ? rationKcal - target : null;
+  const energyPercent = assessment?.ration_energy?.coverage_percent ?? null;
+  const energyDifference = assessment?.ration_energy?.difference_kcal_day ?? null;
+  const hasUpperLimits = assessment?.rows.some((row) => row.target?.maximum != null);
   const contextualFeedFormRequired = lines.length > 0 && inferredFeedForm === "unknown";
+  const energyItems = new Map(assessment?.ration_energy?.items.map((item) => [item.food_uuid, item]));
   const sources = assessment
     ? Array.from(new Map(assessment.rows.map((row) => {
       const key = [row.source.title, row.source.table, row.source.page, row.source.url].join("|");
@@ -1103,7 +1068,7 @@ function RationWorkbench({
     : [];
 
   function modeSummary(nextMode: NutrientTableMode): string {
-    if (!assessment) return "—";
+    if (!assessment?.normative_comparison_performed) return "—";
     const rows = nutrientsForMode(nextMode)
       .flatMap((item) => item.assessmentRows ?? (item.assessmentRow ? [item.assessmentRow] : []))
       .filter((item): item is NonNullable<typeof item> => Boolean(item));
@@ -1137,15 +1102,21 @@ function RationWorkbench({
           <span className="text-muted-foreground">
             {energyPercent == null ? "покрытие —" : formatNumber(energyPercent, 0) + "%"}
           </span>
+          {assessment?.ration_energy && rationKcal == null ? (
+            <span className="text-amber-800 dark:text-amber-300">
+              ME неполная · известно {formatNumber(assessment.ration_energy.known_kcal_day, 1)} ккал
+            </span>
+          ) : null}
           <span className={cn(
             energyDifference != null && energyDifference < 0 ? "text-amber-800 dark:text-amber-300" : "text-muted-foreground",
           )}>
             {energyDifference == null ? "разница —" : (energyDifference > 0 ? "+" : "") + formatNumber(energyDifference, 0) + " ккал"}
           </span>
+          {assessment?.normative_comparison_performed ? <>
           <span className="hidden h-4 w-px bg-border sm:block" />
           <span className="text-emerald-700 dark:text-emerald-300">✓ {assessment?.met_count ?? 0} в норме</span>
-          <span className="text-amber-800 dark:text-amber-300">↓ {assessment?.below_minimum_count ?? 0} дефицит</span>
-          <span className="text-red-700 dark:text-red-300">↑ {assessment?.above_maximum_count ?? 0} избыток</span>
+          <span className="text-amber-800 dark:text-amber-300">↓ {assessment?.below_minimum_count ?? 0} ниже цели</span>
+          {hasUpperLimits ? <span className="text-red-700 dark:text-red-300">↑ {assessment.above_maximum_count ?? 0} выше максимума</span> : null}
           <button
             type="button"
             onClick={() => setDetailsOpen((value) => !value)}
@@ -1153,9 +1124,10 @@ function RationWorkbench({
           >
             ? {assessment?.unevaluable_count ?? 0} нет данных
           </button>
-          {assessmentPending ? <span className="flex items-center gap-1.5 text-primary" role="status"><Loader2 className="size-3.5 animate-spin" />Пересчёт…</span> : dirty ? <span className="text-muted-foreground">Ожидание пересчёта</span> : null}
+          </> : null}
+          {assessmentPending ? <span className="flex items-center gap-1.5 text-primary" role="status"><Loader2 className="size-3.5 animate-spin" />Пересчёт…</span> : dirty && lines.length ? <span className="text-muted-foreground">Оценка ожидает пересчёта</span> : null}
         </div>
-        <Button type="button" size="sm" className="h-8 self-start rounded-md lg:self-auto" onClick={onOpenAdd}>
+        <Button type="button" size="sm" className="h-8 self-start rounded-md lg:self-auto" onClick={onOpenAdd} disabled={readOnly}>
           <Plus className="size-4" />Добавить продукт
         </Button>
       </div>
@@ -1167,7 +1139,7 @@ function RationWorkbench({
             type="button"
             role="tab"
             aria-selected={mode === item.value}
-            onClick={() => setMode(item.value)}
+            onClick={() => { setMode(item.value); setStatusFilter("all"); }}
             className={cn(
               "flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               mode === item.value
@@ -1188,6 +1160,20 @@ function RationWorkbench({
         ))}
       </div>
 
+      {assessment?.normative_comparison_performed ? (
+        <label className="flex items-center gap-2 border-b px-3 py-2 text-xs">
+          Статус
+          <select className="h-8 rounded-md border bg-background px-2" value={statusFilter} onChange={(event) => {
+            const next = event.target.value as AssessmentStatus | "all";
+            setStatusFilter(next);
+            if (mode === "deviations" && (next === "met" || next === "not_applicable")) setMode("main");
+          }}>
+            <option value="all">Все</option>
+            {Object.entries(STATUS).map(([code, item]) => <option key={code} value={code}>{item.label}</option>)}
+          </select>
+        </label>
+      ) : null}
+
       {assessment?.gate ? (
         <div className="flex items-start gap-2 border-b border-amber-300/60 bg-amber-50/70 px-3 py-2 text-xs text-amber-950 dark:bg-amber-950/20 dark:text-amber-200" role="alert">
           <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
@@ -1195,7 +1181,7 @@ function RationWorkbench({
         </div>
       ) : null}
 
-      {contextualFeedFormRequired ? (
+      {contextualFeedFormRequired && !readOnly ? (
         <div className="flex flex-wrap items-center gap-2 border-b border-amber-300/60 bg-amber-50/60 px-3 py-2 text-xs text-amber-950 dark:bg-amber-950/20 dark:text-amber-200">
           <AlertTriangle className="size-3.5" />
           <span>Смешанный рацион: для оценки Se/Tau уточните форму корма.</span>
@@ -1215,16 +1201,16 @@ function RationWorkbench({
       <div className="max-h-[calc(100dvh-20rem)] min-h-[22rem] overflow-auto scrollbar-thin">
         <table className="w-max min-w-full table-fixed border-collapse text-xs">
           <colgroup>
-            <col className="w-28" />
-            <col className="w-64" />
+            <col className="hidden w-28 sm:table-column" />
+            <col className="w-48 sm:w-64" />
             <col className="w-28" />
             {visibleNutrients.map((nutrient) => <col key={nutrient.key} className="w-24" />)}
           </colgroup>
           <thead className="sticky top-0 z-40 bg-muted text-muted-foreground">
             <tr className="h-11 border-b">
-              <th scope="col" className="sticky left-0 top-0 z-50 w-28 min-w-28 border-r bg-muted px-2.5 text-left font-semibold">Категория</th>
-              <th scope="col" className="sticky left-28 top-0 z-50 w-64 min-w-64 border-r bg-muted px-3 text-left font-semibold">Название</th>
-              <th scope="col" className="sticky left-[23rem] top-0 z-50 w-28 min-w-28 border-r bg-muted px-2 text-right font-semibold">
+              <th scope="col" className="hidden sm:table-cell lg:sticky lg:left-0 top-0 z-50 w-28 min-w-28 border-r bg-muted px-2.5 text-left font-semibold">Категория</th>
+              <th scope="col" className="lg:sticky lg:left-28 top-0 z-50 w-48 min-w-48 sm:w-64 sm:min-w-64 border-r bg-muted px-3 text-left font-semibold">Название</th>
+              <th scope="col" className="lg:sticky lg:left-[23rem] top-0 z-50 w-28 min-w-28 border-r bg-muted px-2 text-right font-semibold">
                 <span className="block">Количество</span>
                 <span className="block text-[10px] font-normal">г/сут</span>
               </th>
@@ -1238,9 +1224,9 @@ function RationWorkbench({
           </thead>
           <tbody className="tabular-nums">
             <tr className="h-9 border-b bg-slate-50/90 dark:bg-slate-900/40">
-              <th className="sticky left-0 z-30 border-r bg-slate-50 px-2.5 text-left text-[11px] font-semibold dark:bg-slate-900">Цель</th>
-              <th className="sticky left-28 z-30 border-r bg-slate-50 px-3 text-left font-semibold dark:bg-slate-900">FEDIAF {assessment?.edition.code ?? "2025"}</th>
-              <td className="sticky left-[23rem] z-30 border-r bg-slate-50 dark:bg-slate-900" />
+              <th className="hidden sm:table-cell lg:sticky lg:left-0 z-30 border-r bg-slate-50 px-2.5 text-left text-[11px] font-semibold dark:bg-slate-900">Цель</th>
+              <th className="lg:sticky lg:left-28 z-30 border-r bg-slate-50 px-3 text-left font-semibold dark:bg-slate-900">{assessment?.normative_comparison_performed ? `${(assessment.edition.standard_code ?? "fediaf").toUpperCase()} ${assessment.edition.code}` : "Профиль оценки"}</th>
+              <td className="lg:sticky lg:left-[23rem] z-30 border-r bg-slate-50 dark:bg-slate-900" />
               {visibleNutrients.map((nutrient) => (
                 <td key={nutrient.key} className="border-r px-2 text-right text-[11px]" title={nutrient.assessmentRows?.map((row) => targetText(row.target)).join(" · ") || "Цель ещё не рассчитана"}>
                   {nutrient.assessmentRows?.length && nutrient.assessmentRows.length > 1 && nutrient.assessmentRows.every((row) => row.status === "insufficient_context")
@@ -1250,9 +1236,9 @@ function RationWorkbench({
               ))}
             </tr>
             <tr className="h-10 border-b-2 border-primary/25 bg-emerald-50/70 font-semibold dark:bg-emerald-950/20">
-              <th className="sticky left-0 z-30 border-r bg-emerald-50 px-2.5 text-left text-[11px] dark:bg-emerald-950">Итого</th>
-              <th className="sticky left-28 z-30 border-r bg-emerald-50 px-3 text-left dark:bg-emerald-950">Рацион</th>
-              <td className="sticky left-[23rem] z-30 border-r bg-emerald-50 px-2 text-right dark:bg-emerald-950">
+              <th className="hidden sm:table-cell lg:sticky lg:left-0 z-30 border-r bg-emerald-50 px-2.5 text-left text-[11px] dark:bg-emerald-950">Итого</th>
+              <th className="lg:sticky lg:left-28 z-30 border-r bg-emerald-50 px-3 text-left dark:bg-emerald-950">Рацион</th>
+              <td className="lg:sticky lg:left-[23rem] z-30 border-r bg-emerald-50 px-2 text-right dark:bg-emerald-950">
                 {lines.reduce((sum, line) => {
                   const grams = Number(line.grams.replace(",", "."));
                   return sum + (Number.isFinite(grams) ? grams : 0);
@@ -1261,9 +1247,9 @@ function RationWorkbench({
               {visibleNutrients.map((nutrient) => {
                 const row = nutrient.assessmentRow;
                 const status = row ? STATUS[row.status] : null;
-                const value = row?.ration_daily_amount
-                  ?? row?.ration_per_1000_kcal_me
-                  ?? rationNutrientValue(lines, foodRecords, nutrient);
+                const value = row
+                  ? rowComparisonAmount(row)
+                  : nutrient.code === "ME" ? rationKcal : null;
                 return (
                   <td
                     key={nutrient.key}
@@ -1277,7 +1263,12 @@ function RationWorkbench({
                     title={status ? status.label : "Расчёт ещё не выполнен"}
                   >
                     {status ? <span className="mr-1" aria-hidden="true">{status.symbol}</span> : null}
-                    {value == null ? "—" : formatNumber(value, 2)}
+                    {row ? (
+                      <button type="button" className="underline decoration-dotted underline-offset-2 focus-visible:outline-ring"
+                        aria-label={`Подробнее: ${nutrient.name}`} onClick={() => setSelectedNutrientKey(nutrient.key)}>
+                        {value == null ? "—" : formatNumber(value, 2)}
+                      </button>
+                    ) : value == null ? "—" : formatNumber(value, 2)}
                   </td>
                 );
               })}
@@ -1298,13 +1289,13 @@ function RationWorkbench({
                 )}
               >
                 <td className={cn(
-                  "sticky left-0 z-20 max-w-28 truncate border-r bg-card px-2.5 text-[11px] text-muted-foreground group-hover:bg-accent",
+                  "hidden sm:table-cell lg:sticky lg:left-0 z-20 max-w-28 truncate border-r bg-card px-2.5 text-[11px] text-muted-foreground group-hover:bg-accent",
                   selectedFoodId === line.food.uuid && "bg-accent",
                 )} title={foodCategoryLabel(line)}>
                   {foodCategoryLabel(line)}
                 </td>
                 <th className={cn(
-                  "sticky left-28 z-20 border-r bg-card px-3 text-left font-medium group-hover:bg-accent",
+                  "lg:sticky lg:left-28 z-20 border-r bg-card px-3 text-left font-medium group-hover:bg-accent",
                   selectedFoodId === line.food.uuid && "bg-accent",
                 )} scope="row">
                   <div className="flex min-w-0 items-center gap-2">
@@ -1313,12 +1304,20 @@ function RationWorkbench({
                       <p className="truncate text-[10px] font-normal text-muted-foreground">
                         {line.food.subcategory ?? foodCategoryLabel(line)}
                       </p>
+                      {energyItems.has(line.food.uuid) ? (
+                        <p className="truncate text-[10px] font-normal text-muted-foreground" title={energyItems.get(line.food.uuid)?.warning ?? energyItems.get(line.food.uuid)?.source ?? undefined}>
+                          {energyItems.get(line.food.uuid)?.me_kcal_per_100g == null ? "ME · нет данных"
+                            : `${formatNumber(energyItems.get(line.food.uuid)?.me_kcal_per_100g ?? null, 1)} ккал/100 г · ${formatNumber(energyItems.get(line.food.uuid)?.kcal_day ?? null, 1)} ккал/сут`}
+                          {energyItems.get(line.food.uuid)?.quality === "estimated" ? " · оценка" : ""}
+                        </p>
+                      ) : null}
                     </div>
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
                       className="size-7 shrink-0 opacity-0 focus-visible:opacity-100 group-hover:opacity-100"
+                      disabled={readOnly}
                       onClick={(event) => {
                         event.stopPropagation();
                         onRemove(line.food.uuid);
@@ -1330,12 +1329,13 @@ function RationWorkbench({
                   </div>
                 </th>
                 <td className={cn(
-                  "sticky left-[23rem] z-20 border-r bg-card px-1.5 group-hover:bg-accent",
+                  "lg:sticky lg:left-[23rem] z-20 border-r bg-card px-1.5 group-hover:bg-accent",
                   selectedFoodId === line.food.uuid && "bg-accent",
                 )}>
                   <Input
                     aria-label={"Количество, г/сут: " + line.food.name}
                     inputMode="decimal"
+                    readOnly={readOnly}
                     value={line.grams}
                     onChange={(event) => onGrams(line.food.uuid, event.target.value)}
                     onFocus={() => setSelectedFoodId(line.food.uuid)}
@@ -1344,12 +1344,9 @@ function RationWorkbench({
                 </td>
                 {visibleNutrients.map((nutrient) => (
                   <td key={nutrient.key} className="border-r px-2 text-right">
-                    {productNutrientValue(
-                      foodRecords[line.food.uuid],
-                      nutrient,
-                      line.grams,
-                      foodDataPending,
-                    )}
+                    {canonicalNutrientCode(nutrient.code) === "ME"
+                      ? formatNumber(energyItems.get(line.food.uuid)?.kcal_day ?? null)
+                      : formatNumber(nutrient.assessmentRow?.contributions?.find((item) => item.food_uuid === line.food.uuid)?.daily_amount ?? null)}
                   </td>
                 ))}
               </tr>
@@ -1369,11 +1366,56 @@ function RationWorkbench({
         </table>
       </div>
 
-      {mode === "deviations" && assessment && visibleNutrients.length === 0 ? (
+      {mode === "deviations" && statusFilter === "all" && assessment?.normative_comparison_performed && visibleNutrients.length === 0 ? (
         <div className="flex items-center gap-2 border-t px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300">
           <Check className="size-3.5" />В оценённых показателях отклонений нет.
         </div>
       ) : null}
+
+      <Dialog open={Boolean(selectedNutrient)} onOpenChange={(open) => { if (!open) setSelectedNutrientKey(null); }}>
+        <DialogContent className="max-h-[85dvh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{selectedNutrient?.name}</DialogTitle>
+            <DialogDescription>{assessment?.edition.standard_code?.toUpperCase()} {assessment?.edition.code}</DialogDescription>
+          </DialogHeader>
+          {selectedNutrient?.assessmentRows?.map((row, index) => (
+            <section key={index} className="space-y-2 rounded-md border p-3 text-sm">
+              <p className={STATUS[row.status].className}>{STATUS[row.status].label}</p>
+              {row.ration_daily_amount != null ? <p>Поступление · {formatNumber(row.ration_daily_amount)} {row.unit}/сут</p> : null}
+              {row.ration_ratio != null ? <p>Расчётное значение · {formatNumber(row.ration_ratio)} {row.unit}</p> : null}
+              {row.intake_bases ? <details className="text-xs">
+                <summary className="cursor-pointer">Другие базисы поступления</summary>
+                <dl className="grid grid-cols-[1fr_auto] gap-x-3 pt-1">
+                  <dt>На 100 г продукта</dt><dd>{formatNumber(row.intake_bases.per_100g_as_fed)} {row.unit}</dd>
+                  <dt>На 100 г сухого вещества</dt><dd>{formatNumber(row.intake_bases.per_100g_dry_matter)} {row.unit}</dd>
+                  <dt>На кг текущей массы</dt><dd>{formatNumber(row.intake_bases.per_kg_bw)} {row.unit}</dd>
+                  <dt>На кг метаболической массы</dt><dd>{formatNumber(row.intake_bases.per_kg_metabolic_bw)} {row.unit}</dd>
+                </dl>
+              </details> : null}
+              {row.target ? <p>Цель · {targetText(row.target)}</p> : null}
+              {row.published_target?.basis === "per_1000_kcal_me" ? (
+                <p>Плотность · {formatNumber(row.ration_per_1000_kcal_me ?? null)} {row.unit}/1000 ккал ME · {row.density_status ? STATUS[row.density_status].label : "оценка недоступна"}<br />
+                  Норматив плотности · {targetText(row.published_target)}</p>
+              ) : null}
+              {row.target?.category === "recommended_minimum" ? <p className="text-xs text-muted-foreground">Рекомендуемый минимум. Отклонение от цели само по себе не устанавливает клинический диагноз.</p> : null}
+              {row.note_ru ? <p>{row.note_ru}</p> : null}
+              {row.contributions?.length ? (
+                <dl className="space-y-1 border-t pt-2">
+                  {row.contributions.map((item) => (
+                    <div key={item.food_uuid} className="flex justify-between gap-2">
+                      <dt>{lines.find((line) => line.food.uuid === item.food_uuid)?.food.name}</dt>
+                      <dd>{formatNumber(item.daily_amount)} {row.unit}/сут</dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : null}
+              <a href={row.source.url} target="_blank" rel="noreferrer" className="block text-xs underline underline-offset-2">
+                {row.source.title}{row.source.table ? ` · ${row.source.table}` : ""}{row.source.page ? ` · стр. ${row.source.page}` : ""}
+              </a>
+            </section>
+          ))}
+        </DialogContent>
+      </Dialog>
 
       {detailsOpen ? (
         <div className="grid gap-3 border-t bg-muted/20 px-3 py-3 text-xs lg:grid-cols-2">
@@ -1391,7 +1433,7 @@ function RationWorkbench({
               {sources.slice(0, 4).map((source, index) => (
                 <p key={source.title + String(index)}>{source.title} · {source.table ?? "таблица —"} · стр. {source.page ?? "—"}</p>
               ))}
-              {assessment ? <p>FEDIAF {assessment.edition.code} · покрытие {formatNumber(assessment.coverage.percent, 1)}%</p> : null}
+              {assessment ? <p>{(assessment.edition.standard_code ?? "fediaf").toUpperCase()} {assessment.edition.code} · покрытие {formatNumber(assessment.coverage.percent, 1)}%</p> : null}
             </div>
           </details>
         </div>
@@ -1400,120 +1442,17 @@ function RationWorkbench({
   );
 }
 
-function productNutrientValue(
-  food: FoodRecord | undefined,
-  nutrient: TableNutrient,
-  gramsText: string,
-  pending: boolean,
-): React.ReactNode {
-  if (!food) return pending ? "…" : <span className="text-violet-700 dark:text-violet-300" title="Нет данных">?</span>;
-  const grams = Number(gramsText.replace(",", "."));
-  if (!Number.isFinite(grams) || grams <= 0) return "—";
-  const code = canonicalNutrientCode(nutrient.code);
-  if (CONTROL_NUTRIENT_CODE_SET.has(code)) {
-    const value = controlNutrientValue(code, (atomicCode) => foodNutrientAsFedValue(food, atomicCode));
-    if (value == null) return <span className="text-muted-foreground">—</span>;
-    return <span title={`${nutrient.name}: ${formatNumber(value, 3)}${nutrient.unit ? ` ${nutrient.unit}` : ""}`}>{formatNumber(value, 2)}</span>;
+function rowComparisonAmount(row: AssessmentRecord["rows"][number]): number | null {
+  const intake = row.intake_bases;
+  switch (row.target?.basis) {
+    case "per_day": return row.ration_daily_amount ?? null;
+    case "per_1000_kcal_me": return row.ration_per_1000_kcal_me;
+    case "per_100g_as_fed": return intake?.per_100g_as_fed ?? null;
+    case "per_100g_dry_matter": return intake?.per_100g_dry_matter ?? null;
+    case "per_kg_bw": return intake?.per_kg_bw ?? null;
+    case "per_kg_metabolic_bw": return intake?.per_kg_metabolic_bw ?? null;
+    default: return row.ration_ratio ?? row.ration_daily_amount ?? row.ration_per_1000_kcal_me;
   }
-  if (nutrient.derived) return <span className="text-muted-foreground">—</span>;
-  const sourceValue = foodNutrientAsFedValue(food, code);
-  if (sourceValue == null) {
-    return <span className="text-violet-700 dark:text-violet-300" title="Нет данных продукта">?</span>;
-  }
-  const contribution = sourceValue * grams / 100;
-  const sourceUnit = code === "ME" ? "ккал / 100 г" : `${nutrient.unit} / 100 г`;
-  return <span title={`${formatNumber(sourceValue, 3)} ${sourceUnit}`}>{formatNumber(contribution, 2)}</span>;
-}
-
-function foodNutrientAsFedValue(food: FoodRecord, code: string): number | null {
-  const source = food.nutrient_values.find(
-    (item) => canonicalNutrientCode(item.code) === code && item.basis === "per_100g_as_fed",
-  );
-  if (!source || source.value == null || source.value_status === "unknown") return null;
-  return source.value;
-}
-
-function safeRatio(numerator: number | null, denominator: number | null, factor = 1): number | null {
-  if (numerator == null || denominator == null || denominator === 0) return null;
-  return numerator / denominator * factor;
-}
-
-function knownSum(codes: readonly string[], valueFor: (code: string) => number | null): number | null {
-  const values = codes.map(valueFor).filter((value): value is number => value != null);
-  return values.length ? values.reduce((sum, value) => sum + value, 0) : null;
-}
-
-function controlNutrientValue(
-  code: string,
-  valueFor: (code: string) => number | null,
-): number | null {
-  switch (code) {
-    case "ME/DM":
-      return safeRatio(valueFor("ME"), valueFor("DM"), 100);
-    case "CP/ME":
-      return safeRatio(valueFor("CP"), valueFor("ME"), 1000);
-    case "CP/DM":
-      return safeRatio(valueFor("CP"), valueFor("DM"), 100);
-    case "CH/DM":
-      return safeRatio(valueFor("CH"), valueFor("DM"), 100);
-    case "CFa/DM":
-      return safeRatio(valueFor("CFa"), valueFor("DM"), 100);
-    case "CFi/DM":
-      return safeRatio(valueFor("CFi"), valueFor("DM"), 100);
-    case "CAs/DM":
-      return safeRatio(valueFor("CAs"), valueFor("DM"), 100);
-    case "Ca/P":
-      return safeRatio(valueFor("Ca"), valueFor("P"));
-    case "Zn/Ca":
-      return safeRatio(valueFor("Zn"), valueFor("Ca"));
-    case "ω6/ω3":
-      return safeRatio(
-        knownSum(["LA", "AA"], valueFor),
-        knownSum(["ALA", "EPA", "DHA"], valueFor),
-      );
-    case "CAB":
-    case "pH":
-      return valueFor(code);
-    default:
-      return null;
-  }
-}
-
-function rationAtomicValue(
-  lines: RationLine[],
-  foodRecords: Record<string, FoodRecord | undefined>,
-  code: string,
-): number | null {
-  const activeLines = lines.flatMap((line) => {
-    const grams = Number(line.grams.replace(",", "."));
-    return Number.isFinite(grams) && grams > 0 ? [{ line, grams }] : [];
-  });
-  if (!activeLines.length) return null;
-  let total = 0;
-  for (const { line, grams } of activeLines) {
-    const food = foodRecords[line.food.uuid];
-    if (!food) return null;
-    const sourceValue = foodNutrientAsFedValue(food, code);
-    if (sourceValue == null) return null;
-    total += sourceValue * grams / 100;
-  }
-  return total;
-}
-
-function rationNutrientValue(
-  lines: RationLine[],
-  foodRecords: Record<string, FoodRecord | undefined>,
-  nutrient: TableNutrient,
-): number | null {
-  const code = canonicalNutrientCode(nutrient.code);
-  if (CONTROL_NUTRIENT_CODE_SET.has(code)) {
-    return controlNutrientValue(
-      code,
-      (atomicCode) => rationAtomicValue(lines, foodRecords, atomicCode),
-    );
-  }
-  if (nutrient.derived) return null;
-  return rationAtomicValue(lines, foodRecords, code);
 }
 
 function targetValueText(target: AssessmentRecord["rows"][number]["target"]): string {
@@ -1526,7 +1465,15 @@ function targetValueText(target: AssessmentRecord["rows"][number]["target"]): st
 
 function targetText(target: AssessmentRecord["rows"][number]["target"]): string {
   if (!target) return "Не установлена";
-  const suffix = target.basis === "daily_per_metabolic_bw" || target.basis === "per_day" ? "/сут" : "";
+  const suffix = ({
+    per_day: "/сут",
+    per_1000_kcal_me: "/1000 ккал ME",
+    per_100g_as_fed: "/100 г продукта",
+    per_100g_dry_matter: "/100 г СВ",
+    per_kg_bw: "/кг массы",
+    per_kg_metabolic_bw: "/кг метаболической массы",
+    daily_per_metabolic_bw: "/кг метаболической массы/сут",
+  } as Record<string, string>)[target.basis] ?? "";
   if (target.minimum == null && target.maximum == null) return target.source_value_text || "Не установлена";
   if (target.minimum != null && target.maximum != null) return `${formatNumber(target.minimum)}–${formatNumber(target.maximum)} ${target.unit}${suffix}`;
   if (target.minimum != null) return `≥ ${formatNumber(target.minimum)} ${target.unit}${suffix}`;

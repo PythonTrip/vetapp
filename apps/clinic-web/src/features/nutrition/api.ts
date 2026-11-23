@@ -55,7 +55,7 @@ export type AssessmentStatus = Schemas["AssessmentStatus"];
 
 export type AssessmentAnimal = Schemas["AnimalProfile"];
 
-export type AssessmentSuggestionOption = Schemas["SuggestionOption"];
+export type AssessmentSuggestionOption = Schemas["ProfileSuggestionOption"];
 
 export type AssessmentFormulaOption = Schemas["FormulaSuggestionOption"];
 
@@ -70,6 +70,8 @@ export type ActiveGuidelineRecord = Schemas["ActiveGuidelineRead"];
 export type GuidelineContextOptionsRecord = Schemas["GuidelineContextOptionsRead"];
 
 export type AssessmentSuggestionsRecord = Schemas["SuggestionsResponse"];
+export type ProfileSelection = Schemas["ProfileSelection"];
+export type StandardRecord = Schemas["StandardRead"];
 
 export type AssessmentRequestPayload = Schemas["AssessmentRequest"];
 
@@ -162,8 +164,11 @@ export const guidelinesApi = {
 };
 
 export const assessmentsApi = {
-  suggestions: (animal: AssessmentAnimal, fallbackMessage = "Не удалось подобрать контекст FEDIAF") =>
-    api.post<AssessmentSuggestionsRecord>("/assessments/suggestions", { animal }, fallbackMessage),
+  standards: () => api.get<StandardRecord[]>("/assessments/standards", "Не удалось загрузить стандарты оценки"),
+  suggestions: (animal: AssessmentAnimal, standardCode = "fediaf", edition?: string) =>
+    api.post<AssessmentSuggestionsRecord>("/assessments/suggestions", {
+      animal, standard_code: standardCode, edition,
+    }, "Не удалось загрузить профили оценки"),
   energyEstimate: (
     body: EnergyEstimateRequestPayload,
     fallbackMessage = "Не удалось рассчитать энергетический сценарий",

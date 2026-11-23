@@ -20,7 +20,7 @@ class AssessmentStatus(StrEnum):
 
 
 class AnimalProfile(BaseModel):
-    model_config = ConfigDict(str_strip_whitespace=True)
+    model_config = ConfigDict(str_strip_whitespace=True, allow_inf_nan=False)
 
     species: Species
     current_body_weight_kg: float | None = Field(default=None, gt=0)
@@ -31,6 +31,7 @@ class AnimalProfile(BaseModel):
     activity: str | None = None
     neutered: bool = False
     pregnant: bool = False
+    gestation_week: int | None = Field(default=None, ge=1, le=9)
     lactating: bool = False
     lactation_week: int | None = Field(default=None, ge=0)
     litter_size: int | None = Field(default=None, ge=0)
@@ -54,7 +55,37 @@ class AnimalProfile(BaseModel):
 
 class RationComponent(BaseModel):
     food_uuid: UUID
-    grams: float = Field(gt=0)
+    grams: float = Field(gt=0, allow_inf_nan=False)
+
+
+class ProfileSelection(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    standard_code: str
+    edition: str
+    profile_code: str
+    source: Literal["manual", "recommendation"]
+    comment: str | None = Field(default=None, max_length=2000)
+
+
+class ProfileCompatibility(BaseModel):
+    level: Literal["compatible", "soft", "hard"]
+    code: str | None = None
+    message: str | None = None
+    comment_required: bool = False
+
+
+class StandardRead(BaseModel):
+    standard_code: str
+    edition: str
+    source_url: str
+    available: bool
+    active: bool = False
+    reason: str | None = None
+    commercial_use_verified: bool = False
+    provider_version: str | None = None
+    provider_checksum: str | None = None
+    normative_categories: list[str] = Field(default_factory=list)
 
 
 WeightBasis = Literal["current", "target_override"]
@@ -71,6 +102,8 @@ class AssessmentRequest(BaseModel):
     rer_factor: float = Field(default=1.6, gt=0, le=10)
     energy_adjustment_percent: float = Field(default=100, gt=0, le=300)
     ration_species_mismatch_confirmed: bool = False
+    profile_mode: Literal["legacy_auto", "manual"] = "legacy_auto"
+    profile_selection: ProfileSelection | None = None
     components: list[RationComponent] = Field(min_length=1)
 
     @model_validator(mode="after")
@@ -87,6 +120,7 @@ class EditionIdentity(BaseModel):
     source_title: str
     source_url: str
     clinical_warning_ru: str
+    standard_code: str = "fediaf"
 
 
 class ResolvedContext(BaseModel):
@@ -97,6 +131,14 @@ class ResolvedContext(BaseModel):
     feed_form: FeedForm
     therapeutic_goal: bool
     ration_species_mismatch_confirmed: bool = False
+    profile_selection: ProfileSelection | None = None
+    profile_compatibility: ProfileCompatibility | None = None
+
+
+class EnergyEstimateSource(BaseModel):
+    edition: str
+    table: str | None
+    page: int | None
 
 
 class EnergyAssessment(BaseModel):
@@ -113,6 +155,9 @@ class EnergyAssessment(BaseModel):
     complete: bool
     missing_fields: list[str]
     explanation_ru: str | None = None
+    source: EnergyEstimateSource | None = None
+    inputs: dict[str, float | int] = Field(default_factory=dict)
+    weight_basis: WeightBasis = "current"
 
 
 class EnergyPointValue(BaseModel):
@@ -140,15 +185,10 @@ class EnergyMultiplierRange(BaseModel):
     max_factor: float
 
 
-class EnergyEstimateSource(BaseModel):
-    edition: str
-    table: str | None
-    page: int | None
-
-
 class EnergyEstimateRequest(BaseModel):
     animal: AnimalProfile
     energy_adjustment_percent: float = Field(default=100, gt=0, le=300)
+    rer_factor: float = Field(default=1.6, gt=0, le=10)
 
 
 class EnergyEstimateResponse(BaseModel):
@@ -166,6 +206,9 @@ class EnergyEstimateResponse(BaseModel):
     range_working_point_rule: RangeWorkingPointRule | None = None
     energy_adjustment_percent: float = 100
     working_energy_kcal: float | None = None
+    rer_kcal_day: float | None = None
+    rer_factor: float = 1.6
+    rer_factor_kcal_day: float | None = None
 
 
 class CoverageAssessment(BaseModel):
@@ -187,6 +230,7 @@ class TargetRead(BaseModel):
     unit: str
     basis: str
     source_value_text: str | None = None
+    category: str | None = None
 
 
 class SourceRead(BaseModel):
@@ -197,6 +241,21 @@ class SourceRead(BaseModel):
     row: str | None = None
 
 
+class NutrientContribution(BaseModel):
+    food_uuid: UUID
+    daily_amount: float | None
+
+
+class NutrientIntakeBases(BaseModel):
+    per_day: float
+    per_100g_as_fed: float | None
+    per_100g_dry_matter: float | None
+    per_1000_kcal_me: float | None
+    per_kg_bw: float | None
+    per_kg_metabolic_bw: float | None
+    metabolic_exponent: float | None
+
+
 class AssessmentRow(BaseModel):
     code: str
     name: str
@@ -204,7 +263,12 @@ class AssessmentRow(BaseModel):
     derived: bool
     ration_per_1000_kcal_me: float | None
     ration_daily_amount: float | None = None
+    ration_ratio: float | None = None
     target: TargetRead | None
+    published_target: TargetRead | None = None
+    density_status: AssessmentStatus | None = None
+    intake_bases: NutrientIntakeBases | None = None
+    contributions: list[NutrientContribution] = Field(default_factory=list)
     status: AssessmentStatus
     completeness: RowCompleteness
     source: SourceRead
@@ -214,6 +278,25 @@ class AssessmentRow(BaseModel):
 class AssessmentGate(BaseModel):
     code: str
     explanation_ru: str
+
+
+class RationEnergyItem(BaseModel):
+    food_uuid: UUID
+    me_kcal_per_100g: float | None
+    kcal_day: float | None
+    method: str | None
+    source: str | None
+    quality: str
+    warning: str | None = None
+
+
+class RationEnergyRead(BaseModel):
+    items: list[RationEnergyItem]
+    total_kcal_day: float | None
+    known_kcal_day: float
+    requirement_kcal_day: float | None
+    coverage_percent: float | None
+    difference_kcal_day: float | None
 
 
 class AssessmentResponse(BaseModel):
@@ -231,15 +314,26 @@ class AssessmentResponse(BaseModel):
     input_hash: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     normative_comparison_performed: bool
     gate: AssessmentGate | None = None
+    ration_energy: RationEnergyRead | None = None
 
 
 class SuggestionRequest(BaseModel):
     animal: AnimalProfile
+    standard_code: str = "fediaf"
+    edition: str | None = None
 
 
 class SuggestionOption(BaseModel):
     code: str
     name_ru: str
+
+
+class ProfileSuggestionOption(SuggestionOption):
+    species: str
+    life_stage: str | None
+    basis: str
+    category: str
+    compatibility: ProfileCompatibility
 
 
 class FormulaSuggestionOption(SuggestionOption):
@@ -260,7 +354,7 @@ class SizeClassSuggestionOption(SuggestionOption):
 
 class SuggestionsResponse(BaseModel):
     edition: EditionIdentity
-    profile_options: list[SuggestionOption]
+    profile_options: list[ProfileSuggestionOption]
     energy_formula_options: list[FormulaSuggestionOption]
     size_class_options: list[SizeClassSuggestionOption]
     energy_suggestion: ContextSuggestion | None
@@ -291,6 +385,8 @@ class AssessmentSnapshot(BaseModel):
     provider_checksum: str
     resolved_context: ResolvedContext
     result: AssessmentResponse
+    confirmed_by: str | None = None
+    confirmed_at: datetime | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -322,6 +418,7 @@ class DietPlanWrite(BaseModel):
     patient_uuid: UUID | None = None
     notes: str | None = None
     assessment_request: AssessmentRequest
+    expected_input_hash: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
 
     @field_validator("notes", mode="before")
     @classmethod
@@ -342,6 +439,7 @@ class DietPlanSummary(BaseModel):
     patient_uuid: UUID | None
     patient: PatientPlanReference | None
     engine_id: str
+    standard_code: str = "fediaf"
     edition_code: str
     edition_source_checksum: str
     created_at: datetime

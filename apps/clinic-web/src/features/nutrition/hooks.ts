@@ -1,6 +1,6 @@
 "use client";
 
-import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { assessmentsApi, dietPlansApi, foodsApi, guidelinesApi, nutrientsApi, type AssessmentAnimal, type AssessmentRecord, type AssessmentRequestPayload, type EnergyEstimateRecord, type EnergyEstimateRequestPayload, type DietPlanWrite, type FoodCategoryPair, type FoodMatrixParams, type FoodNutrientValueWrite, type FoodType, type FoodWrite } from "@/features/nutrition/api";
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value";
@@ -125,10 +125,18 @@ export function useActiveGuidelineQuery(enabled = true) {
   });
 }
 
-export function useAssessmentSuggestions(animal: AssessmentAnimal | null) {
+export function useStandardsQuery() {
   return useQuery({
-    queryKey: ["assessment-suggestions", animal],
-    queryFn: () => assessmentsApi.suggestions(animal as AssessmentAnimal),
+    queryKey: ["assessment-standards"],
+    queryFn: assessmentsApi.standards,
+    retry: retryUnlessClientError,
+  });
+}
+
+export function useAssessmentSuggestions(animal: AssessmentAnimal | null, standardCode = "fediaf", edition?: string) {
+  return useQuery({
+    queryKey: ["assessment-suggestions", animal, standardCode, edition],
+    queryFn: () => assessmentsApi.suggestions(animal as AssessmentAnimal, standardCode, edition),
     enabled: animal !== null,
     retry: retryUnlessClientError,
   });
@@ -176,30 +184,6 @@ export function useEnergyEstimate(request: EnergyEstimateRequestPayload | null) 
   }, [debouncedRequestKey]);
 
   return { data, error, isPending };
-}
-
-export function useFoodEnergyValues(foodIds: string[]) {
-  const results = useQueries({
-    queries: foodIds.map((id) => ({
-      queryKey: ["food", id],
-      queryFn: () => foodsApi.get(id),
-      retry: retryUnlessClientError,
-    })),
-  });
-  const data: Record<string, number | null> = {};
-  results.forEach((result, index) => {
-    const value = result.data?.nutrient_values.find(
-      (item) => item.code === "ME" && item.basis === "per_100g_as_fed",
-    );
-    data[foodIds[index]] = value?.value_status === "unknown" ? null : (value?.value ?? null);
-  });
-  return {
-    data,
-    foods: Object.fromEntries(
-      results.map((result, index) => [foodIds[index], result.data]),
-    ),
-    isPending: results.some((result) => result.isPending),
-  };
 }
 
 export function useCreateAssessment() {

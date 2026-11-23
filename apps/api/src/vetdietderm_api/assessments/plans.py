@@ -14,7 +14,6 @@ from vetdietderm_api.assessments.schemas import (
     PatientPlanReference,
 )
 from vetdietderm_api.patients.models import Patient
-from vetdietderm_api.standards import STANDARD_REGISTRY
 
 LEGACY_ENERGY_ADJUSTMENT_PERCENT = 100.0
 
@@ -34,10 +33,18 @@ def _validate_patient(session: Session, patient_uuid: UUID | None) -> Patient | 
 def _compute_snapshot(
     session: Session,
     payload: DietPlanWrite,
+    confirmed_by: str | None = None,
 ) -> tuple[list[dict[str, object]], dict[str, object]]:
     request = payload.assessment_request
-    provider = STANDARD_REGISTRY.active()
+    if request.profile_mode == "manual" and request.profile_selection is None:
+        raise HTTPException(422, detail={"code": "profile_confirmation_required", "message": "Подтвердите нормативный профиль перед сохранением."})
+    provider = service.assessment_provider(request)
     assessment, foods = service.assess(session, request, provider=provider)
+    if payload.expected_input_hash is not None and payload.expected_input_hash != assessment.input_hash:
+        raise HTTPException(409, detail={
+            "code": "assessment_changed",
+            "message": "Исходные данные изменились. Выполните новый расчёт перед сохранением.",
+        })
     ration = [
         DietPlanRationComponent(
             food_uuid=item.food_uuid,
@@ -59,6 +66,8 @@ def _compute_snapshot(
         provider_checksum=provider.metadata.provider_checksum,
         resolved_context=assessment.context,
         result=assessment,
+        confirmed_by=confirmed_by if request.profile_selection else None,
+        confirmed_at=utc_now() if request.profile_selection else None,
     ).model_dump(mode="json")
     return ration, snapshot
 
@@ -111,6 +120,7 @@ def to_read(plan: DietPlan) -> DietPlanRead:
         ration=[DietPlanRationComponent.model_validate(item) for item in plan.ration_json],
         assessment_snapshot=snapshot,
         engine_id=snapshot.assessment.engine_id,
+        standard_code=snapshot.standard_code,
         edition_code=snapshot.assessment.edition.code,
         edition_source_checksum=snapshot.assessment.edition.source_checksum,
         notes=plan.notes,
@@ -127,6 +137,7 @@ def to_summary(plan: DietPlan) -> DietPlanSummary:
         patient_uuid=plan.patient_uuid,
         patient=_patient_reference(plan.patient),
         engine_id=snapshot.assessment.engine_id,
+        standard_code=snapshot.standard_code,
         edition_code=snapshot.assessment.edition.code,
         edition_source_checksum=snapshot.assessment.edition.source_checksum,
         created_at=plan.created_at,
@@ -134,9 +145,9 @@ def to_summary(plan: DietPlan) -> DietPlanSummary:
     )
 
 
-def create_plan(session: Session, payload: DietPlanWrite) -> DietPlan:
+def create_plan(session: Session, payload: DietPlanWrite, *, confirmed_by: str | None = None) -> DietPlan:
     patient = _validate_patient(session, payload.patient_uuid)
-    ration, snapshot = _compute_snapshot(session, payload)
+    ration, snapshot = _compute_snapshot(session, payload, confirmed_by)
     plan = DietPlan(
         name=payload.name,
         patient_uuid=payload.patient_uuid,
@@ -150,10 +161,10 @@ def create_plan(session: Session, payload: DietPlanWrite) -> DietPlan:
     return repository.get_plan(session, plan.uuid)
 
 
-def update_plan(session: Session, plan_uuid: UUID, payload: DietPlanWrite) -> DietPlan:
+def update_plan(session: Session, plan_uuid: UUID, payload: DietPlanWrite, *, confirmed_by: str | None = None) -> DietPlan:
     plan = repository.get_plan(session, plan_uuid)
     patient = _validate_patient(session, payload.patient_uuid)
-    ration, snapshot = _compute_snapshot(session, payload)
+    ration, snapshot = _compute_snapshot(session, payload, confirmed_by)
     plan.name = payload.name
     plan.patient_uuid = payload.patient_uuid
     plan.patient = patient
