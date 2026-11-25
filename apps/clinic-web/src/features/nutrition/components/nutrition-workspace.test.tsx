@@ -6,6 +6,7 @@ import {
   assessmentsApi, dietPlansApi, foodsApi, nutrientsApi,
   type AssessmentRecord, type AssessmentRequestPayload, type DietPlanRecord, type FoodSummaryRecord,
 } from "@/features/nutrition/api";
+import { ApiError } from "@/shared/api/client";
 import { NutritionWorkspace } from "./nutrition-workspace";
 
 const navigation = vi.hoisted(() => ({ params: new URLSearchParams(), replace: vi.fn() }));
@@ -119,7 +120,7 @@ beforeEach(() => {
       confidence: "high", confidence_ru: "",
     };
   });
-  vi.mocked(foodsApi.list).mockResolvedValue([food]);
+  vi.mocked(foodsApi.matrix).mockResolvedValue({ items: [{ ...food, nutrient_values: [] }], total: 1 });
   vi.mocked(foodsApi.categories).mockResolvedValue([]);
   vi.mocked(foodsApi.get).mockResolvedValue({ ...food, nutrient_values: [] });
   vi.mocked(nutrientsApi.list).mockResolvedValue([]);
@@ -207,6 +208,73 @@ it("keeps catalog filters across tabs and applies branch selection independently
   expect(screen.getByRole("complementary", { name: "Категории" })).toBeVisible();
   expect(screen.getByRole("searchbox", { name: "Поиск продуктов" })).toHaveValue("");
   expect(screen.getByText("Выберите продукты для сравнения")).toBeVisible();
+});
+
+it("retries the next matrix page and adds a food without losing the modal filters", async () => {
+  const items = Array.from({ length: 101 }, (_, index) => ({
+    ...food, uuid: `food-${index + 1}`, name: `Корм ${index + 1}`, nutrient_values: [],
+  }));
+  let failNextPage = true;
+  vi.mocked(foodsApi.categories).mockResolvedValue([{ category: null, food_count: 101, subcategories: [] }]);
+  vi.mocked(foodsApi.matrix).mockImplementation(async ({ offset = 0, limit = 50 }) => {
+    if (offset === 50 && failNextPage) throw new ApiError("Test page failure", 400);
+    return { items: items.slice(offset, offset + limit), total: items.length };
+  });
+
+  const openTab = (name: string) => fireEvent.keyDown(screen.getByRole("tab", { name }), { key: "Enter" });
+  const openModal = () => fireEvent.click(screen.getAllByRole("button", { name: "Добавить продукт" })[0]);
+  renderWorkspace();
+  openTab("Каталог");
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Каталог" } });
+  openTab("Рацион");
+  openModal();
+  const dialog = within(screen.getByRole("dialog", { name: "Добавить продукт" }));
+  const search = dialog.getByRole("searchbox");
+  expect(search).toHaveValue("");
+  expect(dialog.queryByRole("table")).not.toBeInTheDocument();
+  expect(foodsApi.matrix).not.toHaveBeenCalled();
+
+  fireEvent.change(search, { target: { value: "Корм" } });
+  fireEvent.click(await dialog.findByRole("checkbox", { name: "Без категории" }));
+  openTab("Минералы");
+  await waitFor(() => expect(foodsApi.matrix).toHaveBeenLastCalledWith(expect.objectContaining({
+    q: "Корм", categoryPairs: [{ category: null, subcategory: null, allSubcategories: true }],
+    nutrientCategory: "mineral", offset: 0, limit: 50, sort: "name", sortDir: "asc",
+  })));
+  expect(await dialog.findByText("Загружено 50 из 101")).toBeVisible();
+  fireEvent.click(dialog.getByRole("button", { name: "Название" }));
+  await waitFor(() => expect(foodsApi.matrix).toHaveBeenLastCalledWith(expect.objectContaining({
+    offset: 0, sort: "name", sortDir: "desc",
+  })));
+  await waitFor(() => expect(dialog.getByRole("button", { name: "Загрузить ещё" })).toBeEnabled());
+
+  fireEvent.click(dialog.getByRole("button", { name: "Загрузить ещё" }));
+  expect(await dialog.findByText("Не удалось загрузить следующую порцию.")).toBeVisible();
+  expect(dialog.getByText("Загружено 50 из 101")).toBeVisible();
+  failNextPage = false;
+  fireEvent.click(dialog.getByRole("button", { name: "Загрузить ещё" }));
+  expect(await dialog.findByText("Загружено 100 из 101")).toBeVisible();
+  expect(foodsApi.matrix).toHaveBeenLastCalledWith(expect.objectContaining({ offset: 50, limit: 50 }));
+  fireEvent.click(dialog.getByRole("button", { name: "Загрузить ещё" }));
+  expect(await dialog.findByRole("button", { name: "Все загружены" })).toBeDisabled();
+
+  fireEvent.click(dialog.getByRole("button", { name: "Добавить Корм 101" }));
+  expect(dialog.getByRole("button", { name: "Корм 101 уже добавлен" })).toBeDisabled();
+  expect(dialog.queryByRole("button", { name: /Создать продукт|Открыть карточку продукта/ })).not.toBeInTheDocument();
+  expect(foodsApi.list).not.toHaveBeenCalled();
+  fireEvent.click(dialog.getByRole("button", { name: "Close" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  expect(screen.getByRole("textbox", { name: "Количество, г/сут: Корм 101" })).toHaveValue("100");
+
+  openModal();
+  const reopened = within(screen.getByRole("dialog", { name: "Добавить продукт" }));
+  expect(reopened.getByRole("searchbox")).toHaveValue("");
+  expect(reopened.getByRole("checkbox", { name: "Без категории" })).not.toBeChecked();
+  expect(reopened.getByRole("tab", { name: "Основные" })).toHaveAttribute("aria-selected", "true");
+  fireEvent.click(reopened.getByRole("button", { name: "Close" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  openTab("Каталог");
+  expect(screen.getByRole("searchbox")).toHaveValue("Каталог");
 });
 
 it("builds and saves a ration after explicit profile confirmation", async () => {

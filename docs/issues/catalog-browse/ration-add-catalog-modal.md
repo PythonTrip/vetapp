@@ -4,7 +4,7 @@ prd_id: 2026-11-25-catalog-browse
 cycle_id: 2026-11-25-catalog-browse
 cycle_slug: catalog-browse
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 complexity: M
 criticality: Blocker
 ---
@@ -12,7 +12,7 @@ criticality: Blocker
 # Ration add catalog modal
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 Adding a food to the current ration opens a large centered catalog modal. The modal browses the same nutrient matrix as the catalog tab, including pages past the first 50 rows, and it keeps its own filters while it is open.
@@ -46,14 +46,14 @@ Adding a food to the current ration opens a large centered catalog modal. The mo
 - `apps/clinic-web/src/features/nutrition/api.ts`
 
 ## Implementation Steps
-- [ ] Remove the sheet positioning, `SCOPE_OPTIONS` chips, category `<select>` pair, and capped `useFoodsQuery` card list from `ration-add-dialog.tsx`.
-- [ ] Render a centered `DialogContent` at about 90% viewport width that composes search, `CategoryTree`, nutrient-group tabs, and the same matrix table the catalog uses.
-- [ ] Drive the table with `useFoodMatrixQuery` only when a category pair or a non-empty search is set, with pages of 50, **Загружено N из M**, **Загрузить ещё**, and **Все загружены**.
-- [ ] Keep the next-page error visible and retry it with `fetchNextPage`.
-- [ ] Add a row action that calls `onAdd` and does not close the dialog. Disable that action when `existingFoodIds` contains the food id, and mark the row as already added.
-- [ ] Store modal search, category selection, and nutrient group in the dialog, reset them when `open` becomes false, and do not connect them to the catalog tab state.
-- [ ] Use the `xl` sidebar and below-`xl` **Категории** overlay inside the modal. Do not mount `FoodEditorDialog`.
-- [ ] Run the checks in Verification.
+- [x] Remove the sheet positioning, `SCOPE_OPTIONS` chips, category `<select>` pair, and capped `useFoodsQuery` card list from `ration-add-dialog.tsx`.
+- [x] Render a centered `DialogContent` at about 90% viewport width that composes search, `CategoryTree`, nutrient-group tabs, and the same matrix table the catalog uses.
+- [x] Drive the table with `useFoodMatrixQuery` only when a category pair or a non-empty search is set, with pages of 50, **Загружено N из M**, **Загрузить ещё**, and **Все загружены**.
+- [x] Keep the next-page error visible and retry it with `fetchNextPage`.
+- [x] Add a row action that calls `onAdd` and does not close the dialog. Disable that action when `existingFoodIds` contains the food id, and mark the row as already added.
+- [x] Store modal search, category selection, and nutrient group in the dialog, reset them when `open` becomes false, and do not connect them to the catalog tab state.
+- [x] Use the `xl` sidebar and below-`xl` **Категории** overlay inside the modal. Do not mount `FoodEditorDialog`.
+- [x] Run the checks in Verification.
 
 ## Verification
 - Open **Добавить продукт** on the ration tab. Confirm the centered width, the empty state, a category filter, search, a nutrient-group switch, column sort, and a second page of 50 when more than 50 foods match.
