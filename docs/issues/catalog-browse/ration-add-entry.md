@@ -4,7 +4,7 @@ prd_id: 2026-11-25-catalog-browse
 cycle_id: 2026-11-25-catalog-browse
 cycle_slug: catalog-browse
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 complexity: S
 criticality: High
 ---
@@ -12,7 +12,7 @@ criticality: High
 # Ration add entry
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 **Добавить продукт** on the ration tab opens the catalog modal. The clinician can add several foods without closing it, and a food already on the ration cannot be added again. The sheet's type chips and single category dropdowns are gone.
@@ -40,12 +40,12 @@ Status: Not Started
 - `apps/clinic-web/src/features/nutrition/components/nutrition-workspace.test.tsx`
 
 ## Implementation Steps
-- [ ] Keep the **Добавить продукт** button calling `onOpenAdd` and `setRationAddOpen(true)`, and keep it disabled when `readOnly` is true.
-- [ ] Keep `addFood` from closing the dialog and from appending a duplicate `food.uuid`.
-- [ ] Keep `existingFoodIds` wired from `lines` to `RationAddDialog`.
-- [ ] Delete any remaining `SCOPE_OPTIONS`, type-chip row, category `<select>`, subcategory `<select>`, and `sm:max-w-[680px]` sheet classes from `ration-add-dialog.tsx`.
-- [ ] Update `nutrition-workspace.test.tsx` only where it still looks for the sheet chips or the capped card list, so the button still opens the dialog.
-- [ ] Run the checks in Verification.
+- [x] Keep the **Добавить продукт** button calling `onOpenAdd` and `setRationAddOpen(true)`, and keep it disabled when `readOnly` is true.
+- [x] Keep `addFood` from closing the dialog and from appending a duplicate `food.uuid`.
+- [x] Keep `existingFoodIds` wired from `lines` to `RationAddDialog`.
+- [x] Delete any remaining `SCOPE_OPTIONS`, type-chip row, category `<select>`, subcategory `<select>`, and `sm:max-w-[680px]` sheet classes from `ration-add-dialog.tsx`.
+- [x] Update `nutrition-workspace.test.tsx` only where it still looks for the sheet chips or the capped card list, so the button still opens the dialog.
+- [x] Run the checks in Verification.
 
 ## Verification
 - On `/nutrition` → **Рацион**, press **Добавить продукт**, add two different foods, and confirm both lines appear at 100 g while the modal stays open and the first food cannot be added again.

@@ -246,7 +246,17 @@ it("retries the next matrix page and adds a food without losing the modal filter
   fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Каталог" } });
   openTab("Рацион");
   openModal();
-  const dialog = within(screen.getByRole("dialog", { name: "Добавить продукт" }));
+  const panel = screen.getByRole("dialog", { name: "Добавить продукт" });
+  expect(panel.className).toContain("w-[90vw]");
+  expect(panel.className).toContain("left-[50%]");
+  expect(panel.className).not.toContain("max-w-[680px]");
+  expect(panel.className).not.toContain("slide-in-from-right");
+  expect(panel.querySelector("select")).toBeNull();
+  const dialog = within(panel);
+  for (const chip of ["Все", "Ингредиенты", "Готовые корма", "Добавки", "Лакомства"]) {
+    expect(dialog.queryByRole("button", { name: chip })).not.toBeInTheDocument();
+  }
+  expect(dialog.queryByRole("combobox")).not.toBeInTheDocument();
   const search = dialog.getByRole("searchbox");
   expect(search).toHaveValue("");
   expect(dialog.queryByRole("table")).not.toBeInTheDocument();
@@ -277,12 +287,18 @@ it("retries the next matrix page and adds a food without losing the modal filter
   expect(await dialog.findByRole("button", { name: "Все загружены" })).toBeDisabled();
 
   fireEvent.click(dialog.getByRole("button", { name: "Добавить Корм 101" }));
+  expect(screen.getByRole("dialog", { name: "Добавить продукт" })).toBeVisible();
+  expect(dialog.getByRole("button", { name: "Корм 101 уже добавлен" })).toBeDisabled();
+  fireEvent.click(dialog.getByRole("button", { name: "Добавить Корм 100" }));
+  expect(screen.getByRole("dialog", { name: "Добавить продукт" })).toBeVisible();
+  expect(dialog.getByRole("button", { name: "Корм 100 уже добавлен" })).toBeDisabled();
   expect(dialog.getByRole("button", { name: "Корм 101 уже добавлен" })).toBeDisabled();
   expect(dialog.queryByRole("button", { name: /Создать продукт|Открыть карточку продукта/ })).not.toBeInTheDocument();
   expect(foodsApi.list).not.toHaveBeenCalled();
   fireEvent.click(dialog.getByRole("button", { name: "Close" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   expect(screen.getByRole("textbox", { name: "Количество, г/сут: Корм 101" })).toHaveValue("100");
+  expect(screen.getByRole("textbox", { name: "Количество, г/сут: Корм 100" })).toHaveValue("100");
 
   openModal();
   const reopened = within(screen.getByRole("dialog", { name: "Добавить продукт" }));
@@ -335,6 +351,7 @@ it("opens a historical profile and reloads the context when the editing patient 
   navigation.params = new URLSearchParams("planId=plan-1");
   renderWorkspace();
   await screen.findByText("Сохранённый расчёт");
+  expect(screen.getByRole("button", { name: "Добавить продукт" })).toBeDisabled();
   expect(screen.getByText("Предыдущая методика расчёта")).toBeVisible();
   expect(screen.getByText(/Взрослая собака · MER 110/)).toBeVisible();
   expect(screen.getByRole("textbox", { name: `Количество, г/сут: ${food.name}` })).toHaveAttribute("readonly");
