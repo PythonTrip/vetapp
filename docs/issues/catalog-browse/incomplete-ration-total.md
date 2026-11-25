@@ -4,7 +4,7 @@ prd_id: 2026-11-25-catalog-browse
 cycle_id: 2026-11-25-catalog-browse
 cycle_slug: catalog-browse
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 complexity: S
 criticality: Blocker
 ---
@@ -12,7 +12,7 @@ criticality: Blocker
 # Incomplete ration total
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 When a ration nutrient is only partly known, the **Итого** / **Рацион** cell shows the known lower bound instead of an empty total. The bound is the sum of per-food contributions that already have a daily amount. Normative status, snapshot freeze, and the kcal summary stay as they are.

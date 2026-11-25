@@ -341,6 +341,77 @@ it("opens a historical profile and reloads the context when the editing patient 
   expect(screen.getByText("Рацион пока пуст")).toBeVisible();
 });
 
+it("shows lower bounds only for incomplete daily ration totals", async () => {
+  type Row = AssessmentRecord["rows"][number];
+  const plan = savedPlan();
+  const assessment = plan.assessment_snapshot.assessment;
+  plan.ration.push(
+    { ...plan.ration[0], food_uuid: "food-2", food_name: "Второй корм" },
+    { ...plan.ration[0], food_uuid: "food-3", food_name: "Третий корм" },
+  );
+  function row(code: string, basis: string | null, overrides: Partial<Row> = {}): Row {
+    return {
+      code, name: code, unit: "g", derived: true,
+      ration_per_1000_kcal_me: null, ration_daily_amount: null,
+      target: basis == null ? null : { basis, unit: "g", minimum: null, maximum: 2 },
+      status: "missing_product_data",
+      contributions: [{ food_uuid: food.uuid, daily_amount: 0 }, { food_uuid: "food-2", daily_amount: null }],
+      completeness: { total_components: 3, complete_components: 2, missing_food_names: ["Второй корм"] },
+      source: { title: edition.source_title, url: edition.source_url },
+      ...overrides,
+    };
+  }
+  const normalizedBases = ["ratio", "per_1000_kcal_me", "per_100g_as_fed", "per_100g_dry_matter", "per_kg_bw", "per_kg_metabolic_bw"];
+  assessment.rows = [
+    row("Неполный", "per_day", {
+      contributions: [
+        { food_uuid: food.uuid, daily_amount: 1.234 },
+        { food_uuid: "food-2", daily_amount: null },
+        { food_uuid: "food-3", daily_amount: 0 },
+      ],
+    }),
+    row("Все неизвестны", "per_day", { contributions: plan.ration.map(({ food_uuid }) => ({ food_uuid, daily_amount: null })) }),
+    row("Пустой список", "per_day", { contributions: [] }),
+    row("Полный", "per_day", { ration_daily_amount: 2, status: "met" }),
+    row("Выше предела", null, {
+      status: "above_maximum",
+      contributions: [
+        { food_uuid: food.uuid, daily_amount: 1 },
+        { food_uuid: "food-2", daily_amount: null },
+        { food_uuid: "food-3", daily_amount: 2 },
+      ],
+    }),
+    ...normalizedBases.map((basis) => row(basis, basis)),
+  ];
+  assessment.ration_energy = { ...assessment.ration_energy!, total_kcal_day: null, known_kcal_day: 300 };
+
+  vi.mocked(dietPlansApi.get).mockResolvedValueOnce(plan);
+  navigation.params = new URLSearchParams("planId=plan-1");
+  renderWorkspace();
+  await screen.findByText("Сохранённый расчёт");
+  fireEvent.click(screen.getByRole("button", { name: /Расчётные показатели/ }));
+
+  const total = (name: string) => screen.getByRole("button", { name: `Подробнее: ${name}` }).closest("td");
+  expect(total("Неполный")?.textContent).toBe("≥ 1,23");
+  expect(total("Все неизвестны")?.textContent).toBe("≥ 0");
+  expect(total("Пустой список")?.textContent).toBe("≥ 0");
+  expect(total("Полный")?.textContent).toBe("2");
+  expect(total("Выше предела")?.textContent).toBe("≥ 3");
+  expect(total("Выше предела")).toHaveClass("bg-red-100/65");
+  expect(total("Выше предела")).toHaveAttribute("title", "Выше максимума");
+  for (const basis of normalizedBases) {
+    expect(total(basis)?.textContent).toBe("?—");
+  }
+  const partialColumn = total("Неполный")!.cellIndex;
+  const foodAmount = (name: string) => screen.getByRole("textbox", { name: `Количество, г/сут: ${name}` })
+    .closest("tr")?.cells[partialColumn]?.textContent;
+  expect(foodAmount(food.name)).toBe("1,23");
+  expect(foodAmount("Второй корм")).toBe("—");
+  expect(foodAmount("Третий корм")).toBe("0");
+  expect(screen.getByText("ME неполная · известно 300 ккал")).toBeVisible();
+  expect(assessmentsApi.create).not.toHaveBeenCalled();
+});
+
 it("shows a failed recalculation and retries the current inputs", async () => {
   navigation.params = new URLSearchParams("planId=plan-1");
   vi.mocked(assessmentsApi.create).mockRejectedValueOnce(new Error("Сбой расчёта"));
