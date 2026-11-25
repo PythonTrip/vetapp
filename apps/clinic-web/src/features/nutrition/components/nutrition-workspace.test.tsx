@@ -416,6 +416,13 @@ it("shows lower bounds only for incomplete daily ration totals", async () => {
         { food_uuid: "food-3", daily_amount: 2 },
       ],
     }),
+    row("Ниже минимума", "per_day", {
+      status: "below_minimum",
+      contributions: [
+        { food_uuid: food.uuid, daily_amount: 0.5 },
+        { food_uuid: "food-2", daily_amount: null },
+      ],
+    }),
     ...normalizedBases.map((basis) => row(basis, basis)),
   ];
   assessment.ration_energy = { ...assessment.ration_energy!, total_kcal_day: null, known_kcal_day: 300 };
@@ -428,12 +435,19 @@ it("shows lower bounds only for incomplete daily ration totals", async () => {
 
   const total = (name: string) => screen.getByRole("button", { name: `Подробнее: ${name}` }).closest("td");
   expect(total("Неполный")?.textContent).toBe("≥ 1,23");
+  expect(total("Неполный")?.textContent).not.toContain("?—");
+  expect(total("Неполный")).toHaveClass("text-violet-700", "bg-violet-100/60");
   expect(total("Все неизвестны")?.textContent).toBe("≥ 0");
+  expect(total("Все неизвестны")?.textContent).not.toContain("?—");
   expect(total("Пустой список")?.textContent).toBe("≥ 0");
   expect(total("Полный")?.textContent).toBe("2");
   expect(total("Выше предела")?.textContent).toBe("≥ 3");
-  expect(total("Выше предела")).toHaveClass("bg-red-100/65");
+  expect(total("Выше предела")?.textContent).not.toContain("?—");
+  expect(total("Выше предела")).toHaveClass("text-red-700", "bg-red-100/65");
   expect(total("Выше предела")).toHaveAttribute("title", "Выше максимума");
+  expect(total("Ниже минимума")?.textContent).toBe("≥ 0,5");
+  expect(total("Ниже минимума")?.textContent).not.toContain("?—");
+  expect(total("Ниже минимума")).toHaveClass("text-amber-800", "bg-amber-100/70");
   for (const basis of normalizedBases) {
     expect(total(basis)?.textContent).toBe("?—");
   }
@@ -445,6 +459,21 @@ it("shows lower bounds only for incomplete daily ration totals", async () => {
   expect(foodAmount("Третий корм")).toBe("0");
   expect(screen.getByText("ME неполная · известно 300 ккал")).toBeVisible();
   expect(assessmentsApi.create).not.toHaveBeenCalled();
+
+  fireEvent.click(screen.getByRole("button", { name: "Подробнее: Неполный" }));
+  const incomplete = within(screen.getByRole("dialog"));
+  expect(incomplete.getByText("Нет данных продукта")).toBeVisible();
+  expect(incomplete.getByText("Цель · ≤ 2 g/сут")).toBeVisible();
+  expect(incomplete.queryByText(/≥/)).not.toBeInTheDocument();
+  expect(incomplete.queryByText(/Поступление/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+  fireEvent.click(screen.getByRole("button", { name: "Подробнее: Полный" }));
+  const complete = within(screen.getByRole("dialog"));
+  expect(complete.getByText("Соответствует")).toBeVisible();
+  expect(complete.getByText("Поступление · 2 g/сут")).toBeVisible();
+  expect(complete.queryByText(/≥/)).not.toBeInTheDocument();
 });
 
 it("shows a failed recalculation and retries the current inputs", async () => {

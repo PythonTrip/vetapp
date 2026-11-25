@@ -4,7 +4,7 @@ prd_id: 2026-11-25-catalog-browse
 cycle_id: 2026-11-25-catalog-browse
 cycle_slug: catalog-browse
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 complexity: S
 criticality: High
 ---
@@ -12,7 +12,7 @@ criticality: High
 # Ration total label
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 The **Итого** / **Рацион** cell no longer shows `?—` for an incomplete additive total. Status colors and the nutrient detail dialog stay. A missing food cell stays blank.
@@ -38,11 +38,11 @@ The **Итого** / **Рацион** cell no longer shows `?—` for an incompl
 - `apps/clinic-web/src/features/nutrition/components/nutrition-workspace.tsx`
 
 ## Implementation Steps
-- [ ] In the **Итого** / **Рацион** cell, stop rendering `STATUS[row.status].symbol` when the incomplete-ration helper returns a lower bound.
-- [ ] Render that cell as `≥` plus `formatNumber(known, 2)` when the complete amount is null, and as the plain number when the complete amount is present.
-- [ ] Leave the `className` color and background conditions on that `<td>` unchanged.
-- [ ] Leave the detail-dialog button, the dialog body, the **Цель** row, food-row cells, and the kcal summary unchanged.
-- [ ] Run the checks in Verification.
+- [x] In the **Итого** / **Рацион** cell, stop rendering `STATUS[row.status].symbol` when the incomplete-ration helper returns a lower bound.
+- [x] Render that cell as `≥` plus `formatNumber(known, 2)` when the complete amount is null, and as the plain number when the complete amount is present.
+- [x] Leave the `className` color and background conditions on that `<td>` unchanged.
+- [x] Leave the detail-dialog button, the dialog body, the **Цель** row, food-row cells, and the kcal summary unchanged.
+- [x] Run the checks in Verification.
 
 ## Verification
 - Build an incomplete additive ration and read the **Итого** cell. Confirm it shows `≥` and the known amount, and that the characters `?—` are absent.
