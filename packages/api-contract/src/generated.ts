@@ -4039,8 +4039,10 @@ export interface components {
         FoodCategoryGroup: {
             /** Category */
             category: string | null;
+            /** Food Count */
+            food_count: number;
             /** Subcategories */
-            subcategories: (string | null)[];
+            subcategories: components["schemas"]["FoodSubcategoryNode"][];
         };
         /** FoodCreate */
         FoodCreate: {
@@ -4155,6 +4157,13 @@ export interface components {
              * Format: uuid
              */
             uuid: string;
+        };
+        /** FoodSubcategoryNode */
+        FoodSubcategoryNode: {
+            /** Food Count */
+            food_count: number;
+            /** Subcategory */
+            subcategory: string | null;
         };
         /** FoodSummary */
         FoodSummary: {

@@ -12,6 +12,17 @@ import { cn } from "@/shared/lib/utils";
 
 export type CategorySelection = Map<string | null, Set<string | null>>;
 
+export function categoryCheckState(
+  group: FoodCategoryGroupRecord,
+  selected: ReadonlySet<string | null> | undefined,
+): boolean | "indeterminate" {
+  if (!selected) return false;
+  if (group.subcategories.every(({ subcategory }) => selected.has(subcategory))) return true;
+  return group.subcategories.some(({ subcategory }) => selected.has(subcategory))
+    ? "indeterminate"
+    : false;
+}
+
 export function categorySelectionPairs(
   selection: CategorySelection,
   groups: FoodCategoryGroupRecord[] = [],
@@ -20,11 +31,7 @@ export function categorySelectionPairs(
 
   return Array.from(selection, ([category, subcategories]) => {
     const group = groupsByCategory.get(category);
-    const fullySelected = Boolean(
-      group?.subcategories.length
-      && group.subcategories.every((subcategory) => subcategories.has(subcategory)),
-    );
-    if (fullySelected) {
+    if (group && categoryCheckState(group, subcategories) === true) {
       return [{ category, subcategory: null, allSubcategories: true }];
     }
     return Array.from(subcategories, (subcategory) => ({ category, subcategory }));
@@ -79,14 +86,12 @@ export function CategoryPanel({
         const key = categoryKey(group.category);
         const selected = selection.get(group.category);
         const selectedCount = selected?.size ?? 0;
-        const fullySelected = group.subcategories.length > 0
-          && group.subcategories.every((subcategory) => selected?.has(subcategory));
-        const partiallySelected = selectedCount > 0 && !fullySelected;
-        const active = selectedCount > 0;
+        const checked = categoryCheckState(group, selected);
+        const active = checked !== false;
         const allId = `${idPrefix}-all-${groupIndex}`;
         const normalizedQuery = subcategoryQuery.trim().toLocaleLowerCase("ru-RU");
         const visibleSubcategories = normalizedQuery
-          ? group.subcategories.filter((subcategory) => (
+          ? group.subcategories.filter(({ subcategory }) => (
             subcategoryLabel(subcategory).toLocaleLowerCase("ru-RU").includes(normalizedQuery)
           ))
           : group.subcategories;
@@ -116,7 +121,7 @@ export function CategoryPanel({
                 <span>{categoryLabel(group.category)}</span>
                 {group.subcategories.length ? (
                   <span className={cn("font-medium", active ? "text-primary" : "text-muted-foreground")}>
-                    · {active ? selectedCount : group.subcategories.length}
+                    · {group.food_count}
                   </span>
                 ) : null}
                 <ChevronDown className="size-3.5 text-muted-foreground" aria-hidden="true" />
@@ -162,7 +167,7 @@ export function CategoryPanel({
                 <div className="mb-1 flex min-h-9 items-center gap-2 rounded-lg bg-muted/55 px-2.5">
                   <Checkbox
                     id={allId}
-                    checked={partiallySelected ? "indeterminate" : fullySelected}
+                    checked={checked}
                     onCheckedChange={() => onToggleAll(group)}
                     aria-label={`Выбрать всю категорию: ${categoryLabel(group.category)}`}
                   />
@@ -170,7 +175,7 @@ export function CategoryPanel({
                     Вся категория
                   </Label>
                   <span className="text-[11px] tabular-nums text-muted-foreground">
-                    {group.subcategories.length}
+                    {group.food_count}
                   </span>
                 </div>
 
@@ -179,8 +184,9 @@ export function CategoryPanel({
                   role="group"
                   aria-label="Подкатегории"
                 >
-                  {visibleSubcategories.map((subcategory) => {
-                    const subcategoryIndex = group.subcategories.indexOf(subcategory);
+                  {visibleSubcategories.map((node) => {
+                    const { subcategory, food_count } = node;
+                    const subcategoryIndex = group.subcategories.indexOf(node);
                     const subcategoryValueKey = subcategory === null ? "null" : `value:${subcategory}`;
                     const id = `${allId}-${subcategoryIndex}`;
                     const checked = selected?.has(subcategory) ?? false;
@@ -199,6 +205,7 @@ export function CategoryPanel({
                         <Label htmlFor={id} className="min-w-0 flex-1 cursor-pointer truncate text-xs font-normal">
                           {subcategoryLabel(subcategory)}
                         </Label>
+                        <span className="text-[11px] tabular-nums text-muted-foreground">{food_count}</span>
                       </div>
                     );
                   })}

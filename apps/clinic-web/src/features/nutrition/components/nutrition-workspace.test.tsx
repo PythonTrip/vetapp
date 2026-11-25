@@ -16,7 +16,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/features/nutrition/api", () => ({
   assessmentsApi: { standards: vi.fn(), suggestions: vi.fn(), energyEstimate: vi.fn(), create: vi.fn() },
   dietPlansApi: { list: vi.fn(), get: vi.fn(), create: vi.fn(), update: vi.fn() },
-  foodsApi: { list: vi.fn(), categories: vi.fn(), get: vi.fn() },
+  foodsApi: { list: vi.fn(), categories: vi.fn(), get: vi.fn(), matrix: vi.fn() },
   nutrientsApi: { list: vi.fn() },
 }));
 vi.mock("@/features/patients/hooks", () => ({
@@ -126,6 +126,87 @@ beforeEach(() => {
   vi.mocked(dietPlansApi.list).mockResolvedValue([]);
   vi.mocked(dietPlansApi.get).mockResolvedValue(savedPlan());
   vi.mocked(dietPlansApi.create).mockResolvedValue(savedPlan());
+});
+
+it("keeps catalog filters across tabs and applies branch selection independently of expansion", async () => {
+  vi.mocked(foodsApi.categories).mockResolvedValue([
+    {
+      category: "Корма", food_count: 2,
+      subcategories: [{ subcategory: "Сухие", food_count: 1 }, { subcategory: null, food_count: 1 }],
+    },
+    { category: null, food_count: 1, subcategories: [] },
+  ]);
+  const foods = [
+    { ...food, uuid: "dry", name: "Сухой корм", category: "Корма", subcategory: "Сухие", nutrient_values: [] },
+    { ...food, uuid: "wet", name: "Влажный корм", category: "Корма", nutrient_values: [] },
+    { ...food, uuid: "other", name: "Добавка", nutrient_values: [] },
+  ];
+  vi.mocked(foodsApi.matrix).mockImplementation(async ({ q, categoryPairs }) => {
+    const items = foods.filter((item) =>
+      item.name.includes(q) && (!categoryPairs.length || categoryPairs.some((pair) =>
+        item.category === pair.category && (pair.allSubcategories || item.subcategory === pair.subcategory),
+      )),
+    );
+    return { items, total: items.length };
+  });
+  const openTab = (name: string) => fireEvent.keyDown(screen.getByRole("tab", { name }), { key: "Enter" });
+  const workspace = renderWorkspace();
+  openTab("Каталог");
+  expect(screen.getByText("Выберите продукты для сравнения")).toBeVisible();
+  expect(foodsApi.matrix).not.toHaveBeenCalled();
+
+  const sidebar = within(screen.getByRole("complementary", { name: "Категории" }));
+  const parent = await sidebar.findByRole("checkbox", { name: "Корма" });
+  const leaf = sidebar.getByRole("checkbox", { name: "Без категории" });
+  expect(sidebar.queryByRole("button", { name: "Развернуть Без категории" })).not.toBeInTheDocument();
+  expect(sidebar.queryByRole("checkbox", { name: "Сухие" })).not.toBeInTheDocument();
+  fireEvent.click(sidebar.getByRole("button", { name: "Развернуть Корма" }));
+  expect(sidebar.getByRole("checkbox", { name: "Без подкатегории" })).not.toBeChecked();
+  fireEvent.click(sidebar.getByRole("checkbox", { name: "Сухие" }));
+  expect(parent).toBePartiallyChecked();
+  expect(await screen.findByText("Найдено: 1")).toBeVisible();
+  fireEvent.click(parent);
+  expect(parent).toBeChecked();
+  expect(await screen.findByText("Найдено: 2")).toBeVisible();
+  expect(foodsApi.matrix).toHaveBeenLastCalledWith(expect.objectContaining({
+    categoryPairs: [{ category: "Корма", subcategory: null, allSubcategories: true }],
+  }));
+  fireEvent.click(parent);
+  expect(parent).not.toBeChecked();
+  fireEvent.click(sidebar.getByRole("checkbox", { name: "Сухие" }));
+  fireEvent.click(sidebar.getByRole("button", { name: "Свернуть Корма" }));
+  expect(parent).toBePartiallyChecked();
+  fireEvent.click(leaf);
+  expect(await screen.findByRole("button", { name: "Открыть карточку продукта: Добавка" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Открыть карточку продукта: Сухой корм" })).toBeVisible();
+
+  fireEvent.change(screen.getByRole("searchbox", { name: "Поиск продуктов" }), { target: { value: "Сухой" } });
+  expect(await screen.findByText("Найдено: 1")).toBeVisible();
+  expect(sidebar.getByText("2")).toBeVisible();
+  openTab("Минералы");
+  await waitFor(() => expect(foodsApi.matrix).toHaveBeenLastCalledWith(expect.objectContaining({
+    q: "Сухой", nutrientCategory: "mineral",
+  })));
+  fireEvent.click(sidebar.getByRole("button", { name: "Скрыть категории" }));
+  openTab("Недавние планы");
+  openTab("Рацион");
+  openTab("Каталог");
+  expect(screen.queryByRole("complementary", { name: "Категории" })).not.toBeInTheDocument();
+  expect(screen.getByRole("searchbox", { name: "Поиск продуктов" })).toHaveValue("Сухой");
+  fireEvent.click(screen.getByRole("button", { name: "Корма · Сухие" }));
+  expect(await screen.findByText("Найдено: 0")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Без категории" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Сбросить" }));
+  expect(screen.getByRole("searchbox", { name: "Поиск продуктов" })).toHaveValue("");
+  expect(screen.getByText("Выберите продукты для сравнения")).toBeVisible();
+
+  fireEvent.change(screen.getByRole("searchbox", { name: "Поиск продуктов" }), { target: { value: "Сухой" } });
+  workspace.unmount();
+  renderWorkspace();
+  openTab("Каталог");
+  expect(screen.getByRole("complementary", { name: "Категории" })).toBeVisible();
+  expect(screen.getByRole("searchbox", { name: "Поиск продуктов" })).toHaveValue("");
+  expect(screen.getByText("Выберите продукты для сравнения")).toBeVisible();
 });
 
 it("builds and saves a ration after explicit profile confirmation", async () => {

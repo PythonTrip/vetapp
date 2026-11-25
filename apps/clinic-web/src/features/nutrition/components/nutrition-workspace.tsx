@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { FoodCatalog } from "@/features/nutrition/components/food-catalog";
+import type { CategorySelection } from "@/features/nutrition/components/category-panel";
 import { ProfilePanel } from "@/features/nutrition/components/profile-panel";
 import { PatientPicker } from "@/features/nutrition/components/patient-picker";
 import { RationAddDialog } from "@/features/nutrition/components/ration-add-dialog";
@@ -133,6 +134,9 @@ export function NutritionWorkspace() {
   const [energyAdjustmentPercent, setEnergyAdjustmentPercent] = React.useState("100");
   const [lines, setLines] = React.useState<RationLine[]>([]);
   const [rationAddOpen, setRationAddOpen] = React.useState(false);
+  const [catalogQuery, setCatalogQuery] = React.useState("");
+  const [catalogSelection, setCatalogSelection] = React.useState<CategorySelection>(() => new Map());
+  const [catalogSidebarOpen, setCatalogSidebarOpen] = React.useState(true);
   const [feedOverride, setFeedOverride] = React.useState<"auto" | "dry" | "wet">("auto");
   const [assessmentAttempt, setAssessmentAttempt] = React.useState(0);
   const [formError, setFormError] = React.useState<string | null>(null);
@@ -446,7 +450,16 @@ export function NutritionWorkspace() {
           <TabsTrigger value="plans" className={nutritionTab}>Недавние планы</TabsTrigger>
           <TabsTrigger value="catalog" className={nutritionTab}>Каталог</TabsTrigger>
         </TabsList>
-        <TabsContent value="catalog" data-catalog-workbench><FoodCatalog /></TabsContent>
+        <TabsContent value="catalog" data-catalog-workbench>
+          <FoodCatalog
+            query={catalogQuery}
+            setQuery={setCatalogQuery}
+            selection={catalogSelection}
+            setSelection={setCatalogSelection}
+            sidebarOpen={catalogSidebarOpen}
+            setSidebarOpen={setCatalogSidebarOpen}
+          />
+        </TabsContent>
         <TabsContent value="plans"><RecentPlans plans={recentPlans.data ?? []} pending={recentPlans.isPending} error={recentPlans.isError ? apiErrorMessage(recentPlans.error) : null} /></TabsContent>
         <TabsContent value="assessment" className="min-w-0 space-y-4 rounded-lg focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-teal-800 dark:focus-visible:outline-teal-300">
           {plan.data ? (

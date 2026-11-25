@@ -163,7 +163,7 @@ export function RationAddDialog({
                   <option value="">Все категории</option>
                   {(categories.data ?? []).map((group) => (
                     <option key={categoryKey(group.category)} value={categoryKey(group.category)}>
-                      {categoryLabel(group.category)}
+                      {categoryLabel(group.category)} ({group.food_count})
                     </option>
                   ))}
                 </select>
@@ -178,9 +178,9 @@ export function RationAddDialog({
                     aria-label="Подкатегория продукта"
                   >
                     <option value="">Все подкатегории</option>
-                    {activeGroup.subcategories.map((item) => (
-                      <option key={categoryKey(item)} value={categoryKey(item)}>
-                        {categoryLabel(item)}
+                    {activeGroup.subcategories.map(({ subcategory, food_count }) => (
+                      <option key={categoryKey(subcategory)} value={categoryKey(subcategory)}>
+                        {subcategory ?? "Без подкатегории"} ({food_count})
                       </option>
                     ))}
                   </select>

@@ -16,6 +16,7 @@ from vetdietderm_api.catalog.schemas import (
     FoodMatrixValue,
     FoodNutrientValueRead,
     FoodNutrientValueWrite,
+    FoodSubcategoryNode,
     FoodType,
     FoodSummary,
     FoodUpdate,
@@ -65,10 +66,15 @@ def _food_predicates(
 
 
 def list_food_categories(session: Session) -> list[FoodCategoryGroup]:
-    pairs = session.execute(select(Food.category, Food.subcategory).distinct()).all()
-    grouped: dict[str | None, set[str | None]] = {}
-    for category, subcategory in pairs:
-        grouped.setdefault(category, set()).add(subcategory)
+    counts = session.execute(
+        select(Food.category, Food.subcategory, func.count())
+        .group_by(Food.category, Food.subcategory)
+    )
+    grouped: dict[str | None, list[FoodSubcategoryNode]] = {}
+    for category, subcategory, food_count in counts:
+        grouped.setdefault(category, []).append(
+            FoodSubcategoryNode(subcategory=subcategory, food_count=food_count)
+        )
 
     def nullable_name(value: str | None) -> tuple[bool, str]:
         return value is None, (value or "").casefold()
@@ -76,7 +82,8 @@ def list_food_categories(session: Session) -> list[FoodCategoryGroup]:
     return [
         FoodCategoryGroup(
             category=category,
-            subcategories=sorted(grouped[category], key=nullable_name),
+            food_count=sum(node.food_count for node in grouped[category]),
+            subcategories=sorted(grouped[category], key=lambda node: nullable_name(node.subcategory)),
         )
         for category in sorted(grouped, key=nullable_name)
     ]

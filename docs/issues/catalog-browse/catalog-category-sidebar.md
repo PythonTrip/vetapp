@@ -4,7 +4,7 @@ prd_id: 2026-11-25-catalog-browse
 cycle_id: 2026-11-25-catalog-browse
 cycle_slug: catalog-browse
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 complexity: M
 criticality: Blocker
 ---
@@ -12,7 +12,7 @@ criticality: Blocker
 # Catalog category sidebar
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 The catalog tab on **Расчёт рациона** replaces the horizontal category chip bar with a collapsible category tree. Each node shows how many foods sit in that branch of the stored catalog, and the nutritionist filters the existing nutrient matrix by selected category and subcategory pairs.
@@ -61,18 +61,20 @@ None. Wide layout means the existing Tailwind `xl` breakpoint at 1280 px. The ca
 - `apps/clinic-web/src/features/nutrition/components/nutrition-workspace.tsx`
 
 ## Implementation Steps
-- [ ] Add `food_count` and subcategory nodes to `FoodCategoryGroup` in `apps/api/src/vetdietderm_api/catalog/schemas.py`.
-- [ ] Change `list_food_categories` in `apps/api/src/vetdietderm_api/catalog/repository.py` to return grouped `count(*)` values for each category and subcategory pair, preserving null-last case-insensitive order.
-- [ ] Run `pnpm api:generate` from the repository root and confirm `pnpm api:check` passes.
-- [ ] Update the `/foods/categories` assertion in `apps/api/tests/integration/test_nutrition_workflow.py` so each category has `food_count` and each subcategory is `{ subcategory, food_count }`.
-- [ ] Point `FoodCategoryGroupRecord` readers in `category-panel.tsx`, `food-catalog.tsx`, and `ration-add-dialog.tsx` at `node.subcategory` and `node.food_count`.
-- [ ] Create `category-tree.tsx` with tri-state selection, independent expand state, 256 px scrolling rows, per-node counts, and no in-tree search field.
-- [ ] Lift catalog search text and category selection into `NutritionWorkspace` and pass them into `FoodCatalog` so they survive tab switches inside `/nutrition` and clear on leave or reload.
-- [ ] Render `CategoryTree` in place of `CategoryPanel` on the catalog tab, with the `xl` sidebar and the below-`xl` **Категории** overlay.
-- [ ] Keep immediate OR filtering through `categorySelectionPairs` and `useFoodMatrixQuery`, the active-filter chips, **Сбросить**, **Найдено**, and the empty-until-filter invitation.
-- [ ] Run the checks in Verification.
+- [x] Add `food_count` and subcategory nodes to `FoodCategoryGroup` in `apps/api/src/vetdietderm_api/catalog/schemas.py`.
+- [x] Change `list_food_categories` in `apps/api/src/vetdietderm_api/catalog/repository.py` to return grouped `count(*)` values for each category and subcategory pair, preserving null-last case-insensitive order.
+- [x] Run `pnpm api:generate` from the repository root and confirm `pnpm api:check` passes.
+- [x] Update the `/foods/categories` assertion in `apps/api/tests/integration/test_nutrition_workflow.py` so each category has `food_count` and each subcategory is `{ subcategory, food_count }`.
+- [x] Point `FoodCategoryGroupRecord` readers in `category-panel.tsx`, `food-catalog.tsx`, and `ration-add-dialog.tsx` at `node.subcategory` and `node.food_count`.
+- [x] Create `category-tree.tsx` with tri-state selection, independent expand state, 256 px scrolling rows, per-node counts, and no in-tree search field.
+- [x] Lift catalog search text and category selection into `NutritionWorkspace` and pass them into `FoodCatalog` so they survive tab switches inside `/nutrition` and clear on leave or reload.
+- [x] Render `CategoryTree` in place of `CategoryPanel` on the catalog tab, with the `xl` sidebar and the below-`xl` **Категории** overlay.
+- [x] Keep immediate OR filtering through `categorySelectionPairs` and `useFoodMatrixQuery`, the active-filter chips, **Сбросить**, **Найдено**, and the empty-until-filter invitation.
+- [x] Run the checks in Verification.
 
 ## Verification
 - Call `GET /foods/categories` and compare each `food_count` with the number of `foods` rows in that category or subcategory. Repeat after typing in the catalog search box and confirm the counts stay the same.
 - On `/nutrition` → **Каталог**, select a parent, a partial child set, and two branches. Confirm the matrix, **Найдено**, chips, and **Сбросить** match the rules above. Collapse the sidebar at `xl`, open **Категории** below `xl`, switch nutrient groups and workspace tabs, then reload and confirm the filter resets.
 - Run `pnpm api:check` and `pnpm --filter vetdietderm-web check` from the repository root.
+
+Developer verification was limited. The generated contract check, TypeScript, ESLint, Chromium responsive smoke, clinic web tests, catalog unit tests, Ruff, and a SQLite API smoke passed. The PostgreSQL workflow stopped at fixture setup because the configured local database was unreachable. Corepack could not download the pinned pnpm, so the generation and check scripts were run directly from the installed dependencies.

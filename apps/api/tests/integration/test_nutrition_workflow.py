@@ -120,7 +120,8 @@ def test_catalog_assessment_and_diet_plan_snapshot_are_integrated(
     assert categories == [
         {
             "category": "Лечебные рационы",
-            "subcategories": ["Integration Brand"],
+            "food_count": 1,
+            "subcategories": [{"subcategory": "Integration Brand", "food_count": 1}],
         }
     ]
     matrix = _body(
