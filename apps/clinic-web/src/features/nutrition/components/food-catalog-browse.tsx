@@ -19,7 +19,7 @@ import {
   categorySelectionPairs,
   subcategoryLabel,
   type CategorySelection,
-} from "@/features/nutrition/components/category-panel";
+} from "@/features/nutrition/components/category-selection";
 import { CategoryTree } from "@/features/nutrition/components/category-tree";
 import {
   Dialog,

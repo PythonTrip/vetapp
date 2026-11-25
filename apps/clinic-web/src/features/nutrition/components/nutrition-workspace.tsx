@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { FoodCatalog } from "@/features/nutrition/components/food-catalog";
-import type { CategorySelection } from "@/features/nutrition/components/category-panel";
+import type { CategorySelection } from "@/features/nutrition/components/category-selection";
 import { ProfilePanel } from "@/features/nutrition/components/profile-panel";
 import { PatientPicker } from "@/features/nutrition/components/patient-picker";
 import { RationAddDialog } from "@/features/nutrition/components/ration-add-dialog";

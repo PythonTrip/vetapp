@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Check, Plus } from "lucide-react";
 import type { FoodSummaryRecord } from "@/features/nutrition/api";
-import type { CategorySelection } from "@/features/nutrition/components/category-panel";
+import type { CategorySelection } from "@/features/nutrition/components/category-selection";
 import { FoodCatalogBrowse } from "@/features/nutrition/components/food-catalog-browse";
 import { Button } from "@/shared/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/ui/dialog";

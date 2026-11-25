@@ -4,7 +4,7 @@ prd_id: 2026-11-25-catalog-browse
 cycle_id: 2026-11-25-catalog-browse
 cycle_slug: catalog-browse
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 complexity: S
 criticality: High
 ---
@@ -12,7 +12,7 @@ criticality: High
 # Catalog filter chrome
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 The catalog tab retires the horizontal category panel and its per-category popovers. Search, the nutrient matrix, sorting, paging, and food create and edit stay on that tab. The clear control is **Сбросить**.
@@ -42,12 +42,12 @@ The catalog tab retires the horizontal category panel and its per-category popov
 - `apps/clinic-web/src/features/nutrition/components/ration-add-dialog.tsx`
 
 ## Implementation Steps
-- [ ] Move `categoryLabel`, `subcategoryLabel`, `categorySelectionPairs`, and `CategorySelection` from `category-panel.tsx` into `category-selection.ts`, and update imports in `category-tree.tsx`, `food-catalog.tsx`, and `ration-add-dialog.tsx`.
-- [ ] Delete `category-panel.tsx` and remove every `CategoryPanel` render and import.
-- [ ] Change the clear button label from **Очистить всё** to **Сбросить**, and keep its handler clearing search text and category selection.
-- [ ] Confirm a search chip and a category chip each remove only that filter.
-- [ ] Confirm the catalog tab still opens food create and food edit, and still sorts, pages, and loads the next 50 rows.
-- [ ] Run the checks in Verification.
+- [x] Move `categoryLabel`, `subcategoryLabel`, `categorySelectionPairs`, and `CategorySelection` from `category-panel.tsx` into `category-selection.ts`, and update imports in `category-tree.tsx`, `food-catalog.tsx`, and `ration-add-dialog.tsx`.
+- [x] Delete `category-panel.tsx` and remove every `CategoryPanel` render and import.
+- [x] Change the clear button label from **Очистить всё** to **Сбросить**, and keep its handler clearing search text and category selection.
+- [x] Confirm a search chip and a category chip each remove only that filter.
+- [x] Confirm the catalog tab still opens food create and food edit, and still sorts, pages, and loads the next 50 rows.
+- [x] Run the checks in Verification.
 
 ## Verification
 - On `/nutrition` → **Каталог**, confirm the horizontal category bar and its popovers are absent, the tree is present, and the clear button reads **Сбросить**.

@@ -157,6 +157,8 @@ it("keeps catalog filters across tabs and applies branch selection independently
   expect(foodsApi.matrix).not.toHaveBeenCalled();
 
   const sidebar = within(screen.getByRole("complementary", { name: "Категории" }));
+  expect(screen.queryByRole("button", { name: /Фильтр категории/ })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Создать продукт" })).toBeVisible();
   const parent = await sidebar.findByRole("checkbox", { name: "Корма" });
   const leaf = sidebar.getByRole("checkbox", { name: "Без категории" });
   expect(sidebar.queryByRole("button", { name: "Развернуть Без категории" })).not.toBeInTheDocument();
@@ -180,6 +182,18 @@ it("keeps catalog filters across tabs and applies branch selection independently
   fireEvent.click(leaf);
   expect(await screen.findByRole("button", { name: "Открыть карточку продукта: Добавка" })).toBeVisible();
   expect(screen.getByRole("button", { name: "Открыть карточку продукта: Сухой корм" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Название" }));
+  await waitFor(() => expect(foodsApi.matrix).toHaveBeenLastCalledWith(expect.objectContaining({
+    sort: "name", sortDir: "desc",
+  })));
+  fireEvent.click(screen.getByRole("button", { name: "Открыть карточку продукта: Сухой корм" }));
+  expect(await screen.findByRole("dialog", { name: "Карточка продукта" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  fireEvent.click(screen.getByRole("button", { name: "Создать продукт" }));
+  expect(await screen.findByRole("dialog", { name: "Новый продукт" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 
   fireEvent.change(screen.getByRole("searchbox", { name: "Поиск продуктов" }), { target: { value: "Сухой" } });
   expect(await screen.findByText("Найдено: 1")).toBeVisible();
@@ -196,6 +210,10 @@ it("keeps catalog filters across tabs and applies branch selection independently
   expect(screen.getByRole("searchbox", { name: "Поиск продуктов" })).toHaveValue("Сухой");
   fireEvent.click(screen.getByRole("button", { name: "Корма · Сухие" }));
   expect(await screen.findByText("Найдено: 0")).toBeVisible();
+  expect(screen.getByRole("searchbox", { name: "Поиск продуктов" })).toHaveValue("Сухой");
+  expect(screen.getByRole("button", { name: "Без категории" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Поиск: Сухой" }));
+  expect(screen.getByRole("searchbox", { name: "Поиск продуктов" })).toHaveValue("");
   expect(screen.getByRole("button", { name: "Без категории" })).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Сбросить" }));
   expect(screen.getByRole("searchbox", { name: "Поиск продуктов" })).toHaveValue("");

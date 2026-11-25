@@ -8,7 +8,7 @@ import {
   categoryLabel,
   subcategoryLabel,
   type CategorySelection,
-} from "@/features/nutrition/components/category-panel";
+} from "@/features/nutrition/components/category-selection";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { Checkbox } from "@/shared/ui/checkbox";
