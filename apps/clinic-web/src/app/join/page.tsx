@@ -1,2 +1,2 @@
-import { JoinForm } from "@/features/owner-cabinet/components/join-form";
+import { JoinForm } from "@vetdietderm/owner-features/components/join-form";
 export default function Page() { return <JoinForm />; }

@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SurfaceBoundary } from "@/app/_components/surface-boundary";
-import { CabinetHome } from "@/features/owner-cabinet/components/cabinet-home";
+import { CabinetHome } from "@vetdietderm/owner-features/components/cabinet-home";
 
 let pathname = "/cabinet";
 vi.mock("next/navigation", () => ({ usePathname: () => pathname, useRouter: () => ({ replace: vi.fn(), push: vi.fn() }) }));
