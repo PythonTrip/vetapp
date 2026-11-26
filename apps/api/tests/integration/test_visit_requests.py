@@ -669,7 +669,6 @@ def _assert_concurrent_freeze(Session, Barrier, ThreadPoolExecutor):
 
     from vetdietderm_api.questionnaires.models import VisitQuestion, VisitQuestionnaire
     from vetdietderm_api.questionnaires.service import published_clinic_questionnaire
-    from vetdietderm_api.questionnaires.schemas import VisitType
 
     clinic, admin_id, member_id = uuid4(), uuid4(), uuid4()
     members = [{"user_id": str(admin_id), "org_role": "admin"},

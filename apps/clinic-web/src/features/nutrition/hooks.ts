@@ -2,23 +2,9 @@
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { assessmentsApi, dietPlansApi, foodsApi, guidelinesApi, nutrientsApi, type AssessmentAnimal, type AssessmentRecord, type AssessmentRequestPayload, type EnergyEstimateRecord, type EnergyEstimateRequestPayload, type DietPlanWrite, type FoodCategoryPair, type FoodMatrixParams, type FoodNutrientValueWrite, type FoodType, type FoodWrite } from "@/features/nutrition/api";
+import { assessmentsApi, dietPlansApi, foodsApi, nutrientsApi, type AssessmentAnimal, type AssessmentRecord, type AssessmentRequestPayload, type EnergyEstimateRecord, type EnergyEstimateRequestPayload, type DietPlanWrite, type FoodMatrixParams, type FoodNutrientValueWrite, type FoodWrite } from "@/features/nutrition/api";
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value";
 import { retryUnlessClientError } from "@/shared/api/query";
-
-export function useFoodsQuery(
-  q: string,
-  type?: FoodType,
-  categoryPairs: FoodCategoryPair[] = [],
-  enabled = true,
-) {
-  return useQuery({
-    queryKey: ["foods", q, type ?? "all", categoryPairs],
-    queryFn: () => foodsApi.list(q, type, categoryPairs),
-    enabled,
-    retry: retryUnlessClientError,
-  });
-}
 
 export function useFoodCategoriesQuery() {
   return useQuery({
@@ -81,7 +67,6 @@ export function useCreateFood() {
   return useMutation({
     mutationFn: (body: FoodWrite) => foodsApi.create(body),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["foods"] });
       void queryClient.invalidateQueries({ queryKey: ["food-categories"] });
       void queryClient.invalidateQueries({ queryKey: ["food-matrix"] });
     },
@@ -95,7 +80,6 @@ export function useUpdateFood() {
       foodsApi.update(id, body),
     onSuccess: (food) => {
       queryClient.setQueryData(["food", food.uuid], food);
-      void queryClient.invalidateQueries({ queryKey: ["foods"] });
       void queryClient.invalidateQueries({ queryKey: ["food-categories"] });
       void queryClient.invalidateQueries({ queryKey: ["food-matrix"] });
     },
@@ -109,19 +93,8 @@ export function useReplaceFoodNutrients() {
       foodsApi.replaceNutrients(id, body),
     onSuccess: (food) => {
       queryClient.setQueryData(["food", food.uuid], food);
-      void queryClient.invalidateQueries({ queryKey: ["foods"] });
       void queryClient.invalidateQueries({ queryKey: ["food-matrix"] });
     },
-  });
-}
-
-export function useActiveGuidelineQuery(enabled = true) {
-  return useQuery({
-    queryKey: ["guidelines", "active"],
-    queryFn: () => guidelinesApi.active(),
-    staleTime: 5 * 60 * 1000,
-    enabled,
-    retry: retryUnlessClientError,
   });
 }
 

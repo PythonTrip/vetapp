@@ -133,9 +133,15 @@ class FoodSummary(BaseModel):
     updated_at: datetime
 
 
+class FoodSubcategoryNode(BaseModel):
+    subcategory: str | None
+    food_count: int
+
+
 class FoodCategoryGroup(BaseModel):
     category: str | None
-    subcategories: list[str | None]
+    food_count: int
+    subcategories: list[FoodSubcategoryNode]
 
 
 class FoodMatrixQuery(BaseModel):

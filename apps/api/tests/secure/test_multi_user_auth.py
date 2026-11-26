@@ -1,5 +1,4 @@
 """Boundary tests use an isolated SQLite store and a deterministic auth authority."""
-import hashlib
 import time
 from uuid import uuid4
 

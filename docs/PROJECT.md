@@ -1,7 +1,7 @@
 ---
 project_id: vetdietderm
 title: Vet Space
-updated: 2026-11-18
+updated: 2026-11-25
 source: product-discovery
 ---
 
@@ -18,7 +18,7 @@ Vet Space is a veterinary clinical workbench for specialists who manage patients
 - Assistants and admins who schedule visits and owner communications
 - Pet owners who enter one clinic through that clinic's link or Telegram bot
 
-Cycles #1–#10 are closed. The next cycle is Specialty Depth (#11). The clinic workspace runs on an existing VPS.
+Cycles #1–#10 are closed. The next cycle is Catalog Browse (#11). Specialty Depth follows as #12. The clinic workspace runs on an existing VPS.
 
 ## Business Model
 
@@ -30,11 +30,11 @@ Become the primary work window across the treatment cycle: client and patient �
 
 Near-term emphasis remains a trustworthy FEDIAF 2025 dietetics assistant. The Food catalog is versioned in PostgreSQL. FEDIAF normative values and executable rules live in an in-process Python provider (`vetdietderm_api.standards.fediaf.v2025`, including bundled `normative_data.json`). Provider selection does not consult SQL. TypeScript guideline modules are not in runtime.
 
-The nutrition workbench lets the clinician start from a real Patient or a manual profile, browse the Food catalog as a nutrient table, and assess a ration against FEDIAF for dogs and cats. Energy need and nutrient norms are independent clinical questions, joined only by animal-context compatibility. The clinician works a scenario (animal, energy method, nutrient standard, ration). Disease-specific therapeutic nutrient profiles remain a later specialization.
+The nutrition workbench lets the clinician start from a real Patient or a manual profile, browse the Food catalog as a nutrient table, and assess a ration against FEDIAF for dogs and cats. The next browse model is a category tree on the catalog tab and the same table inside the ration add dialog. Energy need and nutrient norms are independent clinical questions, joined only by animal-context compatibility. The clinician works a scenario (animal, energy method, nutrient standard, ration). Disease-specific therapeutic nutrient profiles remain a later specialization.
 
 The owner's cabinet is a separate web host. The owner registers animals, chats with the practice, requests a visit by describing the problem, and downloads files the clinician shares. The clinician workspace stays the system of record.
 
-Each clinic, including a solo doctor, has one Telegram bot. The administrator pastes that clinic's bot token and finishes BotFather setup from the settings screen. An owner who opens that bot, or the clinic's one link, enters that clinic's cabinet. The same person in another clinic has a separate cabinet. Specialty depth is the next cycle.
+Each clinic, including a solo doctor, has one Telegram bot. The administrator pastes that clinic's bot token and finishes BotFather setup from the settings screen. An owner who opens that bot, or the clinic's one link, enters that clinic's cabinet. The same person in another clinic has a separate cabinet. Catalog browse is the next cycle. Specialty depth follows it.
 
 ## Current Functionality
 
@@ -94,13 +94,14 @@ Not shipped: Food `species_compatibility`, knowledge/AI handouts, drug checker, 
 | 2 | ❌ Cancelled | Core | FEDIAF Relational Assessment | Trustworthy Postgres-backed ration analysis on the Next/Prisma prototype. Cancelled: the same clinical outcome shipped on the split stack in cycle 3. | Historical PRD cleaned 2026-08-31 |
 | 3 | ✅ Done | Core | Split-Stack Nutrition | Nutritionist uses the rebuilt workbench (Next.js UI + one FastAPI process + existing PostgreSQL): Client/Patient, Food catalog, ration, honest FEDIAF 2025 assessment, reproducible saved plan. The therapeutic-goal gate from this cycle was removed in #4. | [PRD](prd/2026-08-28_split-stack-nutrition_prd.md) |
 | 4 | ✅ Done | Core | Nutrition Workbench Polish | Nutritionist picks a Patient on `/nutrition`, browses Foods as a category-filtered nutrient table, and always gets a FEDIAF comparison after confirm. Confirmed profile and MER formula were strictly paired until #6. | [PRD](prd/2026-08-29_nutrition-workbench-polish_prd.md) |
-| 5 | ✅ Done | Core | Clinical CRM Pivot | Client/Patient/Encounter workspace with schedule, attachments, communications, structured form builder, encounter templates, and accounts with an organization. Signed encounters and encounter-stored calculations remain in Specialty Depth (#11). | — |
+| 5 | ✅ Done | Core | Clinical CRM Pivot | Client/Patient/Encounter workspace with schedule, attachments, communications, structured form builder, encounter templates, and accounts with an organization. Signed encounters and encounter-stored calculations remain in Specialty Depth (#12). | — |
 | 6 | ✅ Done | Core | Nutrition Context Split | Energy formulas and nutrient profiles stay independent. The server resolves both from the animal card. Adult verdicts use imported MER95/110 and MER75/100 profiles. Stale results cannot look valid. | [PRD](prd/2026-08-29_nutrition-context-split_prd.md) |
 | 7 | ✅ Done | Pro | Owner Cabinet | A pet owner registers animals, chats, requests a visit, and downloads files the clinician shares. The later clinic door (#9) replaced doctor-code join and the platform bot. | [PRD](prd/2026-10-27_owner-cabinet_prd.md) |
 | 8 | ✅ Done | Platform | Pilot Hardening | The running API calculates nutrition only with the in-process FEDIAF provider. Public `/ready` requires the clinical session. The container waits for PostgreSQL before the UI starts. Backup and restore stay later. | [PRD](prd/2026-10-27_pilot-hardening_prd.md) |
 | 9 | ✅ Done | Pro | Clinic Bot | Each clinic, including a solo doctor, has its own Telegram bot. The administrator pastes the bot token. Owners enter that clinic's cabinet from the bot or from one clinic link. The personal workspace and the platform bot are gone. Closed 2026-11-07. | [PRD](prd/2026-11-03_clinic-bot_prd.md) |
 | 10 | ✅ Done | Pro | Booking by Problem | The owner requests a visit by describing the problem, without choosing a type or specialty. The clinic questionnaire stays optional. After the visit is conducted, the doctor enters one ruble amount and marks it paid. Closed 2026-11-17. | [PRD](prd/2026-11-07_booking-by-problem_prd.md) |
-| 11 | ⬜ Planned | Pro | Specialty Depth | Stronger derm/nutrition encounter templates, follow-up CRM, signed encounters, encounter-stored calculations, additional clinical calculators (dose, fluids), and disease-specific therapeutic nutrient profiles if still wanted. The next cycle. No PRD yet. | — |
+| 11 | 🚧 In Progress | Pro | Catalog Browse | On Расчёт рациона, the nutritionist filters the Food catalog from a category tree, adds a ration food from that same nutrient table in a modal, and reads an incomplete ration total as ≥ the known amount. | [PRD](prd/2026-11-25_catalog-browse_prd.md) (draft) |
+| 12 | ⬜ Planned | Pro | Specialty Depth | Stronger derm/nutrition encounter templates, follow-up CRM, signed encounters, encounter-stored calculations, additional clinical calculators (dose, fluids), and disease-specific therapeutic nutrient profiles if still wanted. No PRD yet. | — |
 
 ## Product Architecture
 
@@ -113,7 +114,7 @@ Not shipped: Food `species_compatibility`, knowledge/AI handouts, drug checker, 
 - **Access:** external module-auth (`MODULE_AUTH_URL`) behind a FastAPI BFF. The browser holds an opaque HttpOnly staff cookie; tokens stay in `browser_sessions`. Owners use `vetapp_owner_session`. Owner passwords use per-account salted scrypt in PostgreSQL. Owner registration sends no email. `require_clinical_access` sets `tenant_id` from the doctor's active organization. Organization viewers are read-only except unsaved assessments. Food catalog writes require global `super_admin`.
 - **Core entities:** Client, Patient, Encounter, EncounterTemplate, ClinicalCatalogItem, Appointment, Attachment, Communication, Food, Nutrient, Diet Plan, Owner account, Clinic link, Clinic bot, Visit request, Visit questionnaire, Chat thread. FEDIAF edition identity is provider-owned. `guideline_standards` / `guideline_editions` remain in `public` as leftover metadata.
 - **Nutrition analysis model:** Animal Context lets the server independently resolve an Energy Formula and a Nutrient Profile. Compatibility is species + physiological context + required fields. Adult verdicts use imported MER95/110 and MER75/100 concentration profiles. Growth and reproduction keep their published life-stage profiles. Table VII-11 stays reference data and is not auto-selected for adults.
-- **Later:** signed encounters and specialty calculators (#11); S3. The manual post-visit charge is not a payment provider. Staff accounts live in module-auth. Client stays the owner and Patient stays the animal.
+- **Later:** signed encounters and specialty calculators (#12); S3. The manual post-visit charge is not a payment provider. Staff accounts live in module-auth. Client stays the owner and Patient stays the animal.
 
 ## Data
 
@@ -255,7 +256,8 @@ Never opened by FastAPI request handlers or Next.js. Catalog import is the opera
 - Prototype Prisma runtime is gone. Catalog was imported into PostgreSQL. FEDIAF runtime moved from SQL tables to an in-process provider in `0019`. Schema `legacy_guidelines` stays.
 - Happy path works with and without a saved Patient. Nutrition-session overrides, including target body weight, are not written back to the Patient card.
 - Client and Patient are separate. The patient card is read-only until the clinician starts an explicit edit.
-- One Food catalog. Clinician browse is a category panel, not a commercial / ingredient / supplement type filter. Stored `type` remains on the Food row.
+- One Food catalog. Shipped browse is a horizontal category panel, and ration add is a right-edge sheet with type chips. Cycle #11 replaces the panel with a category tree and the sheet with a catalog-style modal. Browse stays category-based. Stored `type` remains on the Food row.
+- An incomplete ration total currently shows `?—` in the Итого row. Cycle #11 shows `≥` and the sum of known contributions there. The normative status does not change.
 - Catalog table is the primary catalog view: sticky food name, nutrient columns by group, values on `per_100g_as_fed`. Empty until a category or name search. Page size 50 with load-more. Missing values sort last.
 - Energy-formula and nutrient-profile inference is server-owned. The client neither selects nor submits the codes. An energy formula does not own exactly one nutrient profile. Compatibility 422 remains for species mismatch, invalid physiological context, and missing required fields.
 - Adult profile resolution is deterministic: dog `activity=low` → `dog_adult_mer95`, other adult activity → `dog_adult_mer110`; cat neutered or low-activity/indoor → `cat_adult_mer75`, otherwise → `cat_adult_mer100`.
@@ -280,7 +282,8 @@ Never opened by FastAPI request handlers or Next.js. Catalog import is the opera
 - 2026-10-27 — Cycle #5 closed on the shipped CRM workspace. Signed encounters and encounter-stored calculations moved to Specialty Depth. Cycle #8 **Pilot Hardening** closed the same day: SQL FEDIAF import/publish left the API, and public `/ready` requires the clinical session.
 - 2026-11-03 — Cycle #7 **Owner Cabinet** closed on the shipped cabinet.
 - 2026-11-07 — Cycle #9 **Clinic Bot** closed. The personal workspace and the platform bot were removed. Specialty Depth moved to #11.
-- 2026-11-17 — Cycle #10 **Booking by Problem** closed on the problem request, one optional clinic questionnaire, staff visit classification, and one manual ruble charge. Specialty Depth (#11) is the next cycle. No PRD was written for #11.
+- 2026-11-17 — Cycle #10 **Booking by Problem** closed on the problem request, one optional clinic questionnaire, staff visit classification, and one manual ruble charge. Specialty Depth was recorded as the next cycle. No PRD was written for it.
+- 2026-11-25 — **Catalog Browse** was inserted as #11 ahead of Specialty Depth. Specialty Depth moved to #12 and still has no PRD. The Catalog Browse PRD is a draft.
 
 ## Open Product Questions
 

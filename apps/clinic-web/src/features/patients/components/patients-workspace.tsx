@@ -156,8 +156,6 @@ export function PatientsWorkspace({ initialPatientId = "", initialTab, queue, re
   );
 }
 
-export const PatientsModule = PatientsWorkspace;
-
 function PatientSidebar({
   queue,
   patients,
