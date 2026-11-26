@@ -40,6 +40,10 @@ export function createWebProxy(options: { audience: "staff"; frontendUrl?: () =>
     // The owner cabinet API was removed; never forward its namespace.
     if (path[0] === "owner") return NextResponse.json({ detail: "Not found" }, { status: 404 });
     const target = new URL(`${apiOrigin()}/${path.map(encodeURIComponent).join("/")}`);
+    // Telegram delivers directly to FastAPI, outside the staff API proxy.
+    const upstreamPath = decodeURIComponent(target.pathname);
+    if (upstreamPath === "/telegram/webhooks" || upstreamPath.startsWith("/telegram/webhooks/"))
+      return NextResponse.json({ detail: "Not found" }, { status: 404 });
     target.search = request.nextUrl.search;
 
     const init: RequestInit = {

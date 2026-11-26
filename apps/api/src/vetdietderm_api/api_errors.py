@@ -9,6 +9,8 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel
 from starlette.exceptions import HTTPException
 
+from vetdietderm_api.owners.bot_crypto import scrub_secrets
+
 
 class ApiError(BaseModel):
     code: str
@@ -38,7 +40,8 @@ def is_v1(request: Request) -> bool:
 
 def hides_credentials(path: str) -> bool:
     # Clinic bot tokens must not be echoed or cached.
-    return path == "/clinic-bot"
+    path = path.removeprefix("/v1/staff")
+    return path == "/clinic-bot" or path.startswith(("/clinic-bot/", "/telegram/webhooks/"))
 
 
 def error_response(status: int, message: str, details: Any = None, headers=None):
@@ -54,9 +57,13 @@ def error_response(status: int, message: str, details: Any = None, headers=None)
 def install_error_handlers(app: FastAPI, allowed_origins: list[str]) -> None:
     @app.exception_handler(HTTPException)
     async def http_error(request: Request, exc: HTTPException):
+        secret_path = hides_credentials(request.url.path)
+        if secret_path:
+            detail = scrub_secrets(exc.detail, ()) if isinstance(exc.detail, str) else "Request failed"
+            exc = HTTPException(exc.status_code, detail, headers=exc.headers)
         if not is_v1(request):
             response = await http_exception_handler(request, exc)
-            if hides_credentials(request.url.path):
+            if secret_path:
                 response.headers["Cache-Control"] = "no-store"
             return response
         return error_response(exc.status_code,
@@ -66,8 +73,11 @@ def install_error_handlers(app: FastAPI, allowed_origins: list[str]) -> None:
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError):
         if hides_credentials(request.url.path):
-            # Credentials are bearer secrets; never echo input values.
-            details = [{key: err[key] for key in ("loc", "msg", "type")} for err in exc.errors()]
+            # Extra field names can be arbitrary strings supplied by the caller.
+            details = [{"loc": [part for part in err["loc"] if part in {"body", "path", "header", "token"}],
+                        "msg": err["msg"], "type": err["type"]} for err in exc.errors()]
+            if is_v1(request):
+                return error_response(422, "Request validation failed", details)
             return JSONResponse(status_code=422, content={"detail": details}, headers={"Cache-Control": "no-store"})
         if not is_v1(request):
             return await request_validation_exception_handler(request, exc)
@@ -87,4 +97,5 @@ def install_error_handlers(app: FastAPI, allowed_origins: list[str]) -> None:
                 response.headers["Access-Control-Allow-Credentials"] = "true"
                 response.headers["Vary"] = "Origin"
             return response
-        return PlainTextResponse("Internal Server Error", status_code=500)
+        headers = {"Cache-Control": "no-store"} if hides_credentials(request.url.path) else None
+        return PlainTextResponse("Internal Server Error", status_code=500, headers=headers)

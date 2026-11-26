@@ -4,7 +4,7 @@ prd_id: 2026-11-26-telegram-bot-gateway
 cycle_id: 2026-11-26-telegram-bot-gateway
 cycle_slug: telegram-bot-gateway
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 complexity: L
 criticality: Blocker
 ---
@@ -12,7 +12,7 @@ criticality: Blocker
 # Bot Lifecycle
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 An organization owner or admin connects one clinic bot, checks that Telegram stored this deployment's webhook URL, replaces the bot, or disconnects it. Every clinic role can see the username, the public `t.me` link, credential status, webhook status, and the last error. The token and the webhook secret stay off the screen and out of stored errors. The integration id from the clinic-bot contract stays stable for the life of the row.
@@ -60,14 +60,14 @@ An organization owner or admin connects one clinic bot, checks that Telegram sto
 - `docs/PROJECT.md`
 
 ## Implementation Steps
-- [ ] Add `set_webhook` and `delete_webhook` in `telegram.py`. Build the Bot API URL with the same host and path checks `fetch_bot_identity` already uses. Pass `secret_token` and `allowed_updates` on `setWebhook`. Do not log the request URL or the secret.
-- [ ] Change `save_clinic_bot` so a successful `getMe` creates a webhook secret, encrypts it, and calls `setWebhook` with the expected URL. On `setWebhook` failure, commit the new ciphertext with credential status `connected` and webhook status `error`. When the bot id changes and the previous token still passes `getMe`, call `deleteWebhook` for the previous token and still save the new bot if that call fails.
-- [ ] Change `verify_clinic_bot` so a URL mismatch calls `setWebhook` with the stored secret, creating a secret only when the column is null. Leave the secret unchanged when the URL already matches. Keep the failed-`getMe` path from the contract issue.
-- [ ] Change `disconnect_clinic_bot` so the ciphertext and webhook secret are cleared and status is `disconnected` before `deleteWebhook`. Keep `integration_id`. Write the Russian `last_error` from Requirements when Telegram refuses the removal.
-- [ ] Run every Telegram `description` and every `last_error` assignment through `scrub_secrets` together with the raw token and the raw webhook secret.
-- [ ] Update `ClinicBotSettings` with the Russian labels, the `public_url` link, and the owner/admin actions. Call `POST /clinic-bot/verify` and `POST /clinic-bot/disconnect`. Keep `PUT /clinic-bot` for connect and replace. Reload `GET /clinic-bot` after each action.
-- [ ] Update the clinic-bot sentences in `docs/PROJECT.md` as described in Requirements.
-- [ ] Run the checks in Verification.
+- [x] Add `set_webhook` and `delete_webhook` in `telegram.py`. Build the Bot API URL with the same host and path checks `fetch_bot_identity` already uses. Pass `secret_token` and `allowed_updates` on `setWebhook`. Do not log the request URL or the secret.
+- [x] Change `save_clinic_bot` so a successful `getMe` creates a webhook secret, encrypts it, and calls `setWebhook` with the expected URL. On `setWebhook` failure, commit the new ciphertext with credential status `connected` and webhook status `error`. When the bot id changes and the previous token still passes `getMe`, call `deleteWebhook` for the previous token and still save the new bot if that call fails.
+- [x] Change `verify_clinic_bot` so a URL mismatch calls `setWebhook` with the stored secret, creating a secret only when the column is null. Leave the secret unchanged when the URL already matches. Keep the failed-`getMe` path from the contract issue.
+- [x] Change `disconnect_clinic_bot` so the ciphertext and webhook secret are cleared and status is `disconnected` before `deleteWebhook`. Keep `integration_id`. Write the Russian `last_error` from Requirements when Telegram refuses the removal.
+- [x] Run every Telegram `description` and every `last_error` assignment through `scrub_secrets` together with the raw token and the raw webhook secret.
+- [x] Update `ClinicBotSettings` with the Russian labels, the `public_url` link, and the owner/admin actions. Call `POST /clinic-bot/verify` and `POST /clinic-bot/disconnect`. Keep `PUT /clinic-bot` for connect and replace. Reload `GET /clinic-bot` after each action.
+- [x] Update the clinic-bot sentences in `docs/PROJECT.md` as described in Requirements.
+- [x] Run the checks in Verification.
 
 ## Verification
 - `pnpm --filter vetdietderm-web typecheck` passes.
@@ -76,3 +76,11 @@ An organization owner or admin connects one clinic bot, checks that Telegram sto
 - Force a `setWebhook` failure and confirm the card stays `Подключён` with `Ошибка вебхука` and the token is not on the card or in the alert.
 - As a member, confirm the same card has no token field and no `Проверить` or `Отключить` button.
 - Disconnect, confirm the status becomes `Отключён`, then connect again and confirm the integration id in `clinic_bots` is unchanged while `webhook_secret_ciphertext` differs.
+
+## Execution Evidence
+
+- Attempt 0 used the `standard` profile. All declared checks passed with isolated PostgreSQL 16 and Chromium exercising the real API and settings page with upstream fixtures.
+- Spec review found two Important issues and one Minor issue involving registration recovery, different-bot replacement during disconnect, and warning preservation. Standards passed.
+- Diagnosis reproduced all three findings in three PostgreSQL trials per case. Chromium separately reproduced a matching URL with a stale secret after failed replacement.
+- Attempt 1 repaired same-URL registration recovery, serialized clinic replacement and disconnect across the local commit in the single API process, and preserved the cleanup warning on repeat disconnect. The original checks, PostgreSQL regressions and expanded Chromium scenarios all passed.
+- Final Spec and Standards both passed. Repairs used 1 of 2. No reformats, profile fallbacks or skipped declared checks.

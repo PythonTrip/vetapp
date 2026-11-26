@@ -12,19 +12,28 @@ import { Label } from "@/shared/ui/label";
 
 type ClinicBot = components["schemas"]["ClinicBotRead"];
 
-const statusLabels = { connected: "Подключён", error: "Ошибка" } as const;
+const statusLabels = {
+  connected: "Подключён",
+  error: "Ошибка",
+  disconnected: "Отключён",
+} as const;
+
+const webhookLabels = {
+  not_configured: "Вебхук не настроен",
+  active: "Вебхук активен",
+  error: "Ошибка вебхука",
+} as const;
 
 export function ClinicBotSettings() {
   const { user } = useAuth();
   const role = user?.organization?.org_role;
-  const canConnect = role === "owner" || role === "admin";
+  const canManage = role === "owner" || role === "admin";
   const [bot, setBot] = React.useState<ClinicBot | null>(null);
   const [token, setToken] = React.useState("");
   const [loading, setLoading] = React.useState(true);
   const [busy, setBusy] = React.useState(false);
   const [loadError, setLoadError] = React.useState("");
   const [formError, setFormError] = React.useState("");
-  const [notice, setNotice] = React.useState("");
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -42,53 +51,57 @@ export function ClinicBotSettings() {
     void load();
   }, [load]);
 
-  async function connect(event: React.FormEvent) {
-    event.preventDefault();
-    const next = token.trim();
-    if (!next) return;
+  async function updateBot(action: () => Promise<ClinicBot>) {
     setBusy(true);
     setFormError("");
-    setNotice("");
     try {
-      await apiRequest<ClinicBot>("/clinic-bot", { method: "PUT", body: { token: next } });
-      setToken("");
-      setNotice("Токен сохранён");
+      setBot(await action());
     } catch (cause) {
       setFormError(apiErrorMessage(cause));
     } finally {
-      try {
-        setBot(await apiRequest<ClinicBot>("/clinic-bot"));
-      } catch (cause) {
-        setLoadError(apiErrorMessage(cause));
-      }
+      await load();
       setBusy(false);
     }
   }
 
+  function connect(event: React.FormEvent) {
+    event.preventDefault();
+    const next = token.trim();
+    if (!next || busy || loading) return;
+    void updateBot(async () => {
+      const saved = await apiRequest<ClinicBot>("/clinic-bot", { method: "PUT", body: { token: next } });
+      setToken("");
+      return saved;
+    });
+  }
+
   const status = bot?.status ? statusLabels[bot.status] : "Не подключён";
-  const shownError = formError || (bot?.status === "error" ? bot.last_error : "") || "";
+  const webhookStatus = webhookLabels[bot?.webhook_status ?? "not_configured"];
+  const shownError = formError || bot?.last_error;
+  const canCheckBot = bot?.status === "connected" || bot?.status === "error";
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-base">Бот клиники</CardTitle>
         <CardDescription>
-          Вставьте токен из BotFather. Сервис проверяет токен в Telegram и сохраняет учётные данные клиники для будущих сообщений.
+          Вставьте токен из BotFather. Сервис проверяет токен, сохраняет его в зашифрованном виде и регистрирует вебхук этой установки.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {loading && <p role="status">Загрузка бота…</p>}
         {!loading && (bot || !loadError) && (
-          <p className="text-sm">{status}{bot?.username ? ` · ${bot.username}` : ""}</p>
+          <div className="space-y-1 text-sm">
+            <p>{status}</p>
+            <p>{webhookStatus}</p>
+            {bot?.username && bot.public_url && (
+              <a href={bot.public_url} className="text-primary underline underline-offset-4">{bot.username}</a>
+            )}
+          </div>
         )}
         {shownError && <p role="alert" className="text-sm text-destructive">{shownError}</p>}
-        {canConnect && (
-          <form
-            className="space-y-2"
-            onSubmit={event => {
-              void connect(event);
-            }}
-          >
+        {canManage && (
+          <form className="space-y-2" onSubmit={connect}>
             <Label htmlFor="clinic-bot-token">Токен бота</Label>
             <div className="flex flex-wrap gap-2">
               <Input
@@ -98,24 +111,44 @@ export function ClinicBotSettings() {
                 autoComplete="off"
                 spellCheck={false}
                 maxLength={256}
+                disabled={busy}
                 value={token}
                 onChange={event => setToken(event.target.value)}
               />
-              <Button disabled={busy || token.trim().length === 0}>Подключить</Button>
+              <Button disabled={busy || loading || token.trim().length === 0}>
+                {bot?.bot_id == null ? "Подключить" : "Заменить"}
+              </Button>
             </div>
           </form>
+        )}
+        {canManage && canCheckBot && (
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              disabled={busy || loading}
+              onClick={() => void updateBot(() => apiRequest<ClinicBot>("/clinic-bot/verify", { method: "POST" }))}
+            >
+              Проверить
+            </Button>
+            <Button
+              variant="outline"
+              disabled={busy || loading}
+              onClick={() => void updateBot(() => apiRequest<ClinicBot>("/clinic-bot/disconnect", { method: "POST" }))}
+            >
+              Отключить
+            </Button>
+          </div>
         )}
         {loadError && (
           <div className="space-y-2">
             <p role="alert" className="text-sm text-destructive">{loadError}</p>
-            <Button type="button" variant="outline" disabled={loading} onClick={() => void load()}>
+            <Button type="button" variant="outline" disabled={busy || loading} onClick={() => void load()}>
               Повторить загрузку
             </Button>
           </div>
         )}
-        {notice && <p role="status" className="text-sm">{notice}</p>}
         <p className="text-sm text-muted-foreground">
-          Подключено — значит Telegram принял токен. Учётные данные бота сохраняются для сообщений клиники в Telegram.
+          Подключено — Telegram принял токен. Вебхук активен — Telegram сообщает адрес этого сервера.
         </p>
       </CardContent>
     </Card>

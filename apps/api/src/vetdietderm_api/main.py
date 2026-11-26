@@ -12,6 +12,7 @@ from vetdietderm_api.db import ping_database
 from vetdietderm_api.orm import load_models
 from vetdietderm_api.routing import include_clinical_and_versioned_routes, include_legacy_self_scoped_routes
 from vetdietderm_api.settings import get_settings
+from vetdietderm_api.telegram.router import router as telegram_router
 
 
 class StatusResponse(BaseModel):
@@ -48,6 +49,7 @@ def create_app() -> FastAPI:
         return StatusResponse(status="ok")
 
     include_legacy_self_scoped_routes(application)
+    application.include_router(telegram_router)
 
     @application.get("/ready", response_model=StatusResponse, dependencies=[Depends(require_clinical_access)])
     def ready() -> StatusResponse:

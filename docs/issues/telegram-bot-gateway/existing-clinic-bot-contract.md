@@ -4,7 +4,7 @@ prd_id: 2026-11-26-telegram-bot-gateway
 cycle_id: 2026-11-26-telegram-bot-gateway
 cycle_slug: telegram-bot-gateway
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 complexity: L
 criticality: Blocker
 ---
@@ -12,7 +12,7 @@ criticality: Blocker
 # Existing Clinic Bot Contract
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 Staff already save one clinic bot token after `getMe` and read back its status. This issue changes that contract. The token is stored as ciphertext, the read model gains webhook status and the public `t.me` link, and owner or admin can verify or disconnect. One Telegram webhook path is registered for this deployment. Bot lifecycle, public intake, and the worker build on these columns and routes.
@@ -85,19 +85,19 @@ Staff already save one clinic bot token after `getMe` and read back its status. 
 - `apps/api/tests/secure/test_multi_user_auth.py`
 
 ## Implementation Steps
-- [ ] Add `cryptography` with `uv add --project apps/api cryptography`.
-- [ ] Add the two settings and validators from Requirements. Mirror them in both env examples and in the `api` service environment.
-- [ ] Add `owners/bot_crypto.py` with `encrypt_secret`, `decrypt_secret`, and `scrub_secrets(text, secrets) -> str`. `scrub_secrets` drops each secret substring and truncates to 500 characters.
-- [ ] Add Alembic `0042_clinic_bot_credentials` and the matching `ClinicBot` columns. Backfill `integration_id` with `uuid6`. Encrypt existing non-null tokens through `get_settings()` and `encrypt_secret`.
-- [ ] Set ORM defaults for `integration_id` and `webhook_status` so the current `ClinicBot(...)` constructors in `apps/api/tests/secure/test_multi_user_auth.py` still build. Leave those fixture token strings as direct assignments.
-- [ ] Extend `ClinicBotRead` with `webhook_status` and `public_url`. Map `public_url` in `clinic_bot_read`. Keep the token off every read model.
-- [ ] Change `save_clinic_bot` for the empty-settings 422, ciphertext storage, the connected-bot rejection, and the duplicate-bot 409. Leave `webhook_status` at `not_configured`.
-- [ ] Add `verify_clinic_bot` and `disconnect_clinic_bot`, and wire the two POST routes on the owners router. Add `get_webhook_info` in `telegram.py` using the same host checks as `getMe`.
-- [ ] Add the webhook router and include it only from `create_app`. Implement the 404, 401, and 503 outcomes from Requirements. Do not create `telegram_updates` here.
-- [ ] Extend `hides_credentials` and pass `last_error` and clinic-bot HTTP details through `scrub_secrets`.
-- [ ] Update the README nginx example, the Compose port comment, and the clinic-bot sentences in `docs/PROJECT.md`.
-- [ ] Regenerate the contract with `pnpm api:generate`.
-- [ ] Run the checks in Verification.
+- [x] Add `cryptography` with `uv add --project apps/api cryptography`.
+- [x] Add the two settings and validators from Requirements. Mirror them in both env examples and in the `api` service environment.
+- [x] Add `owners/bot_crypto.py` with `encrypt_secret`, `decrypt_secret`, and `scrub_secrets(text, secrets) -> str`. `scrub_secrets` drops each secret substring and truncates to 500 characters.
+- [x] Add Alembic `0042_clinic_bot_credentials` and the matching `ClinicBot` columns. Backfill `integration_id` with `uuid6`. Encrypt existing non-null tokens through `get_settings()` and `encrypt_secret`.
+- [x] Set ORM defaults for `integration_id` and `webhook_status` so the current `ClinicBot(...)` constructors in `apps/api/tests/secure/test_multi_user_auth.py` still build. Leave those fixture token strings as direct assignments.
+- [x] Extend `ClinicBotRead` with `webhook_status` and `public_url`. Map `public_url` in `clinic_bot_read`. Keep the token off every read model.
+- [x] Change `save_clinic_bot` for the empty-settings 422, ciphertext storage, the connected-bot rejection, and the duplicate-bot 409. Leave `webhook_status` at `not_configured`.
+- [x] Add `verify_clinic_bot` and `disconnect_clinic_bot`, and wire the two POST routes on the owners router. Add `get_webhook_info` in `telegram.py` using the same host checks as `getMe`.
+- [x] Add the webhook router and include it only from `create_app`. Implement the 404, 401, and 503 outcomes from Requirements. Do not create `telegram_updates` here.
+- [x] Extend `hides_credentials` and pass `last_error` and clinic-bot HTTP details through `scrub_secrets`.
+- [x] Update the README nginx example, the Compose port comment, and the clinic-bot sentences in `docs/PROJECT.md`.
+- [x] Regenerate the contract with `pnpm api:generate`.
+- [x] Run the checks in Verification.
 
 ## Verification
 - `uv run --project apps/api python -c "from vetdietderm_api.main import app"` imports.
@@ -108,3 +108,10 @@ Staff already save one clinic bot token after `getMe` and read back its status. 
 - An unknown integration id on `POST /telegram/webhooks/{integration_id}` returns 404. A known id whose secret does not match returns 401.
 - `GET /health` returns 200. `GET /ready` stays on the clinical session.
 - On a database with one plaintext `clinic_bots.token`, `alembic upgrade head` stores a `gAAAAA` prefix when the key is set, and the upgrade fails when the key is unset.
+
+## Execution Evidence
+
+- Attempt 0 used the `standard` profile. Developer verification passed with 39 secure-auth tests, a PostgreSQL 16 migration and API smoke, proxy routing checks, OpenAPI regeneration and check, web typecheck, Ruff, and Compose configuration validation. All declared checks ran with isolated fixtures.
+- Spec review failed on `SPEC-1` and `SPEC-2`. Standards passed. Diagnosis reproduced both findings against PostgreSQL and the Settings model. The diagnosis supplied the first repair brief.
+- Attempt 1 repaired the migration snapshot order and HTTPS authority validation. Three real concurrent-write PostgreSQL trials, eight HTTPS origin cases, all declared contract and migration checks, and 39 secure-auth tests passed.
+- Final Spec and Standards both passed. Repairs used 1 of 2. No reformats or profile fallbacks. Bot Lifecycle can start.

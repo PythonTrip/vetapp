@@ -160,12 +160,21 @@ class OwnerCredentials(BaseModel):
 class ClinicBotStatus(StrEnum):
     connected = "connected"
     error = "error"
+    disconnected = "disconnected"
+
+
+class ClinicBotWebhookStatus(StrEnum):
+    not_configured = "not_configured"
+    active = "active"
+    error = "error"
 
 
 class ClinicBotRead(BaseModel):
     status: ClinicBotStatus | None = None
+    webhook_status: ClinicBotWebhookStatus | None = None
     bot_id: int | None = None
     username: str | None = None
+    public_url: str | None = None
     last_error: str | None = None
 
 
