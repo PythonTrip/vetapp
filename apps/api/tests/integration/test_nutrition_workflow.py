@@ -22,6 +22,73 @@ def _body(response, expected_status: int):
     return response.json() if response.content else None
 
 
+def test_catalog_category_counts_include_foods_without_nutrients_or_categories(
+    api_client: TestClient,
+    seeded_nutrients: dict[str, UUID],
+) -> None:
+    foods = {}
+    for name, category, subcategory in [
+        ("Dry A", "Diets", "Dry"),
+        ("Dry B", "Diets", "Dry"),
+        ("Diet C", "Diets", None),
+        ("Loose D", None, None),
+    ]:
+        foods[name] = _body(
+            api_client.post(
+                "/foods",
+                json={
+                    "name": name,
+                    "type": "commercial",
+                    "feed_form": "dry",
+                    "category": category,
+                    "subcategory": subcategory,
+                },
+            ),
+            201,
+        )["uuid"]
+
+    _body(
+        api_client.put(
+            f"/foods/{foods['Dry A']}/nutrient-values",
+            json=[{"code": "CP", "value": 28}, {"code": "CFa", "value": 15}],
+        ),
+        200,
+    )
+
+    expected_categories = [
+        {
+            "category": "Diets",
+            "food_count": 3,
+            "subcategories": [
+                {"subcategory": "Dry", "food_count": 2},
+                {"subcategory": None, "food_count": 1},
+            ],
+        },
+        {
+            "category": None,
+            "food_count": 1,
+            "subcategories": [{"subcategory": None, "food_count": 1}],
+        },
+    ]
+    assert _body(api_client.get("/foods/categories"), 200) == expected_categories
+
+    filters = {
+        "nutrient_category": "main",
+        "category": ["Diets", "__none__"],
+        "subcategory": ["Dry", "__none__"],
+    }
+    selected = _body(api_client.get("/foods/matrix", params=filters), 200)
+    assert selected["total"] == 3
+    assert {item["uuid"] for item in selected["items"]} == {
+        foods["Dry A"], foods["Dry B"], foods["Loose D"],
+    }
+
+    search = _body(api_client.get("/foods/matrix", params={**filters, "q": "Dry A"}), 200)
+    assert search["total"] == 1
+    assert [item["uuid"] for item in search["items"]] == [foods["Dry A"]]
+    assert _body(api_client.get("/foods/categories"), 200) == expected_categories
+
+
 def test_catalog_assessment_and_diet_plan_snapshot_are_integrated(
     api_client: TestClient,
     seeded_nutrients: dict[str, UUID],
@@ -120,7 +187,8 @@ def test_catalog_assessment_and_diet_plan_snapshot_are_integrated(
     assert categories == [
         {
             "category": "Лечебные рационы",
-            "subcategories": ["Integration Brand"],
+            "food_count": 1,
+            "subcategories": [{"subcategory": "Integration Brand", "food_count": 1}],
         }
     ]
     matrix = _body(

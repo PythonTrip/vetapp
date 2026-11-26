@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { FoodCatalog } from "@/features/nutrition/components/food-catalog";
+import type { CategorySelection } from "@/features/nutrition/components/category-selection";
 import { ProfilePanel } from "@/features/nutrition/components/profile-panel";
 import { PatientPicker } from "@/features/nutrition/components/patient-picker";
 import { RationAddDialog } from "@/features/nutrition/components/ration-add-dialog";
@@ -133,6 +134,9 @@ export function NutritionWorkspace() {
   const [energyAdjustmentPercent, setEnergyAdjustmentPercent] = React.useState("100");
   const [lines, setLines] = React.useState<RationLine[]>([]);
   const [rationAddOpen, setRationAddOpen] = React.useState(false);
+  const [catalogQuery, setCatalogQuery] = React.useState("");
+  const [catalogSelection, setCatalogSelection] = React.useState<CategorySelection>(() => new Map());
+  const [catalogSidebarOpen, setCatalogSidebarOpen] = React.useState(true);
   const [feedOverride, setFeedOverride] = React.useState<"auto" | "dry" | "wet">("auto");
   const [assessmentAttempt, setAssessmentAttempt] = React.useState(0);
   const [formError, setFormError] = React.useState<string | null>(null);
@@ -446,7 +450,16 @@ export function NutritionWorkspace() {
           <TabsTrigger value="plans" className={nutritionTab}>Недавние планы</TabsTrigger>
           <TabsTrigger value="catalog" className={nutritionTab}>Каталог</TabsTrigger>
         </TabsList>
-        <TabsContent value="catalog" data-catalog-workbench><FoodCatalog /></TabsContent>
+        <TabsContent value="catalog" data-catalog-workbench>
+          <FoodCatalog
+            query={catalogQuery}
+            setQuery={setCatalogQuery}
+            selection={catalogSelection}
+            setSelection={setCatalogSelection}
+            sidebarOpen={catalogSidebarOpen}
+            setSidebarOpen={setCatalogSidebarOpen}
+          />
+        </TabsContent>
         <TabsContent value="plans"><RecentPlans plans={recentPlans.data ?? []} pending={recentPlans.isPending} error={recentPlans.isError ? apiErrorMessage(recentPlans.error) : null} /></TabsContent>
         <TabsContent value="assessment" className="min-w-0 space-y-4 rounded-lg focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-teal-800 dark:focus-visible:outline-teal-300">
           {plan.data ? (
@@ -1280,6 +1293,8 @@ function RationWorkbench({
                 const value = row
                   ? rowComparisonAmount(row)
                   : nutrient.code === "ME" ? rationKcal : null;
+                const known = row && value == null ? rowComparisonLowerBound(row) : null;
+                const text = known == null ? formatNumber(value, 2) : `≥ ${formatNumber(known, 2)}`;
                 return (
                   <td
                     key={nutrient.key}
@@ -1292,13 +1307,15 @@ function RationWorkbench({
                     )}
                     title={status ? status.label : "Расчёт ещё не выполнен"}
                   >
-                    {status ? <span className="mr-1" aria-hidden="true">{status.symbol}</span> : null}
+                    {status && value == null && known == null ? (
+                      <span className="mr-1" aria-hidden="true">{status.symbol}</span>
+                    ) : null}
                     {row ? (
                       <button type="button" className="underline decoration-dotted underline-offset-2 focus-visible:outline-ring"
                         aria-label={`Подробнее: ${nutrient.name}`} onClick={() => setSelectedNutrientKey(nutrient.key)}>
-                        {value == null ? "—" : formatNumber(value, 2)}
+                        {text}
                       </button>
-                    ) : value == null ? "—" : formatNumber(value, 2)}
+                    ) : text}
                   </td>
                 );
               })}
@@ -1478,6 +1495,32 @@ function rowComparisonAmount(row: AssessmentRecord["rows"][number]): number | nu
     case "per_kg_metabolic_bw": return intake?.per_kg_metabolic_bw ?? null;
     default: return row.ration_ratio ?? row.ration_daily_amount ?? row.ration_per_1000_kcal_me;
   }
+}
+
+function rowComparisonLowerBound(row: AssessmentRecord["rows"][number]): number | null {
+  if (row.unit === "ratio" || row.ration_ratio != null) return null;
+
+  switch (row.target?.basis) {
+    case "ratio":
+    case "per_1000_kcal_me":
+    case "per_100g_as_fed":
+    case "per_100g_dry_matter":
+    case "per_kg_bw":
+    case "per_kg_metabolic_bw":
+      return null;
+    case "per_day":
+      break;
+    default:
+      if (row.ration_daily_amount == null && row.ration_per_1000_kcal_me != null) return null;
+  }
+
+  let known: number | null = null;
+  for (const contribution of row.contributions ?? []) {
+    if (contribution.daily_amount != null) {
+      known = (known ?? 0) + contribution.daily_amount;
+    }
+  }
+  return known ?? (row.status === "missing_product_data" ? 0 : null);
 }
 
 function targetValueText(target: AssessmentRecord["rows"][number]["target"]): string {

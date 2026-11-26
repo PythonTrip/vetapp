@@ -4031,16 +4031,13 @@
             ],
             "title": "Category"
           },
+          "food_count": {
+            "title": "Food Count",
+            "type": "integer"
+          },
           "subcategories": {
             "items": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ]
+              "$ref": "#/components/schemas/FoodSubcategoryNode"
             },
             "title": "Subcategories",
             "type": "array"
@@ -4048,6 +4045,7 @@
         },
         "required": [
           "category",
+          "food_count",
           "subcategories"
         ],
         "title": "FoodCategoryGroup",
@@ -4380,6 +4378,31 @@
           "nutrient_values"
         ],
         "title": "FoodRead",
+        "type": "object"
+      },
+      "FoodSubcategoryNode": {
+        "properties": {
+          "food_count": {
+            "title": "Food Count",
+            "type": "integer"
+          },
+          "subcategory": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subcategory"
+          }
+        },
+        "required": [
+          "subcategory",
+          "food_count"
+        ],
+        "title": "FoodSubcategoryNode",
         "type": "object"
       },
       "FoodSummary": {
