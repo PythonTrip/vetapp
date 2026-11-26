@@ -93,6 +93,7 @@ export function FoodCatalogBrowse({
   selectedFoodId?: string | null;
   renderRowAction?: (food: FoodMatrixRowRecord) => React.ReactNode;
 }) {
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
   const [overlayOpen, setOverlayOpen] = React.useState(false);
   const [expanded, setExpanded] = React.useState<Set<string | null>>(() => new Set());
   const [nutrientCategory, setNutrientCategory] = React.useState<NutrientCategory>("main");
@@ -132,6 +133,7 @@ export function FoodCatalogBrowse({
     sort: sort.field,
     sortDir: sort.direction,
   }, listEnabled);
+  const resultsAreCurrent = query.trim() === search && !matrix.isPlaceholderData;
   const rows = matrix.data?.pages.flatMap((page) => page.items) ?? [];
   const total = matrix.data?.pages[0]?.total ?? 0;
   const activeCategoryFilters = categoryPairs.map(({ category, subcategory, allSubcategories }) => ({
@@ -143,6 +145,14 @@ export function FoodCatalogBrowse({
     subcategory,
     wholeCategory: allSubcategories,
   }));
+
+  React.useEffect(() => {
+    if (!inDialog) return;
+    const frame = window.requestAnimationFrame(() => {
+      searchInputRef.current?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [inDialog]);
 
   React.useEffect(() => {
     if (!overlayOpen) return;
@@ -306,12 +316,14 @@ export function FoodCatalogBrowse({
           <div className="relative min-w-0 flex-1 sm:max-w-72">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
+              ref={searchInputRef}
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Название продукта или бренд"
               className="h-8 bg-background pl-8 pr-8 text-xs"
               aria-label={inDialog ? "Поиск продукта по названию" : "Поиск продуктов"}
+              autoFocus={inDialog}
             />
             {query ? (
               <button
@@ -340,7 +352,7 @@ export function FoodCatalogBrowse({
               ))}
             </TabsList>
           </Tabs>
-          {hasActiveFilters && query.trim() === search && !matrix.isPlaceholderData && matrix.data ? (
+          {hasActiveFilters && resultsAreCurrent && matrix.data ? (
             <p className="shrink-0 text-[11px] tabular-nums text-muted-foreground">Найдено: {total}</p>
           ) : null}
         </div>
@@ -567,7 +579,14 @@ export function FoodCatalogBrowse({
                                   {[food.category, food.subcategory].filter(Boolean).join(" · ") || "Без категории"}
                                 </span>
                               </div>
-                              {renderRowAction?.(food)}
+                              {renderRowAction ? (
+                                <fieldset
+                                  disabled={!resultsAreCurrent}
+                                  className="m-0 inline-flex min-w-0 border-0 p-0"
+                                >
+                                  {renderRowAction(food)}
+                                </fieldset>
+                              ) : null}
                             </div>
                           </th>
                           {visibleNutrients.map((nutrient) => {

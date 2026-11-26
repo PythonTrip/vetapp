@@ -89,11 +89,16 @@ def list_food_categories(session: Session) -> list[FoodCategoryGroup]:
     ]
 
 
-def _food_name_order(needle: str) -> tuple:
-    by_name = (func.lower(Food.name), Food.name, Food.uuid)
+def _food_name_order(needle: str, *, descending: bool = False) -> tuple:
+    name_key = func.lower(Food.name)
+    by_name = (
+        (name_key.desc(), Food.name.desc(), Food.uuid)
+        if descending
+        else (name_key, Food.name, Food.uuid)
+    )
     if not needle:
         return by_name
-    return (case((func.lower(Food.name) == needle.lower(), 0), else_=1), *by_name)
+    return (case((name_key == needle.lower(), 0), else_=1), *by_name)
 
 
 def search_foods(
@@ -121,7 +126,9 @@ def list_food_matrix(
     foods_stmt = select(Food, func.count().over().label("total_count")).where(*predicates)
 
     if query.sort == "name":
-        foods_stmt = foods_stmt.order_by(*_food_name_order(needle))
+        foods_stmt = foods_stmt.order_by(
+            *_food_name_order(needle, descending=query.sort_dir == "desc"),
+        )
     else:
         sort_nutrient_uuid = session.scalar(
             select(Nutrient.uuid).where(
