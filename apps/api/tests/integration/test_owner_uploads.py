@@ -1,6 +1,7 @@
 """Owner media persistence, access boundaries and chat delivery."""
 from uuid import uuid4
-from tests.integration.test_owner_cabinet import cabinet, register
+from tests.integration.test_owner_cabinet import cabinet  # noqa: F401  # pytest fixture
+from tests.integration.test_owner_cabinet import register
 from vetdietderm_api.attachments import storage
 
 

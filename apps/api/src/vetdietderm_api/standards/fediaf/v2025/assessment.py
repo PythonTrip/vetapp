@@ -325,29 +325,6 @@ def _energy_inputs(
     return used
 
 
-def _derive_size_class(
-    animal: AnimalProfile,
-    snapshot: PublishedGuideline,
-) -> GrowthSizeClass | None:
-    weight = animal.expected_mature_weight_kg
-    if animal.species.value != "dog" or weight is None:
-        return None
-    for item in snapshot.size_classes.values():
-        minimum_ok = item.min_adult_weight_kg is None or (
-            weight > float(item.min_adult_weight_kg)
-            if item.min_exclusive
-            else weight >= float(item.min_adult_weight_kg)
-        )
-        maximum_ok = item.max_adult_weight_kg is None or (
-            weight <= float(item.max_adult_weight_kg)
-            if item.max_inclusive
-            else weight < float(item.max_adult_weight_kg)
-        )
-        if minimum_ok and maximum_ok:
-            return item
-    return None
-
-
 def _resolve_size_class(
     animal: AnimalProfile,
     snapshot: PublishedGuideline,
