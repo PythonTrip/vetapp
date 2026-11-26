@@ -5,10 +5,9 @@ import httpx
 from fastapi.testclient import TestClient
 from starlette.requests import Request
 
-from tests.integration.test_owner_cabinet import cabinet  # noqa: F401 - shared isolated SQLite fixture
+from tests.integration.staff_app import staff_app  # noqa: F401 - shared isolated SQLite fixture
 from vetdietderm_api import auth
-from vetdietderm_api.v1 import OWNER_AUTH_PATHS
-from vetdietderm_api.v1_security import require_owner_identity
+from vetdietderm_api.v1_security import require_staff_identity
 
 
 def without_titles(value):
@@ -19,8 +18,8 @@ def without_titles(value):
     return value
 
 
-def test_schema_covers_legacy_resources_and_documents_separate_security(cabinet):
-    staff, _, _, _ = cabinet
+def test_schema_covers_legacy_resources_under_staff_security(staff_app):
+    staff, _, _, _ = staff_app
     schema = staff.app.openapi()
     paths = schema["paths"]
     ids = []
@@ -28,13 +27,11 @@ def test_schema_covers_legacy_resources_and_documents_separate_security(cabinet)
         if path.startswith("/auth-service") or path in {"/health", "/ready"}:
             continue
         if not path.startswith("/v1/"):
-            target = (("/v1/auth" + path) if path in OWNER_AUTH_PATHS else
-                      ("/v1" + path) if path.startswith("/owner/") else
-                      ("/v1/staff" + path))
+            assert not path.startswith("/owner/"), path
+            target = "/v1/staff" + path
             assert set(operations) <= set(paths[target]), path
             for method, operation in operations.items():
-                if path not in {"/owner/logout", "/owner/files/{attachment_id}",
-                                "/owner/visits/{request_id}/files/{file_id}"}:
+                if path not in {"/owner-registrations/{registration_id}/animals/{animal_id}/chat/files/{file_id}"}:
                     assert without_titles(operation["responses"].get("201") or operation["responses"].get("200")) == without_titles(
                         paths[target][method]["responses"].get("201") or paths[target][method]["responses"].get("200")), path
         else:
@@ -42,84 +39,51 @@ def test_schema_covers_legacy_resources_and_documents_separate_security(cabinet)
                 ids.append(operation["operationId"])
                 if path.startswith("/v1/staff/") or path == "/v1/auth/staff/me" or path == "/v1/auth/staff/refresh":
                     assert operation["security"] == [{"StaffSession": []}], path
-                elif path.startswith("/v1/owner/"):
-                    assert operation["security"] == [{"OwnerSession": []}], path
                 else:
                     assert not operation.get("security"), path
                 assert operation["responses"]["422"]["content"]["application/json"]["schema"] == {
                     "$ref": "#/components/schemas/ErrorResponse"}
     assert len(ids) == len(set(ids))
+    assert set(schema["components"]["securitySchemes"]) == {"StaffSession"}
     assert schema["components"]["securitySchemes"]["StaffSession"]["name"] == auth.COOKIE
     assert "{path}" not in " ".join(path for path in paths if path.startswith("/v1/"))
-    file_response = paths["/v1/owner/files/{attachment_id}"]["get"]["responses"]["200"]
-    assert "application/octet-stream" in file_response["content"]
-    upload = paths["/v1/owner/visits/{request_id}/files"]["post"]["requestBody"]
-    assert "multipart/form-data" in upload["content"]
+    assert not [path for path in paths if "/owner/" in path or "telegram" in path]
 
 
-def register_owner(staff, owner, email="owner@example.com"):
-    code = staff.get("/v1/staff/join-codes/current").json()["code"]
-    response = owner.post("/v1/auth/owner/register", json=dict(
-        code=code, name="Owner", email=email, phone="123", password="a long password here"))
-    assert response.status_code == 201, response.text
-    return code
-
-
-def test_versions_share_state_and_realms_do_not_accept_each_others_sessions(cabinet):
-    staff, owner, _, _ = cabinet
-    code = register_owner(staff, owner)
-    assert owner.get("/v1/owner/me").json() == owner.get("/owner/me").json()
-    assert owner.get("/v1/owner/animals").json() == []
-    created = owner.post("/v1/owner/animals", json={"name": "Pet", "species": "dog"})
-    assert created.status_code == 201, created.text
-    assert owner.get("/owner/animals").json() == [created.json()]
-    assert owner.patch("/owner/animals/" + created.json()["uuid"], json={"name": "Updated"}).status_code == 200
-    assert owner.get("/v1/owner/animals").json()[0]["name"] == "Updated"
-    with TestClient(staff.app, headers={"X-Vetapp-CSRF": "1", "Origin": "http://testserver"}) as other:
-        register_owner(staff, other, "other@example.com")
-        assert other.get("/v1/owner/animals").json() == []
-        assert other.patch("/v1/owner/animals/" + created.json()["uuid"], json={"name": "Stolen"}).status_code == 404
+def test_versions_share_state_and_owner_cookie_grants_no_access(staff_app):
+    staff, anonymous, _, _ = staff_app
     assert staff.get("/v1/staff/clients").json() == staff.get("/clients").json() == []
+    anonymous.cookies.set("vetapp_owner_session", "revoked-owner-session")
     for path in ("/v1/staff/clients", "/v1/staff/visit-requests", "/v1/auth/staff/me"):
-        response = owner.get(path)
+        response = anonymous.get(path)
         assert response.status_code == 401, response.text
         assert response.json()["error"]["code"] == "unauthenticated"
-    for path in ("/v1/owner/me", "/v1/owner/animals"):
-        assert staff.get(path).status_code == 401
-    # Both cookies can coexist; revoking owner credentials must not revoke staff.
-    owner.cookies.set(auth.COOKIE, staff.cookies.get(auth.COOKIE))
-    assert owner.get("/v1/auth/staff/me").status_code == 200
-    assert owner.post("/v1/auth/owner/logout").json() == {"ok": True}
-    assert owner.get("/v1/owner/me").status_code == 401
-    assert owner.get("/v1/auth/staff/me").status_code == 200
-    assert owner.post("/owner/login", json=dict(code=code, email="owner@example.com", password="a long password here")).status_code == 200
-    assert owner.get("/v1/owner/me").status_code == 200
+    for path in ("/v1/owner/me", "/v1/owner/animals", "/owner/me", "/owner/login", "/v1/auth/owner/login"):
+        assert anonymous.get(path).status_code == 404, path
 
 
-def test_v1_errors_validation_csrf_and_legacy_compatibility(cabinet):
-    staff, owner, _, _ = cabinet
-    assert owner.get("/owner/join/missing").json() == {"detail": "Код не найден"}
-    for path in ("/v1/auth/owner/join/missing", "/v1/missing"):
-        response = owner.get(path)
-        assert response.status_code == 404
-        assert response.json()["error"]["code"] == "not_found"
-    response = owner.post("/v1/auth/staff/login", json={"password": "DO-NOT-ECHO"})
+def test_v1_errors_validation_csrf_and_legacy_compatibility(staff_app):
+    staff, client, _, _ = staff_app
+    response = client.get("/v1/missing")
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "not_found"
+    response = client.post("/v1/auth/staff/login", json={"password": "DO-NOT-ECHO"})
     assert response.status_code == 422
     assert "DO-NOT-ECHO" not in response.text
     assert response.json()["error"]["details"][0]["loc"] == ["body", "email"]
-    assert owner.get("/v1/auth/staff/login").status_code == 405
+    assert client.get("/v1/auth/staff/login").status_code == 405
     for headers in ({"X-Vetapp-CSRF": "0"}, {"Origin": "https://evil.example"}):
-        response = owner.post("/v1/auth/owner/login", headers=headers, json={})
+        response = client.post("/v1/auth/staff/login", headers=headers, json={})
         assert response.status_code == 403
         assert response.json()["error"]["code"] == "forbidden"
 
     def crash():
         raise RuntimeError("internal secret")
 
-    staff.app.dependency_overrides[require_owner_identity] = crash
+    staff.app.dependency_overrides[require_staff_identity] = crash
     try:
         with TestClient(staff.app, raise_server_exceptions=False) as client:
-            response = client.get("/v1/owner/me")
+            response = client.get("/v1/staff/clients")
         assert response.status_code == 500
         assert response.json()["error"]["code"] == "internal_error"
         assert "internal secret" not in response.text
@@ -127,8 +91,8 @@ def test_v1_errors_validation_csrf_and_legacy_compatibility(cabinet):
         staff.app.dependency_overrides.clear()
 
 
-def test_v1_login_refresh_and_legacy_session_interoperate(cabinet, monkeypatch):
-    _, client, _, user = cabinet
+def test_v1_login_refresh_and_legacy_session_interoperate(staff_app, monkeypatch):
+    _, client, _, user = staff_app
     calls = []
 
     def remote(method, path, body=None, token=None):
@@ -153,7 +117,7 @@ def test_v1_login_refresh_and_legacy_session_interoperate(cabinet, monkeypatch):
     assert client.get("/v1/auth/staff/me").status_code == 401
 
 
-def test_multiple_client_origins_share_cors_csrf_and_secure_cookie_configuration(cabinet, monkeypatch):
+def test_multiple_client_origins_share_cors_csrf_and_secure_cookie_configuration(staff_app, monkeypatch):
     from vetdietderm_api import main
     from vetdietderm_api.settings import Settings
 
@@ -186,9 +150,9 @@ def test_multiple_client_origins_share_cors_csrf_and_secure_cookie_configuration
         raise RuntimeError("internal secret")
 
     app = main.create_app()
-    app.dependency_overrides[require_owner_identity] = crash
+    app.dependency_overrides[require_staff_identity] = crash
     with TestClient(app, raise_server_exceptions=False) as client:
-        response = client.get("/v1/owner/me", headers={"Origin": "https://second.example"})
+        response = client.get("/v1/staff/clients", headers={"Origin": "https://second.example"})
         assert response.status_code == 500
         assert response.headers["access-control-allow-origin"] == "https://second.example"
         assert response.headers["access-control-allow-credentials"] == "true"

@@ -68,7 +68,7 @@ class DoctorPreview(BaseModel):
 
 class CurrentJoinCode(DoctorPreview):
     code: str
-    link: str
+    link: str | None = None
 
 
 class OwnerRead(DoctorPreview):

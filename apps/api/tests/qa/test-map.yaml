@@ -208,6 +208,7 @@ checks:
     scenario: Submit a visit request, change the published questionnaire, and exercise valid and invalid confirmation cases.
     expected: Saved answers stay intact and the schedule stays empty until confirmation. Valid types create one appointment. An invalid type returns 422 and leaves the pending records intact.
     oracle: Booking by Problem PRD and project contract, fixed questionnaire options and visit types, and independent schedule and database reads.
+    # Retired 2026-11-26 with Owner Cabinet runtime; archived on archive/owner-cabinet.
     level: integration
     core_smoke: true
     environment: api_sqlite
@@ -217,8 +218,8 @@ checks:
     triggers: *core_events
     blocking_on: *core_events
     safe_in_production: false
-    status: implemented
-    test_ref: tests/integration/test_visit_requests.py
+    status: retired
+    test_ref: archived on archive/owner-cabinet (tests/integration/test_visit_requests.py)
     owner: unassigned
   - id: CHECK-API-VISIT-CONFIRMATION-PG
     feature_id: FEAT-API-VISITS
@@ -235,8 +236,8 @@ checks:
     triggers: *core_events
     blocking_on: *core_events
     safe_in_production: false
-    status: implemented
-    test_ref: tests/integration/test_visit_confirmation_postgres.py::test_missing_visit_file_rolls_back_confirmation_and_allows_retry
+    status: retired
+    test_ref: archived on archive/owner-cabinet (tests/integration/test_visit_confirmation_postgres.py)
     owner: unassigned
   - id: CHECK-API-PG-NUTRIENTS-CONCURRENT
     feature_id: FEAT-API-PG-NUTRIENTS

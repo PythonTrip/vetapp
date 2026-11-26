@@ -37,8 +37,8 @@ def is_v1(request: Request) -> bool:
 
 
 def hides_credentials(path: str) -> bool:
-    # Bot tokens and Telegram payloads must not be echoed or cached.
-    return path.startswith("/owner/telegram/") or path in {"/owner/credentials", "/clinic-bot"}
+    # Clinic bot tokens must not be echoed or cached.
+    return path == "/clinic-bot"
 
 
 def error_response(status: int, message: str, details: Any = None, headers=None):

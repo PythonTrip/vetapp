@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from vetdietderm_api import auth
 from vetdietderm_api.account_schemas import UserProfileRead
 from vetdietderm_api.api_errors import ERROR_RESPONSES
-from vetdietderm_api.v1_security import csrf_marker, require_owner_identity, require_staff_identity, staff_session
+from vetdietderm_api.v1_security import csrf_marker, require_staff_identity, staff_session
 
 
 class Credentials(BaseModel):
@@ -82,9 +82,7 @@ def auth_router() -> APIRouter:
     return router
 
 
-FILE_HANDLERS = {"download_attachment", "download_owner_file", "owner_download", "staff_download"}
-OWNER_AUTH_PATHS = {"/owner/register", "/owner/login", "/owner/logout", "/owner/join/{code}",
-                    "/owner/telegram/login", "/owner/telegram/link", "/owner/telegram/config", "/owner/telegram/widget"}
+FILE_HANDLERS = {"download_attachment", "staff_download"}
 
 
 def alias(target: APIRouter, source: APIRoute, path: str, dependencies: list) -> None:
@@ -94,16 +92,13 @@ def alias(target: APIRouter, source: APIRoute, path: str, dependencies: list) ->
     route.path = path
     route.operation_id = None
     route.name = "v1_" + source.name
-    route.tags = ["v1 " + ("auth owner" if path.startswith("/v1/auth/owner")
-                          else "owner" if path.startswith("/v1/owner/") else "staff")]
+    route.tags = ["v1 staff"]
     route.responses = {**source.responses, **ERROR_RESPONSES}
     if source.endpoint.__name__ in FILE_HANDLERS:
         route.response_class = FileResponse
         route.responses[200] = {"description": "File download", "content": {
             "application/octet-stream": {"schema": {"type": "string", "format": "binary"}},
         }}
-    if path in {"/v1/auth/owner/logout"}:
-        route.response_model = SessionResult
     temporary = APIRouter()
     temporary.routes.append(route)
     target.include_router(temporary, dependencies=dependencies)
@@ -116,7 +111,6 @@ def create_v1_router(staff_routers: Sequence[APIRouter], mixed_routers: Sequence
     router = APIRouter(dependencies=[Depends(csrf_marker)])
     router.include_router(auth_router())
     staff = [Depends(require_staff_identity)]
-    owner = [Depends(require_owner_identity)]
     # Let FastAPI include nested routers, including its lazy router contexts.
     # Never enumerate .routes to flatten an aggregated clinical router.
     for source in [*staff_routers, staff_chat, staff_visits]:
@@ -127,12 +121,7 @@ def create_v1_router(staff_routers: Sequence[APIRouter], mixed_routers: Sequence
         for route in source.routes:
             if not isinstance(route, APIRoute):
                 continue
-            if route.path in OWNER_AUTH_PATHS:
-                alias(router, route, "/v1/auth" + route.path, [])
-            elif route.path.startswith("/owner/"):
-                alias(router, route, "/v1" + route.path, owner)
-            else:
-                alias(router, route, "/v1/staff" + route.path, staff)
+            alias(router, route, "/v1/staff" + route.path, staff)
     # Typed organization reads are part of the initial staff account surface.
     for route in auth.router.routes:
         if isinstance(route, APIRoute) and route.path.startswith("/auth-service/organizations/"):

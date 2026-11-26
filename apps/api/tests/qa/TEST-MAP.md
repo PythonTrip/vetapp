@@ -192,9 +192,11 @@ tests/
 
 **Schedule:** `pull_request`, `main_push`, `release_candidate` · **Blocking:** `pull_request`, `main_push`, `release_candidate`
 
-**Implementation:** `implemented` · **test_ref:** `tests/integration/test_visit_requests.py`
+**Implementation:** `retired` · **test_ref:** removed with Owner Cabinet runtime (`archive/owner-cabinet`); staff visit confirmation coverage to be restored without owner auth harness
 
 ## CHECK-API-VISIT-CONFIRMATION-PG — Confirm an owner request while its uploaded file is missing, then restore the file and retry.
+
+> Retired with Owner Cabinet runtime removal (2026-11-26). Source tests live on `archive/owner-cabinet`.
 
 **Module / Feature:** Visits / `FEAT-API-VISITS` · **Level:** `integration` · **Core smoke:** `True`
 

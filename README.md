@@ -17,17 +17,15 @@
 - каталог кормов, рацион и оценка по FEDIAF 2025;
 - аккаунт и необязательная организация через внешний module-auth.
 
-Кабинет владельца выделен в самостоятельный `apps/owner-web`: приглашение конкретным врачом,
-паспорта животных, chat, заявки на визит, анкеты и вложения. Общие модули и адаптеры
-browser / telegram, запуск и порядок переноса описаны в [Owner Web](docs/architecture/owner-web.md).
-Локальный запуск интерфейса: `pnpm dev:owner`; Clinic UI для него не нужен.
+Owner Cabinet и Telegram Mini App удалены из активного runtime; исходники сохранены в ветке
+`archive/owner-cabinet`. У каждой клиники остаётся Telegram bot credential в настройках
+для будущего messaging. Исторические регистрации, чаты и заявки на визит доступны staff-очередям.
 
 Пока нет: knowledge/AI, проверки препаратов, калькуляторов дозы и инфузии, подписанных приёмов, S3.
 
 ## Стек
 
 - Next.js и TypeScript в `apps/clinic-web/` — только интерфейс. Браузер ходит в `/api`, Route Handler проксирует запросы в FastAPI.
-- `apps/owner-web/` — отдельный owner host; `packages/owner-features/` содержит единые owner-сценарии для web и будущего Telegram entry point.
 - FastAPI и Pydantic в `apps/api/`. Клинические расчёты живут на сервере.
 - PostgreSQL, схема через Alembic. Prisma в рантайме нет.
 - Нормы FEDIAF 2025 — пакет `vetdietderm_api.standards.fediaf.v2025`, не таблицы SQL.
@@ -55,10 +53,6 @@ docker compose --project-name vetapp --env-file infra/.env -f infra/docker-compo
 
 # То же через pnpm-обёртку (нужны Node/pnpm в корне репозитория):
 # pnpm compose up -d --build
-
-# Опционально: owner-web на 127.0.0.1:3004 (профиль owner)
-docker compose --project-name vetapp --env-file infra/.env -f infra/docker-compose.yml --profile owner up -d --build
-# pnpm compose --profile owner up -d --build
 ```
 
 Полезные команды:
@@ -88,7 +82,7 @@ docker compose --project-name vetapp --env-file infra/.env -f infra/docker-compo
 | vetapp-api | Postgres по `DATABASE_ADDRESS` (у вас `pgsql` в `shared-backend`) |
 | отладка API с хоста | `127.0.0.1:8001` (в интернет не публиковать) |
 
-Порты на этом хосте (loopback): frontend `3003`, API `8001`, owner-web `3004`; заняты другими стеками `3000`/`3001`/`3002`/`8000`. Имена в общей сети уникальны: `vetapp-api`, `vetapp-frontend`, `vetapp-owner-web` — не используйте короткое `api`, чтобы не пересечься с другими compose-проектами.
+Порты на этом хосте (loopback): frontend `3003`, API `8001`; заняты другими стеками `3000`/`3001`/`3002`/`8000`. Имена в общей сети уникальны: `vetapp-api`, `vetapp-frontend` — не используйте короткое `api`, чтобы не пересечься с другими compose-проектами. Уберите nginx-маршрут на бывший owner host `127.0.0.1:3004`, если он ещё есть.
 
 Не проксируйте `/api` из nginx на FastAPI.
 
@@ -175,10 +169,10 @@ API читает `apps/api/.env`; переменные процесса имею
 ## Структура и команды монорепозитория
 
 - `apps/api/` — независимый uv-проект: исходники, Alembic, тесты, фикстуры, операторские скрипты и локальные данные.
-- `apps/clinic-web/` — Next.js приложение врача; совместимые маршруты владельца используют общие модули `packages/owner-features/`.
+- `apps/clinic-web/` — Next.js приложение врача (staff). Owner Cabinet runtime удалён.
 - `infra/` — Dockerfile, Compose и параметры deployment. Имя Compose-проекта `vetapp`, сервисы, DNS-алиасы и том `vetapp_attachments` сохранены.
 - `packages/api-contract` — типы, генерируемые из FastAPI OpenAPI; `packages/api-client` — общий HTTP-клиент для web и будущего mobile. Генерация: `pnpm api:generate`, проверка актуальности: `pnpm api:check`. [Контракт и настройка платформ](docs/api-contract.md).
-- `apps/owner-web/` — самостоятельное Next.js приложение владельца; `apps/mobile` пока не создано. Python не входит в pnpm workspace.
+- `apps/mobile` пока не создано. Python не входит в pnpm workspace.
 
 Из корня: `pnpm dev`, `pnpm dev:api`, `pnpm db:migrate`, `pnpm check`, `pnpm build`, `pnpm test`.
 `pnpm test` запускает все web- и Python-тесты, включая PostgreSQL integration; нужна доступная тестовая БД с правом CREATE SCHEMA.

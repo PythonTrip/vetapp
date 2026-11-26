@@ -1,3 +1,5 @@
+> **Archived: removed from the active runtime.** The Owner Cabinet (owner web host, owner API, owner sessions, Telegram Mini App and Login Widget sign-in) was removed from `main` on 2026-11-26. The implementation is preserved on branch `archive/owner-cabinet`. This document describes the archived behavior and is no longer maintained.
+
 # Мобильный кабинет владельца
 
 Срез реализации на 2026-11-01 после обновления главной, питомцев, сообщений и профиля по `D:/Download/vethelp-booking-focus-demo.html`. По запросу страницы записи сохранены в прежнем виде. Это локальное расширение существующей клинической системы, а не замена её визуальной идентичности. Продуктовые состояния консультаций описаны в [consultation-ux.md](consultation-ux.md); целевые правила — в [design.md](../design.md). Оба документа и shared-токены сохранены. Новый API фото и личных файлов описан ниже и заменяет прежнее ограничение об отсутствии поля фотографии.

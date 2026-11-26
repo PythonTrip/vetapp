@@ -6,21 +6,11 @@ from vetdietderm_api.auth import csrf, require_clinical_access
 from vetdietderm_api.chat import repository as repo
 from vetdietderm_api.chat.service import send_message
 from vetdietderm_api.chat.schemas import MessageCreate, MessageRead
-from vetdietderm_api.owners.sessions import DB, Owner
+from vetdietderm_api.owners.sessions import DB
 from vetdietderm_api.owners.uploads import download
 
 router = APIRouter(tags=["chat"], dependencies=[Depends(csrf)])
 clinical = APIRouter(dependencies=[Depends(require_clinical_access)])
-
-
-@router.get("/owner/animals/{animal_id}/chat", response_model=list[MessageRead])
-def owner_messages(animal_id: UUID, owner: Owner, db: DB):
-    return repo.list_messages(db, repo.owner_target(db, owner, animal_id), owner_view=True)
-
-
-@router.post("/owner/animals/{animal_id}/chat", response_model=MessageRead, status_code=201)
-def owner_send(animal_id: UUID, body: MessageCreate, owner: Owner, db: DB):
-    return send_message(db, repo.owner_target(db, owner, animal_id, write=True), body, owner=owner)
 
 
 @clinical.get("/patients/{patient_id}/chat", response_model=list[MessageRead])

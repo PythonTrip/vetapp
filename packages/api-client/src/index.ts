@@ -3,7 +3,7 @@ import type { paths } from "@vetdietderm/api-contract";
 
 export type { paths, components, operations } from "@vetdietderm/api-contract";
 
-export type Audience = "staff" | "owner";
+export type Audience = "staff";
 export interface AuthAdapter<A extends Audience> {
   readonly audience: A;
   /** Native only: credentials from this audience's secure storage. */
@@ -79,8 +79,9 @@ export function createApiClient<A extends Audience>(options: Options<A>) {
         throw new Error("Request escaped the configured API base URL");
       }
       const path = url.pathname.slice(basePath.length);
-      const ownerRoute = ["/owner", "/v1/owner", "/v1/auth/owner"].some(prefix => path === prefix || path.startsWith(`${prefix}/`));
-      if (ownerRoute !== (options.audience === "owner")) throw new Error("API route audience mismatch");
+      // The owner cabinet API was removed; refuse its route namespaces outright.
+      const removedOwnerRoute = ["/owner", "/v1/owner", "/v1/auth/owner"].some(prefix => path === prefix || path.startsWith(`${prefix}/`));
+      if (removedOwnerRoute) throw new Error("API route audience mismatch");
       // Keep a pristine request for one retry, including PUT/POST bodies.
       const execute = async () => {
         const headers = new Headers(request.headers);
@@ -88,7 +89,7 @@ export function createApiClient<A extends Audience>(options: Options<A>) {
         if (!web && options.auth.headers) {
           const authHeaders = new Headers(await options.auth.headers());
           const cookie = authHeaders.get("Cookie");
-          const cookieName = options.audience === "staff" ? "vetapp_session" : "vetapp_owner_session";
+          const cookieName = "vetapp_session";
           if (cookie && (cookie.split(";").some(part => part.trim().split("=")[0] !== cookieName) || authHeaders.has("Authorization"))) {
             throw new Error("Credentials must belong to one audience and one authentication scheme");
           }

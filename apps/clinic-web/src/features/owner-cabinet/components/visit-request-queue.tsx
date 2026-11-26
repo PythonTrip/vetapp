@@ -13,7 +13,7 @@ import { ownerError, registrationsApi, visitAnswerLabel, visitRequestsApi, type 
 import { speciesLabel } from "@/features/patients/form";
 import type { BookableVisitType } from "@/features/appointments/api";
 import { BOOKABLE_VISIT_TYPES, VISIT_TYPE_LABELS } from "@/features/appointments/labels";
-import { VISIT_STATUS_LABELS, VISIT_STATUS_STYLES } from "@vetdietderm/owner-features/domain";
+import { VISIT_STATUS_LABELS, VISIT_STATUS_STYLES } from "@/shared/domain/visits";
 
 const selectClass = "min-h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm";
 

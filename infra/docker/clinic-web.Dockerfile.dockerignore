@@ -5,8 +5,6 @@
 !apps/
 !apps/clinic-web/
 !apps/clinic-web/**
-!apps/owner-web/
-!apps/owner-web/package.json
 !packages/
 !packages/**
 **/node_modules

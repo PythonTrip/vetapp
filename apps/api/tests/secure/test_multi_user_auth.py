@@ -1,5 +1,4 @@
 """Boundary tests use an isolated SQLite store and a deterministic auth authority."""
-import time
 from uuid import uuid4
 
 import httpx
@@ -237,29 +236,19 @@ def test_personal_rows_move_into_the_clinic_once(engine, monkeypatch):
             db.commit()
 
 
-def test_telegram_cabinet_survives_when_clinic_link_belongs_to_another_doctor(engine, monkeypatch):
+def test_owner_rows_survive_when_clinic_link_belongs_to_another_doctor(engine):
     from datetime import datetime, timezone
 
-    from fastapi import Request
     from sqlalchemy import func
-    from starlette.responses import Response
 
-    from vetdietderm_api.chat import repository as chat
     from vetdietderm_api.chat.models import ChatMessage, ChatThread
     from vetdietderm_api.ids import uuid6
-    from vetdietderm_api.owners import repository as owners
     from vetdietderm_api.owners.models import (
         ClinicLink, JoinCode, OwnerAccount, OwnerAnimal, OwnerRegistration, TelegramIdentity,
     )
-    from vetdietderm_api.owners.telegram_accounts import telegram_exchange
-    from vetdietderm_api.owners.schemas import TelegramLogin
-    from vetdietderm_api.settings import Settings
     from vetdietderm_api.tenancy import rehome_personal_rows
-    from vetdietderm_api.visits import repository as visits
     from vetdietderm_api.visits.models import VisitRequest
 
-    monkeypatch.setattr("vetdietderm_api.owners.sessions.get_settings",
-                        lambda: Settings(DATABASE_URL="sqlite://", FRONTEND_URL="http://testserver"))
     doctor, other, stranger = uuid4(), uuid4(), uuid4()
     clinic, elsewhere = uuid4(), uuid4()
     personal_code_id, clinic_code_id, stranger_code_id = uuid6(), uuid6(), uuid6()
@@ -327,16 +316,9 @@ def test_telegram_cabinet_survives_when_clinic_link_belongs_to_another_doctor(en
         assert db.get(TelegramIdentity, stranger_id).tenant_id is None
         assert db.get(Client, elsewhere_id).tenant_id == elsewhere
         before = population(db)
-        result = telegram_exchange(
-            TelegramLogin(code="clinic-code", init_data="signed"),
-            Request({"type": "http", "path": "/owner/telegram/login", "headers": [], "method": "POST"}),
-            Response(), db, link=False, verified=("111", "digest-cabinet", time.time() + 60))
-        assert result["uuid"] == account_id
-        owner = db.get(OwnerAccount, account_id)
-        assert [animal.name for animal in owners.list_animals(db, owner)] == ["Кот"]
-        messages = chat.list_messages(db, chat.owner_target(db, owner, animal_id), owner_view=True)
-        assert messages[0].body == "Раньше чесался" and messages[0].uuid == message_id
-        assert visits.owner_list(db, owner, animal_id)[0].reason == "Осмотр"
+        assert db.get(OwnerAnimal, animal_id).name == "Кот"
+        assert db.get(ChatMessage, message_id).body == "Раньше чесался"
+        assert db.get(VisitRequest, visit_id).reason == "Осмотр"
         assert population(db) == before
         rehome_personal_rows(db, doctor, clinic, organization_name="Клиника")
         assert population(db) == before

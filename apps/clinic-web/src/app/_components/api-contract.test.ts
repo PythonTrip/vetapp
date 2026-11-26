@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiError, registerAuthRecovery } from "@/shared/api/client";
+import { registerAuthRecovery } from "@/shared/api/client";
 import { visitQuestionnairesApi } from "@/features/appointments/api";
-import { ownerRequest } from "@/features/owner-cabinet/api";
 
-afterEach(() => { vi.unstubAllGlobals(); });
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("questionnaire feature on the generated client", () => {
   it("uses the same-origin proxy with cookies, CSRF and a typed PUT", async () => {
@@ -27,15 +28,17 @@ describe("questionnaire feature on the generated client", () => {
     expect(await request.json()).toEqual({ questions: [] });
   });
 
-  it("uses existing terminal staff recovery while owner 401 cannot clear it", async () => {
-    const recover = vi.fn(async () => false); const clear = vi.fn();
+  it("runs staff recovery once on a clinical 401", async () => {
+    const recover = vi.fn(async () => false);
+    const clear = vi.fn();
     const unregister = registerAuthRecovery({ recover, onUnauthenticated: clear });
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({ detail: "expired" }, { status: 401 })));
     try {
-      await expect(ownerRequest("/me")).rejects.toBeInstanceOf(ApiError);
-      expect(recover).not.toHaveBeenCalled(); expect(clear).not.toHaveBeenCalled();
       await expect(visitQuestionnairesApi.list()).rejects.toMatchObject({ status: 401, message: "expired" });
-      expect(recover).toHaveBeenCalledTimes(1); expect(clear).toHaveBeenCalledTimes(1);
-    } finally { unregister(); }
+      expect(recover).toHaveBeenCalledTimes(1);
+      expect(clear).toHaveBeenCalledTimes(1);
+    } finally {
+      unregister();
+    }
   });
 });

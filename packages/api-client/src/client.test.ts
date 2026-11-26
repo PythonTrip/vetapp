@@ -8,25 +8,21 @@ const native = (fetch: typeof globalThis.fetch) => createApiClient({
 });
 
 describe("platform API client", () => {
-  it("supports v1 audience paths and structured errors without crossing credentials", async () => {
+  it("supports v1 staff paths and structured errors, refusing removed owner routes", async () => {
     const requests: Request[] = [];
     const fetch = vi.fn(async (input: RequestInfo | URL) => {
       requests.push(input as Request);
       return json({ error: { code: "conflict", message: "Already linked", details: { field: "email" } } }, 409);
     });
-    const owner = createApiClient({
-      platform: "native", baseUrl: "https://api.example.test", audience: "owner", fetch,
-      auth: { audience: "owner", headers: () => ({ Cookie: "vetapp_owner_session=owner" }) },
-    });
-    await expect(owner.GET("/v1/owner/me")).rejects.toMatchObject({
+    const staff = native(fetch);
+    await expect(staff.GET("/v1/staff/patients")).rejects.toMatchObject({
       status: 409, code: "conflict", message: "Already linked", details: { field: "email" },
     });
-    await expect(owner.POST("/v1/auth/owner/logout")).rejects.toMatchObject({ status: 409 });
-    await expect(owner.GET("/v1/staff/patients")).rejects.toThrow("audience mismatch");
-    await expect(native(fetch).GET("/v1/owner/me")).rejects.toThrow("audience mismatch");
-    await expect(native(fetch).POST("/v1/auth/owner/logout")).rejects.toThrow("audience mismatch");
+    await expect(staff.POST("/v1/auth/staff/logout")).rejects.toMatchObject({ status: 409 });
+    await expect(staff.GET("/v1/owner/me" as never)).rejects.toThrow("audience mismatch");
+    await expect(staff.POST("/v1/auth/owner/logout" as never)).rejects.toThrow("audience mismatch");
     expect(requests).toHaveLength(2);
-    expect(requests.every(request => request.headers.get("Cookie") === "vetapp_owner_session=owner")).toBe(true);
+    expect(requests.every(request => request.headers.get("Cookie") === "vetapp_session=staff")).toBe(true);
   });
 
   it("serializes typed path, query and body, retaining the native session", async () => {
@@ -74,22 +70,15 @@ describe("platform API client", () => {
     expect(cookies).toEqual(["vetapp_session=old", "vetapp_session=new"]);
   });
 
-  it("shares recovery only within its instance and never invokes staff recovery for owner 401", async () => {
+  it("shares one recovery flight per instance", async () => {
     let release!: (value: boolean) => void;
     const staffRecover = vi.fn(() => new Promise<boolean>(resolve => { release = resolve; }));
-    const staffLogout = vi.fn(); const ownerLogout = vi.fn();
+    const staffLogout = vi.fn();
     const fetch = vi.fn(async () => json({ detail: "expired" }, 401));
     const staff = createApiClient({
       platform: "native", baseUrl: "https://api.example.test", audience: "staff", fetch,
       auth: { audience: "staff", recover: staffRecover, onUnauthenticated: staffLogout },
     });
-    const owner = createApiClient({
-      platform: "native", baseUrl: "https://api.example.test", audience: "owner", fetch,
-      auth: { audience: "owner", onUnauthenticated: ownerLogout },
-    });
-    await expect(owner.GET("/owner/me")).rejects.toMatchObject({ status: 401 });
-    expect(staffRecover).not.toHaveBeenCalled(); expect(staffLogout).not.toHaveBeenCalled();
-    expect(ownerLogout).toHaveBeenCalledTimes(1);
     const first = staff.GET("/patients"); const second = staff.GET("/patients");
     const settled = Promise.allSettled([first, second]);
     await vi.waitFor(() => expect(staffRecover).toHaveBeenCalledTimes(1));
@@ -98,14 +87,14 @@ describe("platform API client", () => {
     expect(staffRecover).toHaveBeenCalledTimes(1);
   });
 
-  it("rejects route and credential audience mixing before sending a request", async () => {
+  it("rejects removed owner routes and mixed credentials before sending a request", async () => {
     const fetch = vi.fn(async () => json({}));
-    await expect(native(fetch).GET("/owner/me")).rejects.toThrow("audience mismatch");
-    const owner = createApiClient({
-      platform: "native", baseUrl: "https://api.example.test", audience: "owner", fetch,
-      auth: { audience: "owner", headers: () => ({ Cookie: "vetapp_session=staff; vetapp_owner_session=owner" }) },
+    await expect(native(fetch).GET("/owner/me" as never)).rejects.toThrow("audience mismatch");
+    const mixed = createApiClient({
+      platform: "native", baseUrl: "https://api.example.test", audience: "staff", fetch,
+      auth: { audience: "staff", headers: () => ({ Cookie: "vetapp_session=staff; vetapp_owner_session=owner" }) },
     });
-    await expect(owner.GET("/owner/me")).rejects.toThrow("one audience");
+    await expect(mixed.GET("/patients")).rejects.toThrow("one audience");
     await expect(native(fetch).GET("/patients", { headers: { Authorization: "Bearer wrong" } })).rejects.toThrow("auth adapter");
     expect(fetch).not.toHaveBeenCalled();
   });
@@ -151,18 +140,18 @@ describe("platform API client", () => {
     expect(dataOf({ data: [] })).toEqual([]);
   });
 
-  it("uploads a typed multipart file with isolated owner credentials", async () => {
+  it("uploads a typed multipart file with staff credentials", async () => {
     let received!: Request;
     const client = createApiClient({
-      platform: "native", baseUrl: "https://api.example.test", audience: "owner",
-      auth: { audience: "owner", headers: () => ({ Cookie: "vetapp_owner_session=owner" }) },
+      platform: "native", baseUrl: "https://api.example.test", audience: "staff",
+      auth: { audience: "staff", headers: () => ({ Cookie: "vetapp_session=staff" }) },
       fetch: async input => { received = input as Request; return json({ uuid: "file" }); },
     });
-    await client.POST("/owner/visits/{request_id}/files", {
-      params: { path: { request_id: "visit" } },
+    await client.POST("/patients/{patient_id}/attachments", {
+      params: { path: { patient_id: "patient" } },
       body: { file: new Blob(["photo"], { type: "image/jpeg" }) }, bodySerializer: multipartBody,
     });
-    expect(received.headers.get("Cookie")).toBe("vetapp_owner_session=owner");
+    expect(received.headers.get("Cookie")).toBe("vetapp_session=staff");
     expect(received.headers.has("X-Vetapp-Workspace")).toBe(false);
     expect(received.headers.get("Content-Type")).toContain("multipart/form-data; boundary=");
     const file = (await received.formData()).get("file") as Blob;

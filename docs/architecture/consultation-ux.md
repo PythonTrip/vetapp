@@ -81,6 +81,6 @@
 
 ## Карта реализации
 
-- Владелец: `packages/owner-features/src/components/{cabinet-home,animal-list,visit-request-form,connection-status}.tsx`; общие подписи и приоритеты — `packages/owner-features/src/domain.ts`.
-- Врач: `apps/clinic-web/src/app/_components/{schedule,app-shell,encounter-workspace}.tsx`; `features/appointments/components/schedule-board.tsx`, `features/owner-cabinet/components/visit-request-queue.tsx`, `features/encounters/components/dermatology-gallery.tsx` внутри того же приложения.
+- Владелец (runtime удалён, архив `archive/owner-cabinet`): бывшие UI-модули больше не входят в активный workspace.
+- Врач: `apps/clinic-web/src/app/_components/{schedule,app-shell,encounter-workspace}.tsx`; `features/appointments/components/schedule-board.tsx`, `features/owner-cabinet/components/visit-request-queue.tsx`, `shared/domain/visits.ts`, `features/encounters/components/dermatology-gallery.tsx` внутри того же приложения.
 - API: `apps/api/src/vetdietderm_api/visits/{models,schemas,repository,router}.py`, `appointments/{schemas,repository}.py`, существующие attachments/encounters; миграция — `apps/api/alembic/versions/0032_visit_reason.py`.

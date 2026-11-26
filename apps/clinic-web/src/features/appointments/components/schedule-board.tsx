@@ -35,7 +35,7 @@ import { usePatientsQuery, usePatientQuery } from "@/features/patients/hooks";
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value";
 import { apiErrorMessage } from "@/shared/api/error-message";
 import { speciesLabel } from "@/features/patients/form";
-import { consultationState, VISIT_STATUS_STYLES } from "@vetdietderm/owner-features/domain";
+import { consultationState, VISIT_STATUS_STYLES } from "@/shared/domain/visits";
 
 function startOfDay(date: Date): Date {
   const next = new Date(date);

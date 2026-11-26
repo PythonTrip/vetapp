@@ -35,7 +35,6 @@ export function createHttpClient(options: { audience: Audience }) {
   function resolveUrl(input: string): string {
     if (/^https?:/.test(input) || input.startsWith("//")) throw new Error("Only relative API paths are supported");
     const path = input.startsWith("/") ? input : `/${input}`;
-    if (options.audience === "owner" && (!path.startsWith("/owner/") || /(?:^|\/)(?:\.|%2e){1,2}(?:\/|$)/i.test(path) || path.includes("\\"))) throw new Error("Owner API route required");
     return `${getApiBaseUrl()}${path}`;
   }
 
@@ -113,7 +112,7 @@ export function createHttpClient(options: { audience: Audience }) {
       headers: authenticatedHeaders(init.headers),
     });
     const response = await execute();
-    if (response.status !== 401 || !allowRecovery || options.audience === "owner") return response;
+    if (response.status !== 401 || !allowRecovery) return response;
     return await recoverSession() ? execute() : response;
   }
 

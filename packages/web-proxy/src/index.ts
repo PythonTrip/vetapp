@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-export function createWebProxy(options: { audience: "staff" | "owner"; frontendUrl?: () => string | undefined }) {
+export function createWebProxy(options: { audience: "staff"; frontendUrl?: () => string | undefined }) {
 
   const HOP_BY_HOP = new Set([
     "connection",
@@ -37,8 +37,8 @@ export function createWebProxy(options: { audience: "staff" | "owner"; frontendU
         return NextResponse.json({ detail: "Недопустимый источник запроса" }, { status: 403 });
     }
     const { path } = await context.params;
-    if (options.audience === "owner" && (path[0] !== "owner" || path.some(part => /[\\/%]/.test(part) || part === "." || part === "..")))
-      return NextResponse.json({ detail: "Not found" }, { status: 404 });
+    // The owner cabinet API was removed; never forward its namespace.
+    if (path[0] === "owner") return NextResponse.json({ detail: "Not found" }, { status: 404 });
     const target = new URL(`${apiOrigin()}/${path.map(encodeURIComponent).join("/")}`);
     target.search = request.nextUrl.search;
 
@@ -49,14 +49,6 @@ export function createWebProxy(options: { audience: "staff" | "owner"; frontendU
       cache: "no-store",
     };
 
-    if (options.audience === "owner") {
-      init.headers = new Headers(init.headers);
-      init.headers.delete("Authorization");
-      init.headers.delete("X-Vetapp-Workspace");
-      const cookie = request.cookies.get("vetapp_owner_session")?.value;
-      init.headers.delete("Cookie");
-      if (cookie) init.headers.set("Cookie", `vetapp_owner_session=${cookie}`);
-    }
     if (request.method !== "GET" && request.method !== "HEAD") {
       init.body = request.body;
       Object.assign(init, { duplex: "half" });

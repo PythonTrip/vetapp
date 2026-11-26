@@ -4,8 +4,6 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN corepack enable
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/clinic-web/package.json ./apps/clinic-web/package.json
-COPY apps/owner-web/package.json ./apps/owner-web/package.json
-COPY packages/owner-features/package.json ./packages/owner-features/package.json
 COPY packages/ui/package.json ./packages/ui/package.json
 COPY packages/web-proxy/package.json ./packages/web-proxy/package.json
 COPY packages/api-contract/package.json ./packages/api-contract/package.json

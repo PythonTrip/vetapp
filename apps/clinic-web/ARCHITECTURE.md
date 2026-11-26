@@ -7,7 +7,7 @@ Next.js routing остаётся в `src/app/`: пути, параметры, la
 ```text
 src/
   app/
-    _components/       # композиция экранов, shell и граница staff/owner
+    _components/       # композиция экранов и staff shell
     _lib/navigation.ts # сопоставление URL и разделов приложения
     ...                # существующие маршруты Next.js
   features/
@@ -17,9 +17,10 @@ src/
     nutrition/         # продукты, нутриенты, оценка и планы питания
     appointments/      # расписание, записи и API анкет визитов
     authentication/    # account API, auth context, workspace и организация
-    owner-cabinet/     # кабинет владельца, заявки, привязки, файлы и чат
+    owner-cabinet/     # staff-очереди регистраций/визитов, clinic bot, чат
   shared/
     api/               # транспорт, ошибки, retry и тип доступа к API-схеме
+    domain/            # подписи визитов/животных для staff UI
     hooks/             # debounce и toast
     lib/               # классы CSS и форматирование времени
     providers/         # React Query и theme
@@ -39,9 +40,10 @@ hooks. Ключи кеша и invalidation остаются прежними. С
 например, данные пациента остаются в `patients`, даже если их читает диетолог.
 
 `shared/api/client.ts` сохраняет единственный транспорт и его состояние:
-workspace, регистрацию восстановления сессии, cookies и CSRF. Он не знает
-features. `authentication/api.ts` владеет account-запросами, а
-`owner-cabinet/api.ts` сохраняет отдельное поведение owner 401.
+регистрацию восстановления сессии, cookies и CSRF. Он не знает features.
+`authentication/api.ts` владеет account-запросами.
+`owner-cabinet/api.ts` обслуживает staff-очереди регистраций, визитов и чата.
+Owner Cabinet host и owner auth удалены из runtime (архив `archive/owner-cabinet`).
 Генерируемые контракты по-прежнему находятся в `packages/api-contract`.
 
 ## Межфункциональные зависимости

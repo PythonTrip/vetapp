@@ -16,8 +16,6 @@ Vet Space is a veterinary clinical workbench for specialists who manage patients
 - Private-practice veterinary nutritionists and dermatologists
 - Small specialty clinics and cabinets
 - Assistants and admins who schedule visits and owner communications
-- Pet owners who enter one clinic through that clinic's link or Telegram bot
-
 Cycles #1–#10 are closed. The next cycle is Catalog Browse (#11). Specialty Depth follows as #12. The clinic workspace runs on an existing VPS.
 
 ## Business Model
@@ -32,17 +30,15 @@ Near-term emphasis remains a trustworthy FEDIAF 2025 dietetics assistant. The Fo
 
 The nutrition workbench lets the clinician start from a real Patient or a manual profile, browse the Food catalog as a nutrient table, and assess a ration against FEDIAF for dogs and cats. The next browse model is a category tree on the catalog tab and the same table inside the ration add dialog. Energy need and nutrient norms are independent clinical questions, joined only by animal-context compatibility. The clinician works a scenario (animal, energy method, nutrient standard, ration). Disease-specific therapeutic nutrient profiles remain a later specialization.
 
-The owner's cabinet is a separate web host. The owner registers animals, chats with the practice, requests a visit by describing the problem, and downloads files the clinician shares. The clinician workspace stays the system of record.
-
-Each clinic, including a solo doctor, has one Telegram bot. The administrator pastes that clinic's bot token and finishes BotFather setup from the settings screen. An owner who opens that bot, or the clinic's one link, enters that clinic's cabinet. The same person in another clinic has a separate cabinet. Catalog browse is the next cycle. Specialty depth follows it.
+The Owner Cabinet (owner web host, owner API, owner sessions, Telegram Mini App and Login Widget sign-in) is removed from the active runtime. Its full source is archived on branch `archive/owner-cabinet`. The clinician workspace is the system of record. Clinic bot credentials and the staff-side registrations queue, visit requests, and patient chat remain; existing owner-side data stays in PostgreSQL untouched, and existing owner sessions are revoked by migration `0041_revoke_owner_sessions`. Catalog browse is the next cycle. Specialty depth follows it.
 
 ## Current Functionality
 
-Shipped runtime is a split stack: clinic UI in `apps/clinic-web/`, owner UI in `apps/owner-web/`, one FastAPI process in `apps/api/`, and an already provisioned PostgreSQL. Prisma is not in the repository. Clinical calculations are not duplicated in React.
+Shipped runtime is a stack of clinic UI in `apps/clinic-web/`, one FastAPI process in `apps/api/`, and an already provisioned PostgreSQL. Prisma is not in the repository. Clinical calculations are not duplicated in React.
 
-Browser calls go to same-origin `/api/*`. A Next.js Route Handler proxies to FastAPI (`API_INTERNAL_URL`). That handler is transport, not the product backend. Staff and owner cookies do not open each other's surface.
+Browser calls go to same-origin `/api/*`. A Next.js Route Handler proxies to FastAPI (`API_INTERNAL_URL`). That handler is transport, not the product backend. The API has no `/owner/*` routes and accepts no owner cookie.
 
-`pnpm compose up` starts the API and clinic UI (Alembic on API start; attachments on a named volume). Owner UI is the Compose profile `owner` (`pnpm compose --profile owner`, loopback `127.0.0.1:3004`). Compose does not start PostgreSQL. Local `uv` + `pnpm dev` / `pnpm dev:owner` is the other run path.
+`pnpm compose up` starts the API and clinic UI (Alembic on API start; attachments on a named volume). Compose does not start PostgreSQL. Local `uv` + `pnpm dev` is the other run path. The `owner` Compose profile and `owner-web` service were removed.
 
 ### Clinic workspace
 
@@ -52,8 +48,8 @@ Browser calls go to same-origin `/api/*`. A Next.js Route Handler proxies to Fas
 - Encounters on the patient card and `/encounter`: specialty (dermatology / nutrition / general), type, statuses draft / in progress / completed
 - Structured clinical form builder for anamnesis and exam. Generated clinical text plus optional manual edit. Plan remains free text. Diagnoses, VAS 1–10, autosave
 - Visit templates: system structured templates ship in the UI (general primary/recheck, dermatology, nutrition, gastro). Clinic and doctor templates may add a JSON `definition`. `standard` rows stay read-only
-- Dermatology gallery: lesion photos and PDFs on disk (`ATTACHMENT_DIR`, 8 MiB, JPEG/PNG/WebP/GIF/PDF), metadata and VAS in PostgreSQL, optional link to an encounter. The owner downloads a gallery file only after the clinician turns on «Показывать владельцу»
-- Schedule (`/schedule`): day list with visit type and status, create / reschedule / cancel, deep-link to `/encounter?appointmentId=`. A completed appointment can carry one manual ruble amount; marking it paid freezes that amount. The owner sees due or paid and cannot pay in the cabinet
+- Dermatology gallery: lesion photos and PDFs on disk (`ATTACHMENT_DIR`, 8 MiB, JPEG/PNG/WebP/GIF/PDF), metadata and VAS in PostgreSQL, optional link to an encounter. The «Показывать владельцу» flag is stored, but no owner surface reads it after the Owner Cabinet removal
+- Schedule (`/schedule`): day list with visit type and status, create / reschedule / cancel, deep-link to `/encounter?appointmentId=`. A completed appointment can carry one manual ruble amount; marking it paid freezes that amount
 - Encounter workspace can start from an appointment or without a slot. The first empty complaint linked from an appointment receives the owner request problem text. A complaint the doctor has written stays as written
 - Communication log on the patient card (channel, direction, follow-up time), separate from animal chat
 - Nutrition workspace (`/nutrition`): **Рацион и анализ**, **Недавние планы**, **Каталог Foods**
@@ -70,18 +66,17 @@ Browser calls go to same-origin `/api/*`. A Next.js Route Handler proxies to Fas
 - Russian UI, theme toggle, sign-in on the start screen (register, email code, password reset). Clinical routers require the HttpOnly session cookie. `/health` is a public process check. Public `/ready` requires the clinical session and then pings PostgreSQL
 - List windows: patients/clients 50, foods 50, diet plans 50, appointments 200
 
-### Clinic door and owner cabinet
+### Clinic door and staff-side owner data
 
 - The clinic is the only clinical tenant. There is no personal-workspace switch and no `X-Vetapp-Workspace` header. A doctor's null-tenant clinical rows move into the clinic on the first clinical session
 - Each verified doctor works in one clinic and can join another only when that clinic has no patients and no connected owners. Templates, catalog items, and patient-less diet plans move with the doctor. The empty clinic is deactivated and its bot credential is removed. A clinic that already has patients or owners does not move
 - The signed-in profile supplies the doctor label (`display_name`, otherwise email). That label is stored on doctor-scoped catalog and template rows as `doctor_name`. Row isolation for `scope = doctor` uses `created_by`
-- Each clinic has one permanent owner link and stores its own Telegram bot credential. Mini App launch data and the website widget use that clinic token. Email registration and sign-in on the clinic link work before a bot is connected. Email and Telegram identities are scoped to the clinic
-- Owner UI runs as `apps/owner-web` (`/`, `/join`, `/join/[code]`, `/cabinet`). Shared owner scenarios live in `packages/owner-features` and are reused by the Telegram adapter. Clinic UI still serves the same routes as a compatibility host for staff-adjacent entry; staff queues stay in Clinic UI
-- Owner registrations stay in a queue on `/patients` until acceptance. Editors create or select a client and match animals. After linking, the owner sees and edits passports of every patient on that client and keeps client contact details synchronized. Clinical fields stay private. Clinicians can create clients and patients without owner accounts
-- Each animal has one text conversation, available before acceptance. Acceptance keeps that history on the patient «Коммуникации» tab beside the communication log. The owner can attach files to a message (same 8 MiB image/PDF limits). Messages are not edited or deleted. There are no notifications. The owner sees each staff reply under the label stored on that message. Staff see owner messages as «Владелец»
-- The owner can store a pet photo and private documents on the animal. Those files are not the clinician gallery
-- The clinic publishes one optional questionnaire. Among existing clinic rows, primary wins; otherwise the latest save wins, with the greater questionnaire id breaking a tie. Owner and admin replace the list; member and viewer can read it. Every answer is optional. Replacing the list does not change submitted answer snapshots
-- From the animal card, the owner describes the problem (required, 1–4000 characters after trimming), proposes a visit time, optionally answers the questionnaire, and attaches photos/PDFs (up to 8 MiB each). The owner chooses neither a visit type nor a specialty. The request stays off the day schedule until staff confirm a real start, duration, and one of the four bookable visit types (`primary`, `secondary`, `consultation`, `supervision`). Confirming also accepts a pending registration in one transaction. New appointments use only those four types. Existing legacy types (`recheck`, `procedure`, `telemedicine`) remain readable and are not copied onto the owner request
+- Each clinic stores its own Telegram bot credential in PostgreSQL. Administrators read and replace it through `GET`/`PUT /clinic-bot`. The credential is not read from environment variables
+- `GET /join-codes/current` returns the clinic's stored code and organization metadata. It returns no owner join link because no owner host exists
+- Owner registrations already stored stay in a queue on `/patients` until acceptance. Editors create or select a client and match animals. Clinicians can create clients and patients without owner accounts. No new owner registration can arrive: owner sign-up, sign-in, Telegram Mini App and Login Widget authentication are removed
+- Each registration animal and patient keeps one text conversation. Staff read and write it through the patient «Коммуникации» tab and the registration queue. Messages are not edited or deleted
+- The clinic publishes one optional questionnaire. Among existing clinic rows, primary wins; otherwise the latest save wins, with the greater questionnaire id breaking a tie. Owner and admin replace the list; member and viewer can read it. Replacing the list does not change submitted answer snapshots
+- Stored visit requests remain. Staff confirm a real start, duration, and one of the four bookable visit types (`primary`, `secondary`, `consultation`, `supervision`); confirming also accepts a pending registration in one transaction. Existing legacy types (`recheck`, `procedure`, `telemedicine`) remain readable
 - The pending area on `/patients` has «Регистрации» and «Запросы визитов», outside patient search, refreshing every 30 seconds. Observers can read both groups and download files. Editors confirm or reject
 
 Not shipped: Food `species_compatibility`, knowledge/AI handouts, drug checker, English UI, S3, dose/fluids calculators, signed encounters, backup/restore, online acquiring, owner email notices, in-Telegram booking, clinic-link rotation.
@@ -96,9 +91,9 @@ Not shipped: Food `species_compatibility`, knowledge/AI handouts, drug checker, 
 | 4 | ✅ Done | Core | Nutrition Workbench Polish | Nutritionist picks a Patient on `/nutrition`, browses Foods as a category-filtered nutrient table, and always gets a FEDIAF comparison after confirm. Confirmed profile and MER formula were strictly paired until #6. | [PRD](prd/2026-08-29_nutrition-workbench-polish_prd.md) |
 | 5 | ✅ Done | Core | Clinical CRM Pivot | Client/Patient/Encounter workspace with schedule, attachments, communications, structured form builder, encounter templates, and accounts with an organization. Signed encounters and encounter-stored calculations remain in Specialty Depth (#12). | — |
 | 6 | ✅ Done | Core | Nutrition Context Split | Energy formulas and nutrient profiles stay independent. The server resolves both from the animal card. Adult verdicts use imported MER95/110 and MER75/100 profiles. Stale results cannot look valid. | [PRD](prd/2026-08-29_nutrition-context-split_prd.md) |
-| 7 | ✅ Done | Pro | Owner Cabinet | A pet owner registers animals, chats, requests a visit, and downloads files the clinician shares. The later clinic door (#9) replaced doctor-code join and the platform bot. | [PRD](prd/2026-10-27_owner-cabinet_prd.md) |
+| 7 | ✅ Done | Pro | Owner Cabinet | A pet owner registers animals, chats, requests a visit, and downloads files the clinician shares. The later clinic door (#9) replaced doctor-code join and the platform bot. Runtime removed 2026-11-26; source archived on `archive/owner-cabinet`. | [PRD](prd/2026-10-27_owner-cabinet_prd.md) |
 | 8 | ✅ Done | Platform | Pilot Hardening | The running API calculates nutrition only with the in-process FEDIAF provider. Public `/ready` requires the clinical session. The container waits for PostgreSQL before the UI starts. Backup and restore stay later. | [PRD](prd/2026-10-27_pilot-hardening_prd.md) |
-| 9 | ✅ Done | Pro | Clinic Bot | Each clinic, including a solo doctor, has its own Telegram bot. The administrator pastes the bot token. Owners enter that clinic's cabinet from the bot or from one clinic link. The personal workspace and the platform bot are gone. Closed 2026-11-07. | [PRD](prd/2026-11-03_clinic-bot_prd.md) |
+| 9 | ✅ Done | Pro | Clinic Bot | Each clinic, including a solo doctor, has its own Telegram bot. The administrator pastes the bot token. Owners entered that clinic's cabinet from the bot or from one clinic link (owner entry removed 2026-11-26; clinic bot credentials remain). The personal workspace and the platform bot are gone. Closed 2026-11-07. | [PRD](prd/2026-11-03_clinic-bot_prd.md) |
 | 10 | ✅ Done | Pro | Booking by Problem | The owner requests a visit by describing the problem, without choosing a type or specialty. The clinic questionnaire stays optional. After the visit is conducted, the doctor enters one ruble amount and marks it paid. Closed 2026-11-17. | [PRD](prd/2026-11-07_booking-by-problem_prd.md) |
 | 11 | 🚧 In Progress | Pro | Catalog Browse | On Расчёт рациона, the nutritionist filters the Food catalog from a category tree, adds a ration food from that same nutrient table in a modal, and reads an incomplete ration total as ≥ the known amount. | [PRD](prd/2026-11-25_catalog-browse_prd.md) (draft) |
 | 12 | ⬜ Planned | Pro | Specialty Depth | Stronger derm/nutrition encounter templates, follow-up CRM, signed encounters, encounter-stored calculations, additional clinical calculators (dose, fluids), and disease-specific therapeutic nutrient profiles if still wanted. No PRD yet. | — |
@@ -106,23 +101,23 @@ Not shipped: Food `species_compatibility`, knowledge/AI handouts, drug checker, 
 ## Product Architecture
 
 - **Clinic web:** Next.js + TypeScript + Tailwind in `apps/clinic-web/`. UI only. Same-origin `/api` Route Handler proxies to FastAPI. Routing and screen composition stay in `app/`; domain UI in `features/`; technical primitives in `shared/`. See [frontend architecture](../apps/clinic-web/ARCHITECTURE.md).
-- **Owner web:** Next.js host in `apps/owner-web/`, port 3001 locally and `127.0.0.1:3004` in Compose profile `owner`. It does not import Clinic UI. Shared owner scenarios, browser/Telegram adapters, and passport labels live in `packages/owner-features`. Shared UI primitives live in `packages/ui`. The proxy helper lives in `packages/web-proxy`. See [Owner Web](architecture/owner-web.md).
+- **Owner web:** removed from the active runtime (archived on branch `archive/owner-cabinet`; see [Owner Web](architecture/owner-web.md)). Shared UI primitives live in `packages/ui`. The proxy helper lives in `packages/web-proxy` and serves the staff audience only.
 - **API contract:** FastAPI OpenAPI is the source of truth. `packages/api-contract` holds generated types. `packages/api-client` is the shared HTTP client. Additive `/v1` routes call the same handlers as the existing URLs. See [API contract](api-contract.md).
 - **API:** one FastAPI process (Pydantic contracts) with internal bounded contexts (`patients`, `encounters`, `encounter_templates`, `clinical_catalog`, `attachments`, `appointments`, `communications`, `catalog`, `guidelines`, `assessments`, `standards`, `owners`, `chat`, `visits`, `questionnaires`). Multiple API processes remain deferred.
 - **Nutrition standards:** `StandardRegistry` holds immutable in-process providers. Active FEDIAF edition is `fediaf/v2025` (`provider_version` `fediaf/v2025/1.1.0`, engine id `nutrition-engine/2.0.0`). `GET /guidelines/active` and assessments read the provider, not SQL guideline rows.
-- **Data:** existing PostgreSQL. No Vercel, no Neon. Docker Compose orchestrates API + clinic UI, and owner UI only with profile `owner`. Alembic runs to head (`visit_charge`, revision file `0040_visit_charge.py`) on API container start.
-- **Access:** external module-auth (`MODULE_AUTH_URL`) behind a FastAPI BFF. The browser holds an opaque HttpOnly staff cookie; tokens stay in `browser_sessions`. Owners use `vetapp_owner_session`. Owner passwords use per-account salted scrypt in PostgreSQL. Owner registration sends no email. `require_clinical_access` sets `tenant_id` from the doctor's active organization. Organization viewers are read-only except unsaved assessments. Food catalog writes require global `super_admin`.
+- **Data:** existing PostgreSQL. No Vercel, no Neon. Docker Compose orchestrates API + clinic UI. Alembic runs to head (`0041_revoke_owner_sessions`) on API container start.
+- **Access:** external module-auth (`MODULE_AUTH_URL`) behind a FastAPI BFF. The browser holds an opaque HttpOnly staff cookie; tokens stay in `browser_sessions`. There is no owner authentication: the API has no owner routes, and `vetapp_owner_session` is not accepted. `require_clinical_access` sets `tenant_id` from the doctor's active organization. Organization viewers are read-only except unsaved assessments. Food catalog writes require global `super_admin`.
 - **Core entities:** Client, Patient, Encounter, EncounterTemplate, ClinicalCatalogItem, Appointment, Attachment, Communication, Food, Nutrient, Diet Plan, Owner account, Clinic link, Clinic bot, Visit request, Visit questionnaire, Chat thread. FEDIAF edition identity is provider-owned. `guideline_standards` / `guideline_editions` remain in `public` as leftover metadata.
 - **Nutrition analysis model:** Animal Context lets the server independently resolve an Energy Formula and a Nutrient Profile. Compatibility is species + physiological context + required fields. Adult verdicts use imported MER95/110 and MER75/100 concentration profiles. Growth and reproduction keep their published life-stage profiles. Table VII-11 stays reference data and is not auto-selected for adults.
 - **Later:** signed encounters and specialty calculators (#12); S3. The manual post-visit charge is not a payment provider. Staff accounts live in module-auth. Client stays the owner and Patient stays the animal.
 
 ## Data
 
-Operational source of truth is PostgreSQL for clinical CRM, the owner cabinet, the Food catalog, and Diet Plan snapshots. Schema is Alembic through head `visit_charge`. Primary keys are UUID (UUIDv6). Timestamps are `timestamptz`. Nutrient inventory and assessment honesty rules live in `docs/Nutrient.md`.
+Operational source of truth is PostgreSQL for clinical CRM, retained owner-side tables (not dropped), the Food catalog, and Diet Plan snapshots. Schema is Alembic through head `0041_revoke_owner_sessions`. Primary keys are UUID (UUIDv6). Timestamps are `timestamptz`. Nutrient inventory and assessment honesty rules live in `docs/Nutrient.md`.
 
 FEDIAF normative values, energy formulas, applicability, and derived expressions are not request-path SQL. They load from `apps/api/src/vetdietderm_api/standards/fediaf/v2025/`. Alembic `0019` moved the former runtime tables into schema `legacy_guidelines`. That schema remains and is not on the request path.
 
-Staff accounts and organization membership live in module-auth. Owner accounts, scrypt password hashes, sessions, clinic links, clinic bot credentials, and pending registrations live in PostgreSQL. Assessments are not stored as rows: the engine writes one JSON snapshot onto `diet_plans` at save. Lesion binaries, owner uploads, and visit-request files live on disk; PostgreSQL keeps metadata only.
+Staff accounts and organization membership live in module-auth. Retained owner accounts, clinic links, clinic bot credentials, and pending registrations live in PostgreSQL (owner sessions are revoked and nothing creates new ones). Assessments are not stored as rows: the engine writes one JSON snapshot onto `diet_plans` at save. Lesion binaries, owner uploads, and visit-request files live on disk; PostgreSQL keeps metadata only.
 
 ### Relationship map
 
@@ -173,13 +168,15 @@ Archived in `legacy_guidelines` (not on the request path): `guideline_profiles`,
 
 Clinical foreign keys that still govern deletes: patients require a client (`RESTRICT`); encounters, appointments, attachments, and communications cascade from the patient; appointment and attachment encounter links `SET NULL`; diet plans `SET NULL` the patient so a plan can exist without one. `food_nutrient_values` cascades from the food and restricts the nutrient. Identity of a nutrient value is `(food_uuid, nutrient_uuid, basis, source_uuid)`. `source_uuid` has no `Source` table.
 
-### Owner cabinet
+### Owner-side tables (retained, no runtime writer)
+
+Owner Cabinet tables are kept as-is after the runtime removal; none is dropped. Only `owner_sessions` and `owner_telegram_exchanges` rows were deleted (migration `0041_revoke_owner_sessions`).
 
 | Table | Role |
 | --- | --- |
 | `join_codes` / `clinic_links` | One permanent code per clinic. `clinic_links.clinic_id` is the clinic; `code` points at `join_codes` |
-| `owner_accounts` / `owner_sessions` | Cabinet identity, scrypt hash, HttpOnly session hash. Email is unique per clinic |
-| `owner_telegram_identities` | One Telegram user per clinic cabinet |
+| `owner_accounts` / `owner_sessions` | Retained cabinet identity. `owner_sessions` is emptied by migration and never written |
+| `owner_telegram_identities` | Retained Telegram bindings, unused |
 | `owner_registrations` / `owner_animals` | Pending cabinet animals. Acceptance sets `client_uuid` and `patient_uuid` |
 | `clinic_bots` | One bot credential per clinic (`connected` or `error`). `bot_id` is unique |
 | `chat_threads` / `chat_messages` | One thread per owner animal and per patient. Messages are immutable text plus author label |
@@ -249,7 +246,7 @@ Never opened by FastAPI request handlers or Next.js. Catalog import is the opera
 - Import artifacts under `docs/data/` are operator CLI or archives. Request handlers do not read those JSON/CSV/XLSX files.
 - Clinical outputs remain informational (`GET /guidelines/active` `clinical_warning_ru`).
 - UI language: Russian. FEDIAF provider content is Russian.
-- Compose binds clinic UI `127.0.0.1:3003`, API `127.0.0.1:8001`, and owner UI `127.0.0.1:3004` when the `owner` profile is enabled. nginx should proxy only the UI hosts. `/api` stays on Next. Do not proxy the owner host through Clinic UI.
+- Compose binds clinic UI `127.0.0.1:3003`, and API `127.0.0.1:8001`. nginx should proxy only the UI host. `/api` stays on Next. The former owner host (`127.0.0.1:3004`) is gone; remove its nginx route.
 
 ## Known Decisions
 
@@ -269,7 +266,7 @@ Never opened by FastAPI request handlers or Next.js. Catalog import is the opera
 - Food `species_compatibility` is not in the product.
 - Encounter anamnesis and exam are structured documents. Plan stays free text.
 - The clinic is the only clinical tenant. A doctor joins a second clinic only when that clinic is empty of patients and owners.
-- Owners enter through the clinic bot or one permanent clinic link. Credentials stay in PostgreSQL. An owner session cannot open the clinician workspace.
+- Owner entry (clinic bot, clinic link, email sign-in) is removed. Clinic bot credentials stay in PostgreSQL for the staff settings screen. No owner cookie opens any route.
 - The owner describes the visit problem and does not choose a type or specialty. One clinic questionnaire, optional answers. After a conducted visit the doctor enters one ruble amount and marks it paid.
 - Lesion originals, owner uploads, and request files live on disk. Compose does not auto-import an existing `data/attachments` tree.
 - Next Route Handlers stay the public `/api` path. Direct FastAPI publish is loopback-only.
@@ -284,6 +281,7 @@ Never opened by FastAPI request handlers or Next.js. Catalog import is the opera
 - 2026-11-07 — Cycle #9 **Clinic Bot** closed. The personal workspace and the platform bot were removed. Specialty Depth moved to #11.
 - 2026-11-17 — Cycle #10 **Booking by Problem** closed on the problem request, one optional clinic questionnaire, staff visit classification, and one manual ruble charge. Specialty Depth was recorded as the next cycle. No PRD was written for it.
 - 2026-11-25 — **Catalog Browse** was inserted as #11 ahead of Specialty Depth. Specialty Depth moved to #12 and still has no PRD. The Catalog Browse PRD is a draft.
+- 2026-11-26 — Owner Cabinet runtime removed from `main` (owner-web, owner-features, owner auth/API, Mini App/widget). Source frozen on `archive/owner-cabinet`. Clinic bot credentials and staff queues retained; owner sessions revoked by Alembic `0041`.
 
 ## Open Product Questions
 

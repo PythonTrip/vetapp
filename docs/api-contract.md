@@ -18,10 +18,8 @@ Clients can migrate one feature at a time, using the same session in both versio
 | `/clients`, `/patients`, `/encounters`, `/appointments` | `/v1/staff` + existing path | Staff |
 | `/encounter-templates`, `/clinical-catalog`, `/communications` | `/v1/staff` + existing path | Staff |
 | `/attachments`, `/foods`, `/nutrients`, `/guidelines`, `/assessments`, `/diet-plans` | `/v1/staff` + existing path | Staff |
-| `/join-codes/current`, `/owner-registrations`, `/visit-questionnaires`, `/visit-requests` | `/v1/staff` + existing path | Staff |
+| `/join-codes/current`, `/clinic-bot`, `/owner-registrations`, `/visit-questionnaires`, `/visit-requests` | `/v1/staff` + existing path | Staff |
 | Patient/registration chat and nested clinical resources | `/v1/staff` + existing path | Staff |
-| `/owner/me`, `/owner/animals`, `/owner/files`, `/owner/visits`, `/owner/visit-questions` and nested owner resources | `/v1` + existing path | Owner |
-| `/owner/login`, `/owner/register`, `/owner/logout`, `/owner/join/{code}`, `/owner/telegram/*` | `/v1/auth` + existing path | Public onboarding/session operations |
 | `/auth-service/auth/login`, `/logout`, `/refresh` | `/v1/auth/staff/login`, `/logout`, `/refresh` | Staff session for refresh |
 | `/auth-service/auth/register`, `/email/*`, `/password/*` | `/v1/auth/staff/register`, `/email/*`, `/password/*` | Public onboarding/recovery |
 | `/auth-service/me` (GET) | `/v1/auth/staff/me` | Staff |
@@ -30,7 +28,8 @@ Clients can migrate one feature at a time, using the same session in both versio
 Methods, path/query parameters, request schemas and success status codes match
 the original business endpoints. Staff login/register now explicitly declare
 `{email, password}`. Staff refresh returns the profile, while tokens stay in the
-BFF. Owner login/register retain their existing request and response models.
+BFF. Owner Cabinet routes, owner sessions and Telegram Mini App / Login Widget
+auth were removed from the active runtime (archived on `archive/owner-cabinet`).
 Public staff onboarding/recovery responses remain provider-owned JSON; the schema
 does not promise fields the BFF does not validate. Downloads declare binary
 responses and uploads declare multipart bodies.
@@ -42,14 +41,11 @@ URLs; future `/v1` adapters should declare each operation individually. `/health
 and `/ready` keep their operational URLs. No legacy removal or deprecation date
 is introduced.
 
-`StaffSession` and `OwnerSession` are separate OpenAPI `apiKey` cookie schemes:
-`vetapp_session` and `vetapp_owner_session`. Staff authentication still validates
-the active, verified account through module-auth, including serialized refresh;
-owner authentication still checks the independent owner session store. Sending
-only the other realm's cookie returns 401. Both cookies may coexist, but each
-route reads only its own identity. Staff workspace, organization roles,
-super-admin catalog writes, owner animal ownership and attachment visibility
-checks apply equally to both URL versions.
+`StaffSession` is the OpenAPI `apiKey` cookie scheme `vetapp_session`. Staff
+authentication validates the active, verified account through module-auth,
+including serialized refresh. There is no owner cookie scheme in the active API.
+Staff workspace, organization roles, and super-admin catalog writes apply equally
+to both URL versions.
 
 Every `/v1` application error uses this shape (HTTP status remains meaningful):
 
@@ -69,12 +65,10 @@ supports both formats and exposes v1 `ApiError.code`, `message`, `details`, `sta
 New clients use the full versioned path with the API origin as base URL:
 
 ```ts
-const animals = dataOf(await owner.GET("/v1/owner/animals"));
 const questionnaires = dataOf(await staff.GET("/v1/staff/visit-questionnaires"));
 ```
 
-`X-Vetapp-CSRF: 1` is required for mutations, including login/logout. Staff
-clinical operations accept `X-Vetapp-Workspace: personal | organization`.
+`X-Vetapp-CSRF: 1` is required for mutations, including login/logout.
 These headers, cookie identities, error models and operation IDs appear in
 `/openapi.json` and `/docs`, and in the generated TypeScript contract.
 
@@ -85,7 +79,7 @@ links. `API_ALLOWED_ORIGINS` adds browser origins to the same allowlist used by
 CORS and CSRF, for example:
 
 ```dotenv
-API_ALLOWED_ORIGINS=["https://clinic.example.com","https://owner.example.com"]
+API_ALLOWED_ORIGINS=["https://clinic.example.com"]
 AUTH_COOKIE_SECURE=true
 AUTH_COOKIE_SAMESITE=lax
 ```
@@ -152,27 +146,25 @@ its terminal 401 does not trigger another token refresh in the browser.
 ## Native: direct HTTPS and isolated credentials
 
 ```ts
-const owner = createApiClient({
+const staff = createApiClient({
   platform: "native",
   baseUrl: "https://api.example.com",
-  audience: "owner",
+  audience: "staff",
   auth: {
-    audience: "owner",
-    headers: async () => ({ Cookie: `vetapp_owner_session=${await readOwnerSession()}` }),
-    onUnauthenticated: clearOwnerSession,
+    audience: "staff",
+    headers: async () => ({ Cookie: `vetapp_session=${await readStaffSession()}` }),
+    onUnauthenticated: clearStaffSession,
   },
 });
-const profile = dataOf(await owner.GET("/owner/me"));
+const profile = dataOf(await staff.GET("/v1/auth/staff/me"));
 ```
 
-`readOwnerSession`/`clearOwnerSession` are platform-owned secure-storage adapters,
+`readStaffSession`/`clearStaffSession` are platform-owned secure-storage adapters,
 not package implementations. Native transport uses `credentials: omit` to avoid
-an ambient cookie jar and accepts only the audience's session cookie through the
+an ambient cookie jar and accepts only the staff session cookie through the
 adapter. It also adds the CSRF marker required by the existing FastAPI routes.
-Use a separate staff instance with `vetapp_session`, its own storage and callbacks.
-The client rejects cross-audience routes, cookie mixing, caller-supplied
+The client rejects removed owner route namespaces, caller-supplied
 Authorization/Cookie headers, insecure URLs and redirects before credential leakage.
-Web cookies can coexist: each backend route selects its own session cookie.
 
 The package assumes standards-compatible fetch/Request/Response/Headers; inject
 `fetch` for a platform transport when needed. The platform must capture Set-Cookie
@@ -183,13 +175,12 @@ The generic headers adapter can support a future bearer protocol once the server
 implements it; it must never combine bearer and cookie credentials.
 
 An optional `recover` callback is single-flight per instance and retries a 401
-once with fresh credentials and the original body. Owner recovery cannot call
-staff callbacks. HTTP failures throw `ApiError` with status and validation details;
-network failures throw `ApiConnectionError`; abort errors remain abort errors.
-Use `parseAs: "blob"` for downloads. Upload schemas generate binary fields as
-`Blob`; pass `body: { file: blob }` and `bodySerializer: multipartBody` (exported
-by the package) for multipart uploads. Fetch sets the multipart boundary.
-A 204 yields `data: undefined` and does not
+once with fresh credentials and the original body. HTTP failures throw `ApiError`
+with status and validation details; network failures throw `ApiConnectionError`;
+abort errors remain abort errors. Use `parseAs: "blob"` for downloads. Upload
+schemas generate binary fields as `Blob`; pass `body: { file: blob }` and
+`bodySerializer: multipartBody` (exported by the package) for multipart uploads.
+Fetch sets the multipart boundary. A 204 yields `data: undefined` and does not
 need `dataOf`. Types describe the wire contract; they are not runtime validators.
 
 The module-auth BFF's existing profile/member/invite read endpoints have explicit
@@ -198,13 +189,9 @@ without precise payload schemas; those responses remain unknown rather than
 claiming a fabricated type. Clinical JSON document fields remain unknown where
 the backend declares free-form JSON, and consumers narrow them before use.
 
-### Clinic entry
+### Clinic bot and retained queues
 
-`GET /owner/join/{code}` previews the clinic name. Only the permanent code returned by
-`GET /join-codes/current` resolves. Superseded doctor codes return 404.
-
-Email registration and sign-in and Telegram login, widget, and account linking
-accept the clinic `code` in the request body. Telegram configuration accepts it
-as a query parameter and returns a null username until the clinic bot is connected.
-Owner profiles return `clinic_code` so the join page can match the active session
-to the clinic. The staff email reservation applies across clinics.
+`GET`/`PUT /clinic-bot` manage the clinic Telegram bot credential. Staff queues
+keep historical names `/owner-registrations` and `/visit-requests`.
+`GET /join-codes/current` returns the stored clinic code and organization
+metadata; it no longer returns an owner join URL.

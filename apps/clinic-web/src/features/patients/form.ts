@@ -1,7 +1,7 @@
 import { type PatientRecord, type PatientWrite, type Sex, type Species } from "@/features/patients/api";
 
 
-export { SEX_OPTIONS, SPECIES_OPTIONS, sexLabel, speciesLabel } from "@vetdietderm/owner-features/domain";
+export { SEX_OPTIONS, SPECIES_OPTIONS, sexLabel, speciesLabel } from "@/shared/domain/visits";
 export const LIFE_STAGE_OPTIONS = [
   { value: "puppy_kitten", label: "Щенок / котёнок" },
   { value: "adult", label: "Взрослый" },

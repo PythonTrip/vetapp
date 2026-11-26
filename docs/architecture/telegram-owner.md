@@ -1,3 +1,5 @@
+> **Archived: removed from the active runtime.** The Owner Cabinet (owner web host, owner API, owner sessions, Telegram Mini App and Login Widget sign-in) was removed from `main` on 2026-11-26. The implementation is preserved on branch `archive/owner-cabinet`. This document describes the archived behavior and is no longer maintained.
+
 # Telegram Mini App: быстрый вход владельца
 
 Открытие `/cabinet` в Mini App автоматически обменивает подписанный

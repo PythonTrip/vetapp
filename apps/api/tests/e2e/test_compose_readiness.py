@@ -22,7 +22,7 @@ from tests.postgres_auth_stub import CSRF, sign_in_staff
 
 API_ROOT = Path(__file__).resolve().parents[2]
 REPO_ROOT = API_ROOT.parents[1]
-WEB_SERVICES = ("frontend", "owner-web")
+WEB_SERVICES = ("frontend",)
 LEGACY_REVISION = "0039_owner_problem_request"
 
 
@@ -47,13 +47,7 @@ class ComposeStack:
                 "API_INTERNAL_URL": "http://vetapp-api:8000",
                 "AUTH_COOKIE_SECURE": "false",
                 "AUTH_COOKIE_SAMESITE": "lax",
-                "OWNER_COOKIE_SAMESITE": "lax",
-                "TELEGRAM_BOT_USERNAME": "",
-                "TELEGRAM_BOT_TOKEN": "",
-                "TELEGRAM_INIT_DATA_MAX_AGE": "300",
-                "TELEGRAM_WEB_ENABLED": "false",
                 "FRONTEND_URL": "http://127.0.0.1",
-                "OWNER_FRONTEND_URL": "http://127.0.0.1",
                 "API_ALLOWED_ORIGINS": "[]",
                 "NEXT_PUBLIC_API_URL": "/api",
             }
@@ -71,9 +65,6 @@ services:
     ports: !override ["127.0.0.1::8000"]
   frontend:
     container_name: {self.project}-frontend
-    ports: !override ["127.0.0.1::3000"]
-  owner-web:
-    container_name: {self.project}-owner
     ports: !override ["127.0.0.1::3000"]
   postgres:
     image: postgres:16
@@ -107,8 +98,6 @@ networks:
             str(REPO_ROOT / "infra" / "docker-compose.yml"),
             "--file",
             str(override),
-            "--profile",
-            "owner",
         )
 
     def docker(self, *args, timeout=30):
@@ -303,10 +292,8 @@ def test_compose_waits_for_migrated_api(compose_stack):
 def check_http_and_proxies(stack):
     api, _ = stack.address("api", 8000)
     clinic, _ = stack.address("frontend", 3000)
-    cabinet, _ = stack.address("owner-web", 3000)
     with (
         httpx.Client(base_url=api, headers=CSRF, trust_env=False) as staff,
-        httpx.Client(base_url=api, headers=CSRF, trust_env=False) as owner,
     ):
 
         def get_health():
@@ -319,20 +306,8 @@ def check_http_and_proxies(stack):
         sign_in_staff(staff)
         join = staff.get("/join-codes/current")
         assert join.status_code == 200, join.text
-        registered = owner.post(
-            "/owner/register",
-            json={
-                "code": join.json()["code"],
-                "name": "Readiness owner",
-                "email": "readiness@example.test",
-                "phone": "+70000000000",
-                "password": "synthetic readiness password",
-            },
-        )
-        assert registered.status_code == 201, registered.text
         staff_cookie = staff.cookies.get("vetapp_session")
-        owner_cookie = owner.cookies.get("vetapp_owner_session")
-        assert staff_cookie and owner_cookie
+        assert staff_cookie
 
         def proxy_read(path, cookie):
             try:
@@ -352,12 +327,3 @@ def check_http_and_proxies(stack):
         )
         assert staff_read.status_code == 200, staff_read.text
         assert staff_read.json()["code"] == join.json()["code"]
-        owner_read = wait_until(
-            lambda: proxy_read(
-                f"{cabinet}/api/owner/me", f"vetapp_owner_session={owner_cookie}"
-            ),
-            45,
-            "the owner web proxy to reach the database-backed profile route",
-        )
-        assert owner_read.status_code == 200, owner_read.text
-        assert owner_read.json()["email"] == "readiness@example.test"

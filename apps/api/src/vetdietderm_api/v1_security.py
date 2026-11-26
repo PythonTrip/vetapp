@@ -1,4 +1,4 @@
-"""Independent identity gates; neither accepts credentials from the other realm."""
+"""Staff identity gate for the versioned API."""
 
 from typing import Annotated
 
@@ -6,12 +6,8 @@ from fastapi import Depends, Header, HTTPException, Request, Security
 from fastapi.security import APIKeyCookie
 
 from vetdietderm_api import auth
-from vetdietderm_api.owners.models import OwnerAccount
-from vetdietderm_api.owners.sessions import COOKIE as OWNER_COOKIE
-from vetdietderm_api.owners.sessions import require_owner
 
 staff_cookie = APIKeyCookie(name=auth.COOKIE, scheme_name="StaffSession", auto_error=False)
-owner_cookie = APIKeyCookie(name=OWNER_COOKIE, scheme_name="OwnerSession", auto_error=False)
 
 
 def csrf_marker(
@@ -27,20 +23,8 @@ def staff_session(key: Annotated[str | None, Security(staff_cookie)]) -> None:
         raise HTTPException(401, "Войдите в аккаунт сотрудника")
 
 
-def owner_session(key: Annotated[str | None, Security(owner_cookie)]) -> None:
-    if not key:
-        raise HTTPException(401, "Войдите в кабинет владельца")
-
-
 def require_staff_identity(
     _session: Annotated[None, Depends(staff_session)],
     user: Annotated[dict, Depends(auth.require_user)],
 ) -> dict:
     return user
-
-
-def require_owner_identity(
-    _session: Annotated[None, Depends(owner_session)],
-    owner: Annotated[OwnerAccount, Depends(require_owner)],
-) -> OwnerAccount:
-    return owner

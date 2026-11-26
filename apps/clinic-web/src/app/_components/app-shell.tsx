@@ -18,7 +18,7 @@ import { useTheme } from "next-themes";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { sectionFromPathname, type AppSection } from "@/app/_lib/navigation";
-import { ConnectionStatus } from "@vetdietderm/owner-features/components/connection-status";
+import { ConnectionStatus } from "@/shared/ui/connection-status";
 
 const NAV_ITEMS: {
   id: AppSection;
