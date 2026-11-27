@@ -4,7 +4,7 @@ prd_id: 2026-11-27-client-contacts-messaging
 cycle_id: 2026-11-27-client-contacts-messaging
 cycle_slug: client-contacts-messaging
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 complexity: L
 criticality: Blocker
 ---
@@ -12,7 +12,7 @@ criticality: Blocker
 # Contact and Conversation
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 A private person who reaches the clinic bot becomes one clinic contact with exactly one conversation. The Telegram user id and chat id are assigned from inbound data and stay immutable. Staff with a write role can change only the local name. This issue does not create messages, send to Telegram, or add a messaging screen.
@@ -55,12 +55,12 @@ A private person who reaches the clinic bot becomes one clinic contact with exac
 - `docs/PROJECT.md`
 
 ## Implementation Steps
-- [ ] Add the Alembic revision and the SQLAlchemy models for `clinic_contacts` and `clinic_conversations` with the constraints in Requirements.
-- [ ] Implement `open_contact` with the local-name rule and the profile-update rule. Create the conversation in the same transaction as a new contact.
-- [ ] Add `GET /contacts`, `GET /contacts/{contact_id}`, and `PATCH /contacts/{contact_id}` using `request.state.tenant_id` and `request.state.user`. Reject a blank `local_name`.
-- [ ] Register the models in `load_models` and include the router from `include_clinical_and_versioned_routes` so `/v1/staff` aliases the same handlers.
-- [ ] Add the Known Decisions sentence in `docs/PROJECT.md`.
-- [ ] Run `pnpm api:generate` and the checks in Verification.
+- [x] Add the Alembic revision and the SQLAlchemy models for `clinic_contacts` and `clinic_conversations` with the constraints in Requirements.
+- [x] Implement `open_contact` with the local-name rule and the profile-update rule. Create the conversation in the same transaction as a new contact.
+- [x] Add `GET /contacts`, `GET /contacts/{contact_id}`, and `PATCH /contacts/{contact_id}` using `request.state.tenant_id` and `request.state.user`. Reject a blank `local_name`.
+- [x] Register the models in `load_models` and include the router from `include_clinical_and_versioned_routes` so `/v1/staff` aliases the same handlers.
+- [x] Add the Known Decisions sentence in `docs/PROJECT.md`.
+- [x] Run `pnpm api:generate` and the checks in Verification.
 
 ## Verification
 - `uv run --project apps/api python -c "from vetdietderm_api.main import app"` imports.

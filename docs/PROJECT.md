@@ -254,6 +254,7 @@ Never opened by FastAPI request handlers or Next.js. Catalog import is the opera
 - Prototype Prisma runtime is gone. Catalog was imported into PostgreSQL. FEDIAF runtime moved from SQL tables to an in-process provider in `0019`. Schema `legacy_guidelines` stays.
 - Happy path works with and without a saved Patient. Nutrition-session overrides, including target body weight, are not written back to the Patient card.
 - Client and Patient are separate. The patient card is read-only until the clinician starts an explicit edit.
+- A clinic contact stores an immutable Telegram user id and chat id, a staff-editable local name, and at most one Client, with one conversation per contact.
 - One Food catalog. Browse is a category tree, and ration add is a catalog-style modal. Browse stays category-based. Stored `type` remains on the Food row.
 - An incomplete ration total shows `≥` and the sum of known contributions in the Итого row. The normative status does not change.
 - Catalog table is the primary catalog view: sticky food name, nutrient columns by group, values on `per_100g_as_fed`. Empty until a category or name search. Page size 50 with load-more. Missing values sort last.
