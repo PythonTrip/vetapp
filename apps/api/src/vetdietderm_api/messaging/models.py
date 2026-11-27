@@ -2,7 +2,7 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, Index, Text, UniqueConstraint, false, text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, query_expression
 
 from vetdietderm_api.clock import utc_now
 from vetdietderm_api.db import Base
@@ -82,6 +82,10 @@ class ConversationMessage(Base):
     author_user_id: Mapped[UUID | None]
     author_label: Mapped[str | None] = mapped_column(Text)
     source_chat_message_uuid: Mapped[UUID | None]
+    patient_uuid: Mapped[UUID | None] = mapped_column(
+        ForeignKey("patients.uuid", name="fk_conversation_messages_patient", ondelete="RESTRICT"),
+    )
+    patient_current: Mapped[bool] = query_expression()
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
     @property

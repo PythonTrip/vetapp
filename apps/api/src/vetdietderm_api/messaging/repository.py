@@ -5,7 +5,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from vetdietderm_api.clock import utc_now
-from vetdietderm_api.messaging.models import ClinicContact, ClinicConversation
+from vetdietderm_api.messaging.models import ClinicContact, ClinicConversation, ConversationMessage
 
 
 def open_contact(
@@ -59,4 +59,22 @@ def clinic_contacts(clinic_id: UUID):
             & (ClinicConversation.clinic_id == ClinicContact.clinic_id),
         )
         .where(ClinicContact.clinic_id == clinic_id)
+    )
+
+
+def clinic_messages(clinic_id: UUID):
+    return (
+        select(ConversationMessage)
+        .select_from(ConversationMessage)
+        .join(
+            ClinicConversation,
+            (ClinicConversation.uuid == ConversationMessage.conversation_uuid)
+            & (ClinicConversation.clinic_id == ConversationMessage.clinic_id),
+        )
+        .join(
+            ClinicContact,
+            (ClinicContact.uuid == ClinicConversation.contact_uuid)
+            & (ClinicContact.clinic_id == ClinicConversation.clinic_id),
+        )
+        .where(ConversationMessage.clinic_id == clinic_id)
     )

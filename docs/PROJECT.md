@@ -75,6 +75,7 @@ Browser calls go to same-origin `/api/*`. A Next.js Route Handler proxies to Fas
 - The webhook stores private Telegram updates once in PostgreSQL. The API worker records transport completion, and cycle #13 can select those updates even after the clinic disconnects the bot.
 - A transport-complete private Telegram update becomes one inbound conversation message. Repeat deliveries do not insert a second row, and only a newer edit changes the stored message.
 - A conversation file uses the existing 8 MiB on-disk attachment store and has no patient gallery lesion record.
+- A conversation message has at most one Patient tag. A new tag must belong to the contact's current Client in the same clinic. A retained tag survives relinking and remains visible as a historical tag.
 - `GET /join-codes/current` returns the clinic's stored code and organization metadata. It returns no owner join link because no owner host exists
 - Owner registrations already stored stay in a queue on `/patients` until acceptance. Editors create or select a client and match animals. Clinicians can create clients and patients without owner accounts. No new owner registration can arrive: owner sign-up, sign-in, Telegram Mini App and Login Widget authentication are removed
 - The per-animal chat API and the chat in the registration queue are gone. Tables `chat_threads`, `chat_messages`, and `owner_uploads` remain

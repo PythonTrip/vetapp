@@ -4,7 +4,7 @@ prd_id: 2026-11-27-client-contacts-messaging
 cycle_id: 2026-11-27-client-contacts-messaging
 cycle_slug: client-contacts-messaging
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 complexity: L
 criticality: Blocker
 ---
@@ -12,7 +12,7 @@ criticality: Blocker
 # Patient Tag
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 A conversation message has at most one Patient. Write-role staff can set or clear that tag on an inbound or outbound message. A new tag is allowed only for a Patient of the contact's current Client, in the same clinic. An existing tag remains after the contact is linked to someone else, and it is not a current link to the new Client's patients.
@@ -52,10 +52,10 @@ A conversation message has at most one Patient. Write-role staff can set or clea
 - `packages/api-contract/src/generated.ts`
 
 ## Implementation Steps
-- [ ] Add `patient_uuid` with ON DELETE RESTRICT. Leave inbound insert values null.
-- [ ] Add `PATCH /messages/{message_id}` that updates only `patient_uuid` under the current-Client rule.
-- [ ] Add `patient_current` on the message read schema. Confirm client link and client create do not assign or clear message tags.
-- [ ] Add the PROJECT.md sentence, run `pnpm api:generate`, and run the checks in Verification.
+- [x] Add `patient_uuid` with ON DELETE RESTRICT. Leave inbound insert values null.
+- [x] Add `PATCH /messages/{message_id}` that updates only `patient_uuid` under the current-Client rule.
+- [x] Add `patient_current` on the message read schema. Confirm client link and client create do not assign or clear message tags.
+- [x] Add the PROJECT.md sentence, run `pnpm api:generate`, and run the checks in Verification.
 
 ## Verification
 - Link a contact, `PATCH` a message to one Patient of that Client, and confirm one stored `patient_uuid`. `PATCH` a different field is impossible because the schema has only `patient_uuid`.

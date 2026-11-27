@@ -3,22 +3,23 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import select, update
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, with_expression
 
 from vetdietderm_api.attachments.storage import resolve_file
 from vetdietderm_api.db import get_session
 from vetdietderm_api.messaging.audit import change_client_link, list_link_events
 from vetdietderm_api.messaging.models import ClinicContact, ConversationMessage
-from vetdietderm_api.messaging.repository import clinic_contacts
+from vetdietderm_api.messaging.repository import clinic_contacts, clinic_messages
 from vetdietderm_api.messaging.schemas import (
     ContactClientUpdate,
     ContactLinkEventRead,
     ContactRead,
     ContactUpdate,
     ConversationMessageRead,
+    MessagePatientUpdate,
 )
 from vetdietderm_api.patients import repository as patients
-from vetdietderm_api.patients.models import Client
+from vetdietderm_api.patients.models import Client, Patient
 from vetdietderm_api.patients.schemas import ClientCreate
 
 router = APIRouter()
@@ -74,11 +75,56 @@ def get_contact_messages(contact_id: UUID, request: Request, db: DatabaseSession
     clinic_id = UUID(str(request.state.tenant_id))
     _, conversation_uuid = get_clinic_contact(contact_id, clinic_id, db)
     messages = db.scalars(
-        select(ConversationMessage)
-        .where(ConversationMessage.clinic_id == clinic_id, ConversationMessage.conversation_uuid == conversation_uuid)
+        clinic_messages(clinic_id)
+        .outerjoin(
+            Patient,
+            (Patient.uuid == ConversationMessage.patient_uuid)
+            & (Patient.client_uuid == ClinicContact.client_uuid)
+            & (Patient.tenant_id == ClinicContact.clinic_id),
+        )
+        .options(with_expression(ConversationMessage.patient_current, Patient.uuid.is_not(None)))
+        .where(ConversationMessage.conversation_uuid == conversation_uuid)
         .order_by(ConversationMessage.occurred_at, ConversationMessage.uuid)
     )
     return [ConversationMessageRead.model_validate(message) for message in messages]
+
+
+@messages.patch("/{message_id}")
+def update_message_patient(
+    message_id: UUID, body: MessagePatientUpdate, request: Request, db: DatabaseSession,
+) -> ConversationMessageRead:
+    clinic_id = UUID(str(request.state.tenant_id))
+    # Serialize tag validation with relinks and keep the Patient association stable through commit.
+    contact = db.execute(
+        clinic_messages(clinic_id)
+        .with_only_columns(ClinicContact.client_uuid)
+        .where(ConversationMessage.uuid == message_id)
+        .with_for_update(of=ClinicContact)
+    ).one_or_none()
+    if contact is None:
+        raise HTTPException(404, "Запись не найдена")
+    if body.patient_uuid is not None:
+        if contact.client_uuid is None or db.scalar(
+            select(Patient.uuid)
+            .where(
+                Patient.uuid == body.patient_uuid,
+                Patient.client_uuid == contact.client_uuid,
+                Patient.tenant_id == clinic_id,
+            )
+            .with_for_update(read=True)
+        ) is None:
+            raise HTTPException(422, "Пациент не относится к текущему клиенту контакта")
+    message = db.scalars(
+        update(ConversationMessage)
+        .where(ConversationMessage.uuid == message_id, ConversationMessage.clinic_id == clinic_id)
+        .values(patient_uuid=body.patient_uuid)
+        .returning(ConversationMessage)
+    ).one_or_none()
+    if message is None:
+        raise HTTPException(404, "Запись не найдена")
+    message.patient_current = body.patient_uuid is not None
+    db.commit()
+    return ConversationMessageRead.model_validate(message)
 
 
 @messages.get(

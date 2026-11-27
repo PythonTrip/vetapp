@@ -17,6 +17,12 @@ class ContactClientUpdate(BaseModel):
     client_uuid: UUID | None
 
 
+class MessagePatientUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    patient_uuid: UUID | None
+
+
 class ContactLinkEventRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -66,4 +72,6 @@ class ConversationMessageRead(BaseModel):
     author_user_id: UUID | None
     author_label: str | None
     source_chat_message_uuid: UUID | None
+    patient_uuid: UUID | None
+    patient_current: bool
     created_at: datetime

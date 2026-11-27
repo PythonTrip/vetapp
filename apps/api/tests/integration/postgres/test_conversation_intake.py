@@ -11,7 +11,8 @@ from alembic import command
 from alembic.config import Config
 from cryptography.fernet import Fernet
 from fastapi import HTTPException, UploadFile
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
+from sqlalchemy.exc import IntegrityError
 from starlette.datastructures import Headers
 
 from tests.postgres_auth_stub import CLINIC_ID
@@ -156,6 +157,135 @@ def test_messages_deduplicate_and_keep_the_newest_edit(
         assert staff.get("/v1/staff" + path).json() == response.json()
         clinic_id = str(uuid4())
         assert staff.get(path).status_code == 404
+
+
+def test_patient_tag_follows_current_client_and_survives_relink(
+    postgres_database, postgres_application, staff_client, monkeypatch,
+):
+    app, _ = postgres_application(postgres_database)
+    config = Config(str(API_ROOT / "alembic.ini"))
+    config.set_main_option("script_location", str(API_ROOT / "alembic"))
+    command.upgrade(config, "0049_conversation_attachments")
+    queue_update(1, 100, "Inbound before migration")
+    # Seed an existing message using the previous schema.
+    factory = get_session_factory()
+    contact_id, conversation_id, outbound_id = uuid4(), uuid4(), uuid4()
+    clinic_id = UUID(CLINIC_ID)
+    with factory.begin() as db:
+        db.execute(ClinicContact.__table__.insert().values(
+            uuid=contact_id, clinic_id=clinic_id,
+            telegram_user_id=42, telegram_chat_id=42, local_name="Clinic contact",
+        ))
+        db.execute(ClinicConversation.__table__.insert().values(
+            uuid=conversation_id, clinic_id=clinic_id, contact_uuid=contact_id,
+        ))
+        db.execute(ConversationMessage.__table__.insert().values(
+            uuid=outbound_id, clinic_id=clinic_id, conversation_uuid=conversation_id,
+            direction="outbound", channel="telegram", body="Outbound before migration",
+            occurred_at=datetime.fromtimestamp(SENT_AT, UTC),
+        ))
+    command.upgrade(config, "head")
+    assert intake.process_next_business_update() is not None
+
+    with factory.begin() as db:
+        inbound = db.scalars(select(ConversationMessage).where(ConversationMessage.direction == "inbound")).one()
+        inbound_id = inbound.uuid
+        assert inbound.patient_uuid is db.get(ConversationMessage, outbound_id).patient_uuid is None
+        first_client = Client(name="First", tenant_id=clinic_id)
+        second_client = Client(name="Second", tenant_id=clinic_id)
+        db.add_all([first_client, second_client])
+        db.flush()
+        first_client_id, second_client_id = str(first_client.uuid), str(second_client.uuid)
+        first = Patient(name="First", species="dog", client_uuid=first_client.uuid, tenant_id=clinic_id)
+        replacement = Patient(name="Replacement", species="cat", client_uuid=first_client.uuid, tenant_id=clinic_id)
+        other_client = Patient(name="Other client", species="cat", client_uuid=second_client.uuid, tenant_id=clinic_id)
+        foreign_clinic = Patient(name="Foreign clinic", species="cat", client_uuid=first_client.uuid, tenant_id=uuid4())
+        db.add_all([first, replacement, other_client, foreign_clinic])
+        db.flush()
+        first_id, replacement_id, other_id, foreign_id = (
+            str(patient.uuid) for patient in (first, replacement, other_client, foreign_clinic)
+        )
+
+    contact_path = f"/contacts/{contact_id}"
+    inbound_path = f"/messages/{inbound_id}"
+    outbound_path = f"/v1/staff/messages/{outbound_id}"
+    role, request_clinic = "member", CLINIC_ID
+    upstream = auth.upstream
+
+    def with_membership(method, url, body=None, token=None):
+        response = upstream(method, url, body, token)
+        if url == "/me":
+            payload = response.json()
+            payload["organization"].update(org_role=role, org_id=request_clinic)
+            return httpx.Response(200, json=payload)
+        return response
+
+    monkeypatch.setattr(auth, "upstream", with_membership)
+    with staff_client(app, "editor@example.test") as staff:
+        def patch_tag(path, patient_id):
+            return staff.patch(path, json={"patient_uuid": patient_id})
+
+        def read_messages():
+            response = staff.get(contact_path + "/messages")
+            assert response.status_code == 200, response.text
+            return {message["uuid"]: message for message in response.json()}
+
+        unlinked = patch_tag(inbound_path, first_id)
+        assert unlinked.status_code == 422
+        assert unlinked.json() == {"detail": "Пациент не относится к текущему клиенту контакта"}
+        assert staff.put(contact_path + "/client", json={"client_uuid": first_client_id}).status_code == 200
+        assert patch_tag(inbound_path, other_id).status_code == 422
+        assert patch_tag(inbound_path, foreign_id).status_code == 422
+        assert patch_tag(f"/messages/{uuid4()}", first_id).status_code == 404
+        assert staff.patch(inbound_path, json={}).status_code == 422
+        assert staff.patch(inbound_path, json={"patient_uuid": first_id, "body": "Changed"}).status_code == 422
+
+        role = "viewer"
+        assert patch_tag(inbound_path, first_id).status_code == 403
+        assert read_messages()[str(inbound_id)]["patient_current"] is False
+        role = "member"
+        request_clinic = str(uuid4())
+        assert patch_tag(inbound_path, first_id).status_code == 404
+        request_clinic = CLINIC_ID
+
+        for path, message_id in ((inbound_path, inbound_id), (outbound_path, outbound_id)):
+            before = read_messages()[str(message_id)]
+            tagged = patch_tag(path, first_id)
+            assert tagged.status_code == 200, tagged.text
+            assert tagged.json() == {**before, "patient_uuid": first_id, "patient_current": True}
+        replaced = patch_tag(inbound_path, replacement_id)
+        assert replaced.status_code == 200, replaced.text
+        assert replaced.json()["patient_uuid"] == replacement_id
+        assert read_messages()[str(inbound_id)]["patient_current"] is True
+        with factory.begin() as db, pytest.raises(IntegrityError, match="fk_conversation_messages_patient"):
+            db.execute(delete(Patient).where(Patient.uuid == UUID(replacement_id)))
+
+        moved = staff.put(contact_path + "/client", json={"client_uuid": second_client_id})
+        assert moved.status_code == 200, moved.text
+        assert moved.json()["client_uuid"] == second_client_id
+        moved_message = read_messages()[str(inbound_id)]
+        assert (moved_message["patient_uuid"], moved_message["patient_current"]) == (replacement_id, False)
+        assert patch_tag(inbound_path, replacement_id).status_code == 422
+        assert staff.post(contact_path + "/client").status_code == 201
+        for message_id, patient_id in ((inbound_id, replacement_id), (outbound_id, first_id)):
+            message = read_messages()[str(message_id)]
+            assert (message["patient_uuid"], message["patient_current"]) == (patient_id, False)
+
+        cleared = patch_tag(inbound_path, None)
+        assert cleared.status_code == 200, cleared.text
+        assert (cleared.json()["patient_uuid"], cleared.json()["patient_current"]) == (None, False)
+        assert patch_tag(inbound_path, replacement_id).status_code == 422
+        assert staff.put(contact_path + "/client", json={"client_uuid": None}).status_code == 200
+        assert patch_tag(outbound_path, first_id).status_code == 422
+
+        queue_update(2, 101, "New inbound")
+        assert intake.process_next_business_update() is not None
+        new_inbound = next(message for message in read_messages().values() if message["telegram_message_id"] == 101)
+        assert (new_inbound["patient_uuid"], new_inbound["patient_current"]) == (None, False)
+
+    with factory() as db:
+        assert db.get(ConversationMessage, inbound_id).patient_uuid is None
+        assert db.get(ConversationMessage, outbound_id).patient_uuid == UUID(first_id)
 
 
 def test_business_worker_rolls_back_on_lifespan_shutdown(api_app, monkeypatch):
@@ -348,7 +478,7 @@ def test_message_files_follow_accepted_versions_and_clinic_access(api_app, staff
 
     paths = api_app.openapi()["paths"]
     assert set(paths["/messages/{message_id}/file"]) == {"get"}
-    assert "/messages/{message_id}" not in paths
+    assert set(paths["/messages/{message_id}"]) == {"patch"}
 
 
 def test_staff_composition_requires_text_or_a_supported_file():
