@@ -47,7 +47,11 @@ services:
         - CMD
         - python
         - -c
-        - "from vetdietderm_api.db import ping_database; ping_database()"
+        - |
+          from urllib.request import urlopen
+          from vetdietderm_api.db import ping_database
+          with urlopen('http://127.0.0.1:8000/health', timeout=3):
+              ping_database()
       interval: 15s
       timeout: 10s
       retries: 5

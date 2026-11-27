@@ -4,7 +4,7 @@ prd_id: 2026-11-26-telegram-bot-gateway
 cycle_id: 2026-11-26-telegram-bot-gateway
 cycle_slug: telegram-bot-gateway
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 complexity: L
 criticality: Blocker
 ---
@@ -12,7 +12,7 @@ criticality: Blocker
 # Public Intake
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 Telegram delivers updates to one deployment-wide HTTPS path. The path carries the clinic integration id, and the clinic is resolved from that stored id. A private `message` or `edited_message` is stored once and then acknowledged. Every other update kind is acknowledged and stored nowhere. Staff routes stay on the clinical session and the Next.js proxy.
@@ -66,12 +66,12 @@ Telegram delivers updates to one deployment-wide HTTPS path. The path carries th
 - `docs/PROJECT.md`
 
 ## Implementation Steps
-- [ ] Add the `0043_telegram_updates` revision and the `TelegramUpdate` model with the columns and constraints in Requirements. Register the model in `load_models`.
-- [ ] Move the webhook handler body into `telegram/intake.py`. Keep the contract issue's unknown-integration and secret checks. On a matching secret, apply the JSON, privacy, dedupe, and commit-before-200 rules in Requirements.
-- [ ] On `IntegrityError` for (`bot_id`, `update_id`), roll back the failed insert and return 200.
-- [ ] Keep payload, token, and webhook secret out of loguru calls.
-- [ ] Update the webhook and intake sentences in `docs/PROJECT.md`.
-- [ ] Run `pnpm api:generate` after the webhook responses change, then run the checks in Verification.
+- [x] Add the `0043_telegram_updates` revision and the `TelegramUpdate` model with the columns and constraints in Requirements. Register the model in `load_models`.
+- [x] Move the webhook handler body into `telegram/intake.py`. Keep the contract issue's unknown-integration and secret checks. On a matching secret, apply the JSON, privacy, dedupe, and commit-before-200 rules in Requirements.
+- [x] On `IntegrityError` for (`bot_id`, `update_id`), roll back the failed insert and return 200.
+- [x] Keep payload, token, and webhook secret out of loguru calls.
+- [x] Update the webhook and intake sentences in `docs/PROJECT.md`.
+- [x] Run `pnpm api:generate` after the webhook responses change, then run the checks in Verification.
 
 ## Verification
 - `uv run --project apps/api alembic upgrade head` applies `0043_telegram_updates`.

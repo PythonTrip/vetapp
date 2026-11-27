@@ -16,7 +16,7 @@ Vet Space is a veterinary clinical workbench for specialists who manage patients
 - Private-practice veterinary nutritionists and dermatologists
 - Small specialty clinics and cabinets
 - Assistants and admins who schedule visits and owner communications
-Cycles #1–#11 are closed. The next cycle is Telegram Bot Gateway (#12). Clinic Telegram Conversation follows as #13, then Specialty Depth as #14. The clinic workspace runs on an existing VPS.
+The roadmap is closed through Telegram Bot Gateway (#12). Clinic Telegram Conversation follows as #13, then Specialty Depth as #14. The clinic workspace runs on an existing VPS.
 
 ## Business Model
 
@@ -30,7 +30,7 @@ Near-term emphasis remains a trustworthy FEDIAF 2025 dietetics assistant. The Fo
 
 The nutrition workbench lets the clinician start from a real Patient or a manual profile, browse the Food catalog as a nutrient table, and assess a ration against FEDIAF for dogs and cats. Catalog browse is a category tree on the catalog tab and the same table inside the ration add dialog. Energy need and nutrient norms are independent clinical questions, joined only by animal-context compatibility. The clinician works a scenario (animal, energy method, nutrient standard, ration). Disease-specific therapeutic nutrient profiles remain a later specialization.
 
-The Owner Cabinet (owner web host, owner API, owner sessions, Telegram Mini App and Login Widget sign-in) is removed from the active runtime. Its full source is archived on branch `archive/owner-cabinet`. The clinician workspace is the system of record. Clinic bot credentials and the staff-side registrations queue, visit requests, and patient chat remain; existing owner-side data stays in PostgreSQL untouched, and existing owner sessions are revoked by migration `0041_revoke_owner_sessions`. The next cycle connects each clinic bot as a Telegram webhook and durably receives private updates. A later cycle turns those updates into a clinic conversation. Specialty depth follows that.
+The Owner Cabinet (owner web host, owner API, owner sessions, Telegram Mini App and Login Widget sign-in) is removed from the active runtime. Its full source is archived on branch `archive/owner-cabinet`. The clinician workspace is the system of record. Clinic bot credentials and the staff-side registrations queue, visit requests, and patient chat remain; existing owner-side data stays in PostgreSQL untouched, and existing owner sessions are revoked by migration `0041_revoke_owner_sessions`. Clinic bot webhooks now receive and persist private Telegram updates. Cycle #13 turns those updates into a clinic conversation.
 
 ## Current Functionality
 
@@ -72,6 +72,7 @@ Browser calls go to same-origin `/api/*`. A Next.js Route Handler proxies to Fas
 - Each verified doctor works in one clinic and can join another only when that clinic has no patients and no connected owners. Templates, catalog items, and patient-less diet plans move with the doctor. The empty clinic is deactivated and its bot credential is removed. A clinic that already has patients or owners does not move
 - The signed-in profile supplies the doctor label (`display_name`, otherwise email). That label is stored on doctor-scoped catalog and template rows as `doctor_name`. Row isolation for `scope = doctor` uses `created_by`
 - Each clinic stores its Telegram bot token and webhook secret in PostgreSQL as Fernet ciphertext. `GET /clinic-bot` exposes the credential status, webhook status, username, public `t.me` link and last error. Owners and admins connect or replace a bot through `PUT /clinic-bot`, which registers this deployment's webhook URL and rotates the secret while preserving the integration ID. Saving requires both the encryption key and public HTTPS base URL. `POST /clinic-bot/verify` checks the URL reported by Telegram and repairs a mismatch with the existing secret when available. `POST /clinic-bot/disconnect` clears the local credentials before asking Telegram to remove the webhook.
+- The webhook stores private Telegram updates once in PostgreSQL. The API worker records transport completion, and cycle #13 can select those updates even after the clinic disconnects the bot.
 - `GET /join-codes/current` returns the clinic's stored code and organization metadata. It returns no owner join link because no owner host exists
 - Owner registrations already stored stay in a queue on `/patients` until acceptance. Editors create or select a client and match animals. Clinicians can create clients and patients without owner accounts. No new owner registration can arrive: owner sign-up, sign-in, Telegram Mini App and Login Widget authentication are removed
 - Each registration animal and patient keeps one text conversation. Staff read and write it through the patient «Коммуникации» tab and the registration queue. Messages are not edited or deleted
@@ -96,7 +97,7 @@ Not shipped: Food `species_compatibility`, knowledge/AI handouts, drug checker, 
 | 9 | ✅ Done | Pro | Clinic Bot | Each clinic, including a solo doctor, has its own Telegram bot. The administrator pastes the bot token. Owners entered that clinic's cabinet from the bot or from one clinic link (owner entry removed 2026-11-26; clinic bot credentials remain). The personal workspace and the platform bot are gone. Closed 2026-11-07. | [PRD](prd/2026-11-03_clinic-bot_prd.md) |
 | 10 | ✅ Done | Pro | Booking by Problem | The owner requests a visit by describing the problem, without choosing a type or specialty. The clinic questionnaire stays optional. After the visit is conducted, the doctor enters one ruble amount and marks it paid. Closed 2026-11-17. | [PRD](prd/2026-11-07_booking-by-problem_prd.md) |
 | 11 | ✅ Done | Pro | Catalog Browse | On Расчёт рациона, the nutritionist filters the Food catalog from a category tree, adds a ration food from that same nutrient table in a modal, and reads an incomplete ration total as ≥ the known amount. Closed 2026-11-26. | [PRD](prd/2026-11-25_catalog-browse_prd.md) |
-| 12 | 🚧 In Progress | Platform | Telegram Bot Gateway | Each clinic connects, checks, and disconnects its own Telegram bot. The platform verifies the webhook URL, durably receives private updates, and processes them on a PostgreSQL queue inside the existing API process. Staff see bot health, not message text. | [PRD](prd/2026-11-26_telegram-bot-gateway_prd.md) (draft) |
+| 12 | ✅ Done | Platform | Telegram Bot Gateway | Each clinic connects, checks, and disconnects its own Telegram bot. The platform verifies the webhook URL, durably receives private updates, and processes them on a PostgreSQL queue inside the existing API process. Staff see bot health. | [PRD](prd/2026-11-26_telegram-bot-gateway_prd.md) (draft) |
 | 13 | ⬜ Planned | Pro | Clinic Telegram Conversation | A client writes to the clinic bot. Staff read that conversation in the clinic workspace and reply into the same Telegram chat. Stored gateway updates remain available for this processing. No PRD yet. | — |
 | 14 | ⬜ Planned | Pro | Specialty Depth | Stronger derm/nutrition encounter templates, follow-up CRM, signed encounters, encounter-stored calculations, additional clinical calculators (dose, fluids), and disease-specific therapeutic nutrient profiles if still wanted. No PRD yet. | — |
 
@@ -248,7 +249,7 @@ Never opened by FastAPI request handlers or Next.js. Catalog import is the opera
 - Import artifacts under `docs/data/` are operator CLI or archives. Request handlers do not read those JSON/CSV/XLSX files.
 - Clinical outputs remain informational (`GET /guidelines/active` `clinical_warning_ru`).
 - UI language: Russian. FEDIAF provider content is Russian.
-- Compose binds the clinic UI to `127.0.0.1:3003` and the API to `127.0.0.1:8001`. nginx proxies `/telegram/webhooks/` to the API. The UI and `/api` requests go to Next.js. Remove the former owner host's nginx route for `127.0.0.1:3004`.
+- Compose binds the clinic UI to `127.0.0.1:3003` and the API to `127.0.0.1:8001`. The only nginx location that forwards directly to FastAPI is `/telegram/webhooks/`. The UI and `/api` requests go to Next.js. Remove the former owner host's nginx route for `127.0.0.1:3004`.
 
 ## Known Decisions
 
@@ -272,8 +273,8 @@ Never opened by FastAPI request handlers or Next.js. Catalog import is the opera
 - The owner describes the visit problem and does not choose a type or specialty. One clinic questionnaire, optional answers. After a conducted visit the doctor enters one ruble amount and marks it paid.
 - Lesion originals, owner uploads, and request files live on disk. Compose does not auto-import an existing `data/attachments` tree.
 - Next Route Handlers stay the public `/api` path for staff calls. nginx publishes one Telegram webhook path to FastAPI on loopback. The bot token and webhook secret stay off the staff screen, out of logs, and out of stored error text.
-- A gateway transport mark does not consume a stored update. Cycle #13 still processes those updates into the clinic conversation.
-- Disconnect stops local intake even when Telegram does not remove the webhook.
+- One worker in the FastAPI process atomically claims PostgreSQL updates for all clinics. On restart it requeues unfinished claims below the three-attempt limit. A transport-complete mark retains the update for business processing in cycle #13.
+- The webhook resolves the clinic from the stored integration ID and authenticates the Telegram secret header. It commits private `message` and `edited_message` updates to `telegram_updates` before acknowledging them. Retries for the same bot ID and update ID and all other update kinds are acknowledged without inserting a row. Disconnect stops local intake and retains stored updates even when Telegram does not remove the webhook.
 - Online acquiring, a price list, prepayment, no-show fees, owner email, clinic-link rotation, in-Telegram booking, and moving a populated clinic stay later.
 
 ## Cycle History

@@ -1,5 +1,6 @@
+import asyncio
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,6 +14,7 @@ from vetdietderm_api.orm import load_models
 from vetdietderm_api.routing import include_clinical_and_versioned_routes, include_legacy_self_scoped_routes
 from vetdietderm_api.settings import get_settings
 from vetdietderm_api.telegram.router import router as telegram_router
+from vetdietderm_api.telegram.worker import run_worker
 
 
 class StatusResponse(BaseModel):
@@ -23,8 +25,14 @@ class StatusResponse(BaseModel):
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     get_settings()
     logger.info("Vet Space API starting")
-    yield
-    logger.info("Vet Space API stopped")
+    worker = asyncio.create_task(run_worker())
+    try:
+        yield
+    finally:
+        worker.cancel()
+        with suppress(asyncio.CancelledError):
+            await worker
+        logger.info("Vet Space API stopped")
 
 
 @logger.catch(reraise=True)

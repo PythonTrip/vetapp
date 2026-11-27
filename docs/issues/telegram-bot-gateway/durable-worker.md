@@ -4,7 +4,7 @@ prd_id: 2026-11-26-telegram-bot-gateway
 cycle_id: 2026-11-26-telegram-bot-gateway
 cycle_slug: telegram-bot-gateway
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 complexity: M
 criticality: High
 ---
@@ -12,7 +12,7 @@ criticality: High
 # Durable Worker
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 The existing FastAPI process runs one worker for every clinic bot. The worker claims queued `telegram_updates` atomically in PostgreSQL, marks transport complete, and leaves those rows available for cycle #13. A restart returns an unfinished claim to the queue. A transport failure is retried and does not stop other clinics.
@@ -44,12 +44,12 @@ The existing FastAPI process runs one worker for every clinic bot. The worker cl
 - `docs/PROJECT.md`
 
 ## Implementation Steps
-- [ ] Add `telegram/worker.py` with `release_abandoned_claims(session)`, `claim_next(session)`, `mark_transport_complete(session, uuid)`, and `record_transport_failure(session, uuid)`. `mark_transport_complete` writes only the transport columns from Requirements.
-- [ ] Add `run_worker()` which releases abandoned claims once, then loops: claim, mark complete, or apply the 3-attempt failure rule. Sleep 1 second when the queue is empty. Catch a single-row exception inside the loop, log the update uuid and attempt count with loguru, and continue.
-- [ ] Decorate `run_worker` with `@logger.catch`. Keep the inner handler so one failed update does not end the task.
-- [ ] Start one `asyncio.Task` for `run_worker` in the lifespan and cancel it after `yield`.
-- [ ] Update the worker sentences in `docs/PROJECT.md`.
-- [ ] Run the checks in Verification.
+- [x] Add `telegram/worker.py` with `release_abandoned_claims(session)`, `claim_next(session)`, `mark_transport_complete(session, uuid)`, and `record_transport_failure(session, uuid)`. `mark_transport_complete` writes only the transport columns from Requirements.
+- [x] Add `run_worker()` which releases abandoned claims once, then loops: claim, mark complete, or apply the 3-attempt failure rule. Sleep 1 second when the queue is empty. Catch a single-row exception inside the loop, log the update uuid and attempt count with loguru, and continue.
+- [x] Decorate `run_worker` with `@logger.catch`. Keep the inner handler so one failed update does not end the task.
+- [x] Start one `asyncio.Task` for `run_worker` in the lifespan and cancel it after `yield`.
+- [x] Update the worker sentences in `docs/PROJECT.md`.
+- [x] Run the checks in Verification.
 
 ## Verification
 - `uv run --project apps/api python -c "from vetdietderm_api.main import app"` imports, and the lifespan source starts one worker task.

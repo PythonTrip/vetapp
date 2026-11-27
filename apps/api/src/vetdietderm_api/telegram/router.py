@@ -1,39 +1,37 @@
-"""Authenticate Telegram deliveries on the public integration route."""
+"""Public Telegram webhook route."""
 
-from hmac import compare_digest
 from typing import Annotated
-from uuid import UUID
 
-from fastapi import APIRouter, Header, HTTPException
-from sqlalchemy import select
+from fastapi import APIRouter, Header, Request
+from starlette.concurrency import run_in_threadpool
 
-from vetdietderm_api.db import get_session_factory
-from vetdietderm_api.owners.bot_crypto import decrypt_credential
 from vetdietderm_api.owners.clinic_bots import WEBHOOK_PATH
-from vetdietderm_api.owners.models import ClinicBot
-from vetdietderm_api.owners.schemas import ClinicBotStatus
-from vetdietderm_api.settings import get_settings
+from vetdietderm_api.telegram.intake import receive_update
 
 router = APIRouter(tags=["telegram"])
 
 
-@router.post(WEBHOOK_PATH + "{integration_id}")
-def receive_webhook(
+@router.post(
+    WEBHOOK_PATH + "{integration_id}",
+    responses={
+        400: {"description": "Invalid JSON or update_id"},
+        401: {"description": "Invalid Telegram webhook secret"},
+        404: {"description": "Telegram integration not found"},
+        503: {"description": "Telegram webhook intake is unavailable"},
+    },
+    openapi_extra={"requestBody": {
+        "required": True,
+        "content": {"application/json": {"schema": {
+            "type": "object",
+            "required": ["update_id"],
+            "properties": {"update_id": {"type": "integer", "format": "int64"}},
+            "additionalProperties": True,
+        }}},
+    }},
+)
+async def receive_webhook(
+    request: Request,
     integration_id: str,
     secret: Annotated[str | None, Header(alias="X-Telegram-Bot-Api-Secret-Token")] = None,
 ) -> None:
-    try:
-        integration = UUID(integration_id)
-    except ValueError:
-        raise HTTPException(404, "Telegram integration not found") from None
-    with get_session_factory()() as db:
-        row = db.scalar(select(ClinicBot).where(ClinicBot.integration_id == integration))
-        if row is None:
-            raise HTTPException(404, "Telegram integration not found")
-        if not secret or row.status == ClinicBotStatus.disconnected:
-            raise HTTPException(401, "Invalid Telegram webhook secret")
-        expected = decrypt_credential(row.webhook_secret_ciphertext, get_settings().CLINIC_BOT_ENCRYPTION_KEY)
-        if not expected or not compare_digest(expected.encode("utf-8"), secret.encode("utf-8")):
-            raise HTTPException(401, "Invalid Telegram webhook secret")
-    # Telegram retries the delivery until durable intake is available.
-    raise HTTPException(503, "Telegram webhook intake is unavailable")
+    await run_in_threadpool(receive_update, integration_id, secret, await request.body())

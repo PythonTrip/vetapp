@@ -72,11 +72,13 @@ docker compose --project-name vetapp --env-file infra/.env -f infra/docker-compo
 
 Перед запуском API автоматически выполняется `alembic upgrade head` для указанной базы. Frontend запускается после успешной проверки API и подключения к БД. Вложения сохраняются в постоянном томе `attachments`; существующие локальные файлы из `apps/api/data/attachments` в него автоматически не переносятся.
 
+Перед обновлением базы с сохранёнными токенами ботов задайте `CLINIC_BOT_ENCRYPTION_KEY` (ключ Fernet). Миграция зашифрует существующие токены. Для подключения и проверки ботов также задайте `TELEGRAM_PUBLIC_BASE_URL` с публичным HTTPS-адресом установки.
+
 На VPS с несколькими приложениями схема такая:
 
 | Кто | Куда |
 | --- | --- |
-| nginx `vetapp.syndex-ai.ru` | только `127.0.0.1:3003` (vetapp-frontend) |
+| nginx `vetapp.syndex-ai.ru` | `127.0.0.1:3003` (vetapp-frontend) и `127.0.0.1:8001` для `/telegram/webhooks/` |
 | браузер | `https://…/api/*` → Next Route Handler → Docker DNS `vetapp-api` |
 | vetapp-frontend | Docker DNS `http://vetapp-api:8000` (сеть `shared-backend`) |
 | vetapp-api | Postgres по `DATABASE_ADDRESS` (у вас `pgsql` в `shared-backend`) |
@@ -84,13 +86,20 @@ docker compose --project-name vetapp --env-file infra/.env -f infra/docker-compo
 
 Порты на этом хосте (loopback): frontend `3003`, API `8001`; заняты другими стеками `3000`/`3001`/`3002`/`8000`. Имена в общей сети уникальны: `vetapp-api`, `vetapp-frontend` — не используйте короткое `api`, чтобы не пересечься с другими compose-проектами. Уберите nginx-маршрут на бывший owner host `127.0.0.1:3004`, если он ещё есть.
 
-Не проксируйте `/api` из nginx на FastAPI.
+Единственный `location` nginx с прямым доступом к FastAPI — `/telegram/webhooks/`. Запросы браузера к `/api` по-прежнему проходят через Next.js.
 
-Пример nginx только для UI:
+Пример настройки nginx для интерфейса и вебхука Telegram.
 
 ```nginx
 server {
     server_name vetapp.syndex-ai.ru;
+
+    location /telegram/webhooks/ {
+        proxy_pass http://127.0.0.1:8001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
 
     location / {
         proxy_pass http://127.0.0.1:3003;

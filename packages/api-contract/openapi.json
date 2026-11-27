@@ -10890,6 +10890,26 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "update_id": {
+                    "format": "int64",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "update_id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -10898,6 +10918,15 @@
               }
             },
             "description": "Successful Response"
+          },
+          "400": {
+            "description": "Invalid JSON or update_id"
+          },
+          "401": {
+            "description": "Invalid Telegram webhook secret"
+          },
+          "404": {
+            "description": "Telegram integration not found"
           },
           "422": {
             "content": {
@@ -10908,6 +10937,9 @@
               }
             },
             "description": "Validation Error"
+          },
+          "503": {
+            "description": "Telegram webhook intake is unavailable"
           }
         },
         "summary": "Receive Webhook",

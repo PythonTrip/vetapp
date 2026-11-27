@@ -5,9 +5,11 @@ import httpx
 from fastapi.testclient import TestClient
 from starlette.requests import Request
 
-from tests.integration.staff_app import staff_app  # noqa: F401 - shared isolated SQLite fixture
+from tests.integration.staff_app import staff_app as staff_app
 from vetdietderm_api import auth
 from vetdietderm_api.v1_security import require_staff_identity
+
+TELEGRAM_WEBHOOK = "/telegram/webhooks/{integration_id}"
 
 
 def without_titles(value):
@@ -24,7 +26,7 @@ def test_schema_covers_legacy_resources_under_staff_security(staff_app):
     paths = schema["paths"]
     ids = []
     for path, operations in paths.items():
-        if path.startswith("/auth-service") or path in {"/health", "/ready"}:
+        if path.startswith("/auth-service") or path in {"/health", "/ready", TELEGRAM_WEBHOOK}:
             continue
         if not path.startswith("/v1/"):
             assert not path.startswith("/owner/"), path
@@ -47,7 +49,9 @@ def test_schema_covers_legacy_resources_under_staff_security(staff_app):
     assert set(schema["components"]["securitySchemes"]) == {"StaffSession"}
     assert schema["components"]["securitySchemes"]["StaffSession"]["name"] == auth.COOKIE
     assert "{path}" not in " ".join(path for path in paths if path.startswith("/v1/"))
-    assert not [path for path in paths if "/owner/" in path or "telegram" in path]
+    assert not [path for path in paths if "/owner/" in path]
+    assert [path for path in paths if "telegram" in path] == [TELEGRAM_WEBHOOK]
+    assert not paths[TELEGRAM_WEBHOOK]["post"].get("security")
 
 
 def test_versions_share_state_and_owner_cookie_grants_no_access(staff_app):
