@@ -4,7 +4,7 @@ prd_id: 2026-11-27-client-contacts-messaging
 cycle_id: 2026-11-27-client-contacts-messaging
 cycle_slug: client-contacts-messaging
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 complexity: M
 criticality: High
 ---
@@ -12,7 +12,7 @@ criticality: High
 # Animal Chat Removal
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 The per-animal chat leaves the patient card and the registration queue. The chat API and its file routes leave with it. Historical `chat_threads`, `chat_messages`, and `owner_uploads` stay as the migration source and archive. The registration queue still accepts and rejects registrations. No new messaging page is added.
@@ -58,11 +58,11 @@ The per-animal chat leaves the patient card and the registration queue. The chat
 - `docs/PROJECT.md`
 
 ## Implementation Steps
-- [ ] Remove the chat HTTP routes and the router mounts in `routing.py` and `v1.py`. Keep models, `link_thread`, and `owner_target`.
-- [ ] Remove `PatientChat` from the patient card and `AnimalChat` from the registration queue. Delete the unused chat components and `animal-chat.test.tsx`.
-- [ ] Update `patients.test.tsx` and `test_v1_api.py` for the removed chat surface.
-- [ ] Replace the staff-chat sentence in `docs/PROJECT.md` Current Functionality.
-- [ ] Run `pnpm api:generate` and the checks in Verification.
+- [x] Remove the chat HTTP routes and the router mounts in `routing.py` and `v1.py`. Keep models, `link_thread`, and `owner_target`.
+- [x] Remove `PatientChat` from the patient card and `AnimalChat` from the registration queue. Delete the unused chat components and `animal-chat.test.tsx`.
+- [x] Update `patients.test.tsx` and `test_v1_api.py` for the removed chat surface.
+- [x] Replace the staff-chat sentence in `docs/PROJECT.md` Current Functionality.
+- [x] Run `pnpm api:generate` and the checks in Verification.
 
 ## Verification
 - `uv run --project apps/api python -c "from vetdietderm_api.main import app; from vetdietderm_api.chat.repository import link_thread, owner_target"` imports.

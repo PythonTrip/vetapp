@@ -14,7 +14,6 @@ from vetdietderm_api.encounter_templates.router import router as encounter_templ
 from vetdietderm_api.guidelines.router import router as guidelines_router
 from vetdietderm_api.patients.router import router as patients_router
 from vetdietderm_api.owners.router import router as owners_router
-from vetdietderm_api.chat.router import router as chat_router
 from vetdietderm_api.questionnaires.router import router as questionnaires_router
 from vetdietderm_api.visits.router import router as visits_router
 from vetdietderm_api.v1 import create_v1_router
@@ -22,7 +21,6 @@ from vetdietderm_api.v1 import create_v1_router
 LEGACY_SELF_SCOPED_ROUTERS = (
     account_router,
     owners_router,
-    chat_router,
     questionnaires_router,
     visits_router,
 )
@@ -51,5 +49,5 @@ def include_clinical_and_versioned_routes(app: FastAPI) -> None:
         app.include_router(router, dependencies=[Depends(require_clinical_access)])
     app.include_router(create_v1_router(
         staff_routers=(*LEGACY_CLINICAL_ROUTERS, questionnaires_router),
-        mixed_routers=(owners_router, chat_router, visits_router),
+        mixed_routers=(owners_router, visits_router),
     ))

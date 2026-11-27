@@ -6,7 +6,6 @@ type Schemas = components["schemas"];
 export type AnimalPassport = Schemas["AnimalRead"];
 export type OwnerVisit = Schemas["VisitRead"];
 export type VisitFile = Schemas["VisitFileRead"];
-export type ChatMessage = Schemas["MessageRead"];
 export type PendingRegistration = Schemas["RegistrationRead"];
 export type RegistrationAccept = Schemas["RegistrationAccept"];
 export type StaffVisit = Schemas["StaffVisitRead"];
@@ -43,11 +42,4 @@ export const visitRequestsApi = {
   reject: (id: string, reason: string) =>
     apiRequest<OwnerVisit>(`/visit-requests/${id}/reject`, { method: "POST", body: { reason: reason.trim() || null } }),
   download: (id: string, fileId: string) => apiBlob(`/visit-requests/${id}/files/${fileId}`, "Не удалось скачать файл"),
-};
-
-export const staffChatApi = {
-  list: (path: string) => apiRequest<ChatMessage[]>(path),
-  send: (path: string, _ownerView: boolean, body: string) =>
-    apiRequest<ChatMessage>(path, { method: "POST", body: { body } }),
-  download: (path: string, fileId: string) => apiBlob(`${path}/files/${fileId}`, "Не удалось скачать вложение"),
 };

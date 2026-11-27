@@ -105,7 +105,6 @@ def alias(target: APIRouter, source: APIRoute, path: str, dependencies: list) ->
 
 
 def create_v1_router(staff_routers: Sequence[APIRouter], mixed_routers: Sequence[APIRouter]) -> APIRouter:
-    from vetdietderm_api.chat.router import clinical as staff_chat
     from vetdietderm_api.visits.router import clinical as staff_visits
 
     router = APIRouter(dependencies=[Depends(csrf_marker)])
@@ -113,7 +112,7 @@ def create_v1_router(staff_routers: Sequence[APIRouter], mixed_routers: Sequence
     staff = [Depends(require_staff_identity)]
     # Let FastAPI include nested routers, including its lazy router contexts.
     # Never enumerate .routes to flatten an aggregated clinical router.
-    for source in [*staff_routers, staff_chat, staff_visits]:
+    for source in [*staff_routers, staff_visits]:
         router.include_router(source, prefix="/v1/staff", tags=["v1 staff"],
                               dependencies=[*staff, Depends(auth.require_clinical_access)],
                               responses=ERROR_RESPONSES)

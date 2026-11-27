@@ -12,7 +12,6 @@ vi.mock("@/features/owner-cabinet/components/visit-request-queue", () => ({ Visi
 vi.mock("@/features/encounters/components/encounter-panel", () => ({ EncounterPanel: ({ patient }: { patient: PatientRecord }) => <div>Приёмы: {patient.uuid}</div> }));
 vi.mock("@/features/encounters/components/dermatology-gallery", () => ({ DermatologyGallery: ({ patientId }: { patientId: string }) => <div>Галерея: {patientId}</div> }));
 vi.mock("@/features/encounters/components/communication-log", () => ({ CommunicationLog: ({ patientId }: { patientId: string }) => <div>Контакты: {patientId}</div> }));
-vi.mock("@/features/owner-cabinet/components/patient-chat", () => ({ PatientChat: ({ patientId }: { patientId: string }) => <div>Чат: {patientId}</div> }));
 vi.mock("@/features/nutrition/components/patient-nutrition", () => ({ PatientNutrition: ({ patient }: { patient: PatientRecord }) => <div>Питание: {patient.uuid}</div> }));
 
 const patient = {
@@ -44,7 +43,7 @@ describe("patient screen composition", () => {
     mount(tab);
     expect(await screen.findByText(content)).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: label })).toHaveAttribute("aria-selected", "true");
-    if (tab === "comms") expect(screen.getByText("Чат: patient-1")).toBeInTheDocument();
+    expect(screen.queryByText(/Чат:/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Редактировать" })).not.toBeInTheDocument();
   });
 

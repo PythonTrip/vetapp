@@ -33,9 +33,8 @@ def test_schema_covers_legacy_resources_under_staff_security(staff_app):
             target = "/v1/staff" + path
             assert set(operations) <= set(paths[target]), path
             for method, operation in operations.items():
-                if path not in {"/owner-registrations/{registration_id}/animals/{animal_id}/chat/files/{file_id}"}:
-                    assert without_titles(operation["responses"].get("201") or operation["responses"].get("200")) == without_titles(
-                        paths[target][method]["responses"].get("201") or paths[target][method]["responses"].get("200")), path
+                assert without_titles(operation["responses"].get("201") or operation["responses"].get("200")) == without_titles(
+                    paths[target][method]["responses"].get("201") or paths[target][method]["responses"].get("200")), path
         else:
             for operation in operations.values():
                 ids.append(operation["operationId"])

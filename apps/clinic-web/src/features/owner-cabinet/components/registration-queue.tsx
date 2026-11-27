@@ -9,7 +9,6 @@ import { useClientsQuery } from "@/features/patients/hooks";
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value";
 import { ownerError, registrationsApi, type PendingRegistration } from "@/features/owner-cabinet/api";
 import { sexLabel, speciesLabel } from "@/features/patients/form";
-import { AnimalChat } from "@/features/owner-cabinet/components/animal-chat";
 
 export function RegistrationQueue() {
   const [open, setOpen] = React.useState(false);
@@ -79,7 +78,6 @@ function RegistrationRow({ row }: { row: PendingRegistration }) {
         <option value="">Отдельный пациент</option>
         {patients.data?.map(patient => <option key={patient.uuid} value={patient.uuid} disabled={Object.entries(matches).some(([id, value]) => id !== animal.uuid && value === patient.uuid)}>{patient.name} · {speciesLabel(patient.species)}</option>)}
       </select></label>}
-      <AnimalChat path={`/owner-registrations/${row.uuid}/animals/${animal.uuid}/chat`} canReply={row.can_accept} />
     </li>)}</ul>
     {!row.animals.length && <p className="text-sm text-muted-foreground">Животные ещё не добавлены.</p>}
     {accept.isError && <p role="alert" className="text-sm text-destructive">{ownerError(accept.error)}</p>}

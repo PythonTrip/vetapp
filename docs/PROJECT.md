@@ -1,7 +1,7 @@
 ---
 project_id: vetdietderm
 title: Vet Space
-updated: 2026-11-26
+updated: 2026-11-27
 source: product-discovery
 ---
 
@@ -16,7 +16,7 @@ Vet Space is a veterinary clinical workbench for specialists who manage patients
 - Private-practice veterinary nutritionists and dermatologists
 - Small specialty clinics and cabinets
 - Assistants and admins who schedule visits and owner communications
-The roadmap is closed through Telegram Bot Gateway (#12). Clinic Telegram Conversation follows as #13, then Specialty Depth as #14. The clinic workspace runs on an existing VPS.
+The roadmap is closed through Telegram Bot Gateway (#12). Client Contacts and Messaging Domain is #13, Clinic Messaging Interface is #14, and Specialty Depth is #15. The clinic workspace runs on an existing VPS.
 
 ## Business Model
 
@@ -30,7 +30,7 @@ Near-term emphasis remains a trustworthy FEDIAF 2025 dietetics assistant. The Fo
 
 The nutrition workbench lets the clinician start from a real Patient or a manual profile, browse the Food catalog as a nutrient table, and assess a ration against FEDIAF for dogs and cats. Catalog browse is a category tree on the catalog tab and the same table inside the ration add dialog. Energy need and nutrient norms are independent clinical questions, joined only by animal-context compatibility. The clinician works a scenario (animal, energy method, nutrient standard, ration). Disease-specific therapeutic nutrient profiles remain a later specialization.
 
-The Owner Cabinet (owner web host, owner API, owner sessions, Telegram Mini App and Login Widget sign-in) is removed from the active runtime. Its full source is archived on branch `archive/owner-cabinet`. The clinician workspace is the system of record. Clinic bot credentials and the staff-side registrations queue, visit requests, and patient chat remain; existing owner-side data stays in PostgreSQL untouched, and existing owner sessions are revoked by migration `0041_revoke_owner_sessions`. Clinic bot webhooks now receive and persist private Telegram updates. Cycle #13 turns those updates into a clinic conversation.
+The Owner Cabinet (owner web host, owner API, owner sessions, Telegram Mini App and Login Widget sign-in) is removed from the active runtime. Its full source is archived on branch `archive/owner-cabinet`. The clinician workspace is the system of record. Clinic bot credentials and the staff-side registrations queue and visit requests remain; the per-animal chat API and its staff surfaces are removed, while `chat_threads`, `chat_messages`, and `owner_uploads` stay; existing owner-side data stays in PostgreSQL untouched, and existing owner sessions are revoked by migration `0041_revoke_owner_sessions`. Clinic bot webhooks now receive and persist private Telegram updates. Cycle #13 turns those stored updates into clinic-scoped contacts and conversations and delivers replies. The staff workspace for that conversation is cycle #14.
 
 ## Current Functionality
 
@@ -51,7 +51,7 @@ Browser calls go to same-origin `/api/*`. A Next.js Route Handler proxies to Fas
 - Dermatology gallery: lesion photos and PDFs on disk (`ATTACHMENT_DIR`, 8 MiB, JPEG/PNG/WebP/GIF/PDF), metadata and VAS in PostgreSQL, optional link to an encounter. The «Показывать владельцу» flag is stored, but no owner surface reads it after the Owner Cabinet removal
 - Schedule (`/schedule`): day list with visit type and status, create / reschedule / cancel, deep-link to `/encounter?appointmentId=`. A completed appointment can carry one manual ruble amount; marking it paid freezes that amount
 - Encounter workspace can start from an appointment or without a slot. The first empty complaint linked from an appointment receives the owner request problem text. A complaint the doctor has written stays as written
-- Communication log on the patient card (channel, direction, follow-up time), separate from animal chat
+- Communication log on the patient card (channel, direction, follow-up time)
 - Nutrition workspace (`/nutrition`): **Рацион и анализ**, **Недавние планы**, **Каталог Foods**
 - Patient picker on the ration tab, or «Без пациента · ручной профиль». `?patientId=` from the patient card prefills. Patient remains optional on save
 - Food catalog: category tree with product counts, paged as-fed nutrient matrix, server sorting, 50-row load-more, name search. Empty until a category or search is set. **Добавить продукт** opens that same table in a modal. An incomplete ration total shows `≥` and the known amount. Several source rows for one food, nutrient, and basis resolve to the newest `updated_at`, then the greatest `uuid`. Saved diet-plan snapshots stay frozen
@@ -75,7 +75,7 @@ Browser calls go to same-origin `/api/*`. A Next.js Route Handler proxies to Fas
 - The webhook stores private Telegram updates once in PostgreSQL. The API worker records transport completion, and cycle #13 can select those updates even after the clinic disconnects the bot.
 - `GET /join-codes/current` returns the clinic's stored code and organization metadata. It returns no owner join link because no owner host exists
 - Owner registrations already stored stay in a queue on `/patients` until acceptance. Editors create or select a client and match animals. Clinicians can create clients and patients without owner accounts. No new owner registration can arrive: owner sign-up, sign-in, Telegram Mini App and Login Widget authentication are removed
-- Each registration animal and patient keeps one text conversation. Staff read and write it through the patient «Коммуникации» tab and the registration queue. Messages are not edited or deleted
+- The per-animal chat API and the chat on the patient «Коммуникации» tab and in the registration queue are gone. Tables `chat_threads`, `chat_messages`, and `owner_uploads` remain
 - The clinic publishes one optional questionnaire. Among existing clinic rows, primary wins; otherwise the latest save wins, with the greater questionnaire id breaking a tie. Owner and admin replace the list; member and viewer can read it. Replacing the list does not change submitted answer snapshots
 - Stored visit requests remain. Staff confirm a real start, duration, and one of the four bookable visit types (`primary`, `secondary`, `consultation`, `supervision`); confirming also accepts a pending registration in one transaction. Existing legacy types (`recheck`, `procedure`, `telemedicine`) remain readable
 - The pending area on `/patients` has «Регистрации» and «Запросы визитов», outside patient search, refreshing every 30 seconds. Observers can read both groups and download files. Editors confirm or reject
@@ -90,7 +90,7 @@ Not shipped: Food `species_compatibility`, knowledge/AI handouts, drug checker, 
 | 2 | ❌ Cancelled | Core | FEDIAF Relational Assessment | Trustworthy Postgres-backed ration analysis on the Next/Prisma prototype. Cancelled: the same clinical outcome shipped on the split stack in cycle 3. | Historical PRD cleaned 2026-08-31 |
 | 3 | ✅ Done | Core | Split-Stack Nutrition | Nutritionist uses the rebuilt workbench (Next.js UI + one FastAPI process + existing PostgreSQL): Client/Patient, Food catalog, ration, honest FEDIAF 2025 assessment, reproducible saved plan. The therapeutic-goal gate from this cycle was removed in #4. | [PRD](prd/2026-08-28_split-stack-nutrition_prd.md) |
 | 4 | ✅ Done | Core | Nutrition Workbench Polish | Nutritionist picks a Patient on `/nutrition`, browses Foods as a category-filtered nutrient table, and always gets a FEDIAF comparison after confirm. Confirmed profile and MER formula were strictly paired until #6. | [PRD](prd/2026-08-29_nutrition-workbench-polish_prd.md) |
-| 5 | ✅ Done | Core | Clinical CRM Pivot | Client/Patient/Encounter workspace with schedule, attachments, communications, structured form builder, encounter templates, and accounts with an organization. Signed encounters and encounter-stored calculations remain in Specialty Depth (#14). | — |
+| 5 | ✅ Done | Core | Clinical CRM Pivot | Client/Patient/Encounter workspace with schedule, attachments, communications, structured form builder, encounter templates, and accounts with an organization. Signed encounters and encounter-stored calculations remain in Specialty Depth (#15). | — |
 | 6 | ✅ Done | Core | Nutrition Context Split | Energy formulas and nutrient profiles stay independent. The server resolves both from the animal card. Adult verdicts use imported MER95/110 and MER75/100 profiles. Stale results cannot look valid. | [PRD](prd/2026-08-29_nutrition-context-split_prd.md) |
 | 7 | ✅ Done | Pro | Owner Cabinet | A pet owner registers animals, chats, requests a visit, and downloads files the clinician shares. The later clinic door (#9) replaced doctor-code join and the platform bot. Runtime removed 2026-11-26; source archived on `archive/owner-cabinet`. | [PRD](prd/2026-10-27_owner-cabinet_prd.md) |
 | 8 | ✅ Done | Platform | Pilot Hardening | The running API calculates nutrition only with the in-process FEDIAF provider. Public `/ready` requires the clinical session. The container waits for PostgreSQL before the UI starts. Backup and restore stay later. | [PRD](prd/2026-10-27_pilot-hardening_prd.md) |
@@ -98,8 +98,9 @@ Not shipped: Food `species_compatibility`, knowledge/AI handouts, drug checker, 
 | 10 | ✅ Done | Pro | Booking by Problem | The owner requests a visit by describing the problem, without choosing a type or specialty. The clinic questionnaire stays optional. After the visit is conducted, the doctor enters one ruble amount and marks it paid. Closed 2026-11-17. | [PRD](prd/2026-11-07_booking-by-problem_prd.md) |
 | 11 | ✅ Done | Pro | Catalog Browse | On Расчёт рациона, the nutritionist filters the Food catalog from a category tree, adds a ration food from that same nutrient table in a modal, and reads an incomplete ration total as ≥ the known amount. Closed 2026-11-26. | [PRD](prd/2026-11-25_catalog-browse_prd.md) |
 | 12 | ✅ Done | Platform | Telegram Bot Gateway | Each clinic connects, checks, and disconnects its own Telegram bot. The platform verifies the webhook URL, durably receives private updates, and processes them on a PostgreSQL queue inside the existing API process. Staff see bot health. | [PRD](prd/2026-11-26_telegram-bot-gateway_prd.md) (draft) |
-| 13 | ⬜ Planned | Pro | Clinic Telegram Conversation | A client writes to the clinic bot. Staff read that conversation in the clinic workspace and reply into the same Telegram chat. Stored gateway updates remain available for this processing. No PRD yet. | — |
-| 14 | ⬜ Planned | Pro | Specialty Depth | Stronger derm/nutrition encounter templates, follow-up CRM, signed encounters, encounter-stored calculations, additional clinical calculators (dose, fluids), and disease-specific therapeutic nutrient profiles if still wanted. No PRD yet. | — |
+| 13 | ⬜ Planned | Pro | Client Contacts and Messaging Domain | A person who messages the clinic bot becomes a clinic contact with one conversation. The staff API can link a Client, tag a Patient, and deliver a reply. The phone journal and the per-animal chat leave the product. This cycle has no new messaging screens. | [PRD](prd/2026-11-27_client-contacts-messaging_prd.md) (draft) |
+| 14 | ⬜ Planned | Pro | Clinic Messaging Interface | Staff read and reply in the clinic workspace: navigation, search, filters, entry from the patient card, a per-staff read state, and a conversation that updates without a full reload. No PRD yet. | — |
+| 15 | ⬜ Planned | Pro | Specialty Depth | Stronger derm/nutrition encounter templates, follow-up CRM, signed encounters, encounter-stored calculations, additional clinical calculators (dose, fluids), and disease-specific therapeutic nutrient profiles if still wanted. No PRD yet. | — |
 
 ## Product Architecture
 
@@ -112,7 +113,7 @@ Not shipped: Food `species_compatibility`, knowledge/AI handouts, drug checker, 
 - **Access:** external module-auth (`MODULE_AUTH_URL`) behind a FastAPI BFF. The browser holds an opaque HttpOnly staff cookie; tokens stay in `browser_sessions`. There is no owner authentication: the API has no owner routes, and `vetapp_owner_session` is not accepted. `require_clinical_access` sets `tenant_id` from the doctor's active organization. Organization viewers are read-only except unsaved assessments. Food catalog writes require global `super_admin`.
 - **Core entities:** Client, Patient, Encounter, EncounterTemplate, ClinicalCatalogItem, Appointment, Attachment, Communication, Food, Nutrient, Diet Plan, Owner account, Clinic link, Clinic bot, Visit request, Visit questionnaire, Chat thread. FEDIAF edition identity is provider-owned. `guideline_standards` / `guideline_editions` remain in `public` as leftover metadata.
 - **Nutrition analysis model:** Animal Context lets the server independently resolve an Energy Formula and a Nutrient Profile. Compatibility is species + physiological context + required fields. Adult verdicts use imported MER95/110 and MER75/100 concentration profiles. Growth and reproduction keep their published life-stage profiles. Table VII-11 stays reference data and is not auto-selected for adults.
-- **Later:** clinic Telegram conversation (#13); signed encounters and specialty calculators (#14); S3. The manual post-visit charge is not a payment provider. Staff accounts live in module-auth. Client stays the owner and Patient stays the animal.
+- **Later:** clinic contacts, conversation API, and message delivery (#13); clinic messaging workspace (#14); signed encounters and specialty calculators (#15); S3. The manual post-visit charge is not a payment provider. Staff accounts live in module-auth. Client stays the owner and Patient stays the animal.
 
 ## Data
 
@@ -276,6 +277,7 @@ Never opened by FastAPI request handlers or Next.js. Catalog import is the opera
 - One worker in the FastAPI process atomically claims PostgreSQL updates for all clinics. On restart it requeues unfinished claims below the three-attempt limit. A transport-complete mark retains the update for business processing in cycle #13.
 - The webhook resolves the clinic from the stored integration ID and authenticates the Telegram secret header. It commits private `message` and `edited_message` updates to `telegram_updates` before acknowledging them. Retries for the same bot ID and update ID and all other update kinds are acknowledged without inserting a row. Disconnect stops local intake and retains stored updates even when Telegram does not remove the webhook.
 - Online acquiring, a price list, prepayment, no-show fees, owner email, clinic-link rotation, in-Telegram booking, and moving a populated clinic stay later.
+- Clinic messaging is a clinic-scoped Telegram contact and one conversation per contact. It replaces the owner-account thread and the thread per animal. Cycle #13 is the domain, API, migration, and delivery. Cycle #14 is the staff workspace. A Telegram user id does not by itself allow a send: the person must have written to the current clinic bot.
 
 ## Cycle History
 
@@ -288,6 +290,7 @@ Never opened by FastAPI request handlers or Next.js. Catalog import is the opera
 - 2026-11-25 — **Catalog Browse** was inserted as #11 ahead of Specialty Depth. Specialty Depth moved to #12 and still has no PRD. The Catalog Browse PRD is a draft.
 - 2026-11-26 — Owner Cabinet runtime removed from `main` (owner-web, owner-features, owner auth/API, Mini App/widget). Source frozen on `archive/owner-cabinet`. Clinic bot credentials and staff queues retained; owner sessions revoked by Alembic `0041`.
 - 2026-11-26 — Catalog Browse (#11) closed. The clinic nutrition UI has the category tree, the ration-add catalog modal, and the `≥` lower bound. Telegram Bot Gateway is #12. Clinic Telegram Conversation is #13. Specialty Depth moved to #14.
+- 2026-11-27 — Clinic Telegram Conversation (#13) was defined as **Client Contacts and Messaging Domain**: domain, API, migration, and delivery, with a draft PRD. The staff workspace was inserted as **Clinic Messaging Interface** (#14). Specialty Depth moved to #15.
 
 ## Open Product Questions
 
@@ -307,4 +310,4 @@ Never opened by FastAPI request handlers or Next.js. Catalog import is the opera
 - When a clinician can rotate a leaked clinic link
 - When online visit payment returns beyond the manual ruble amount
 - When a doctor can move a clinic that already has patients or connected owners
-- When the clinic bot sends visit and chat notices, or accepts a booking inside Telegram. The two-way conversation itself is cycle #13; notices and in-Telegram booking stay outside it
+- When the clinic bot sends visit and chat notices, or accepts a booking inside Telegram. Contact, conversation, and delivery are cycle #13; the staff workspace is cycle #14. Notices and in-Telegram booking stay outside both
