@@ -11,6 +11,25 @@ class ContactUpdate(BaseModel):
     local_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 
+class ContactClientUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    client_uuid: UUID | None
+
+
+class ContactLinkEventRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    uuid: UUID
+    clinic_id: UUID
+    contact_uuid: UUID
+    actor_user_id: UUID
+    actor_label: str
+    previous_client_uuid: UUID | None
+    new_client_uuid: UUID | None
+    created_at: datetime
+
+
 class ContactRead(BaseModel):
     uuid: UUID
     clinic_id: UUID

@@ -2,13 +2,17 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from vetdietderm_api.db import get_session
+from vetdietderm_api.messaging.audit import change_client_link, list_link_events
 from vetdietderm_api.messaging.models import ClinicContact
 from vetdietderm_api.messaging.repository import clinic_contacts
-from vetdietderm_api.messaging.schemas import ContactRead, ContactUpdate
+from vetdietderm_api.messaging.schemas import ContactClientUpdate, ContactLinkEventRead, ContactRead, ContactUpdate
+from vetdietderm_api.patients import repository as patients
+from vetdietderm_api.patients.models import Client
+from vetdietderm_api.patients.schemas import ClientCreate
 
 router = APIRouter(prefix="/contacts", tags=["contacts"])
 DatabaseSession = Annotated[Session, Depends(get_session)]
@@ -30,10 +34,13 @@ def contact_read(contact: ClinicContact, conversation_uuid: UUID) -> ContactRead
     )
 
 
-def get_clinic_contact(contact_id: UUID, clinic_id: UUID, db: Session) -> tuple[ClinicContact, UUID]:
-    row = db.execute(
-        clinic_contacts(clinic_id).where(ClinicContact.uuid == contact_id)
-    ).one_or_none()
+def get_clinic_contact(
+    contact_id: UUID, clinic_id: UUID, db: Session, *, for_update: bool = False,
+) -> tuple[ClinicContact, UUID]:
+    statement = clinic_contacts(clinic_id).where(ClinicContact.uuid == contact_id)
+    if for_update:
+        statement = statement.with_for_update(of=ClinicContact)
+    row = db.execute(statement).one_or_none()
     if row is None:
         raise HTTPException(404, "Запись не найдена")
     contact, conversation_uuid = row
@@ -64,3 +71,48 @@ def update_contact(contact_id: UUID, body: ContactUpdate, request: Request, db: 
     contact, conversation_uuid = get_clinic_contact(contact_id, clinic_id, db)
     db.commit()
     return contact_read(contact, conversation_uuid)
+
+
+def save_client_link(db: Session, contact: ClinicContact, client_uuid: UUID | None, request: Request) -> None:
+    user = request.state.user
+    display_name = user.get("display_name")
+    change_client_link(
+        db, contact, client_uuid,
+        actor_user_id=UUID(str(user["user_id"])),
+        actor_label=display_name if isinstance(display_name, str) and display_name else user["email"],
+    )
+    db.commit()
+
+
+@router.put("/{contact_id}/client")
+def set_contact_client(
+    contact_id: UUID, body: ContactClientUpdate, request: Request, db: DatabaseSession,
+) -> ContactRead:
+    clinic_id = UUID(str(request.state.tenant_id))
+    contact, conversation_uuid = get_clinic_contact(contact_id, clinic_id, db, for_update=True)
+    if body.client_uuid is not None:
+        client_uuid = db.scalar(
+            select(Client.uuid)
+            .where(Client.uuid == body.client_uuid, Client.tenant_id == clinic_id)
+            .with_for_update(read=True, key_share=True)
+        )
+        if client_uuid is None:
+            raise HTTPException(404, "Запись не найдена")
+    save_client_link(db, contact, body.client_uuid, request)
+    return contact_read(contact, conversation_uuid)
+
+
+@router.post("/{contact_id}/client", status_code=201)
+def create_contact_client(contact_id: UUID, request: Request, db: DatabaseSession) -> ContactRead:
+    clinic_id = UUID(str(request.state.tenant_id))
+    contact, conversation_uuid = get_clinic_contact(contact_id, clinic_id, db, for_update=True)
+    client = patients.create_client(db, ClientCreate(name=contact.local_name), commit=False)
+    save_client_link(db, contact, client.uuid, request)
+    return contact_read(contact, conversation_uuid)
+
+
+@router.get("/{contact_id}/link-events")
+def get_contact_link_events(contact_id: UUID, request: Request, db: DatabaseSession) -> list[ContactLinkEventRead]:
+    clinic_id = UUID(str(request.state.tenant_id))
+    get_clinic_contact(contact_id, clinic_id, db)
+    return [ContactLinkEventRead.model_validate(event) for event in list_link_events(db, clinic_id, contact_id)]

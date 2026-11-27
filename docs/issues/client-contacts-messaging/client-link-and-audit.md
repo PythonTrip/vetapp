@@ -4,7 +4,7 @@ prd_id: 2026-11-27-client-contacts-messaging
 cycle_id: 2026-11-27-client-contacts-messaging
 cycle_slug: client-contacts-messaging
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 complexity: L
 criticality: Blocker
 ---
@@ -12,7 +12,7 @@ criticality: Blocker
 # Client Link and Audit
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 Write-role staff link a contact to a Client in the same clinic, move that link, clear it, or create a Client from the contact. Every change appends an immutable audit record. Link changes do not rewrite the Client, Patients, or message history. There is no clinic-wide audit screen.
@@ -51,11 +51,11 @@ Write-role staff link a contact to a Client in the same clinic, move that link, 
 - `packages/api-contract/src/generated.ts`
 
 ## Implementation Steps
-- [ ] Add the audit table, model, and append-only repository. Put the model in `messaging/audit.py` so the message model file stays with intake.
-- [ ] Add `PUT /contacts/{contact_id}/client` for link, move, and clear, with the same-clinic check and the no-op when the Client is unchanged.
-- [ ] Add `POST /contacts/{contact_id}/client` using `create_client` and no `create_patient`. Append the audit row in the same transaction.
-- [ ] Add `GET /contacts/{contact_id}/link-events` for every clinical reader, including viewers.
-- [ ] Add the PROJECT.md sentence, run `pnpm api:generate`, and run the checks in Verification.
+- [x] Add the audit table, model, and append-only repository. Put the model in `messaging/audit.py` so the message model file stays with intake.
+- [x] Add `PUT /contacts/{contact_id}/client` for link, move, and clear, with the same-clinic check and the no-op when the Client is unchanged.
+- [x] Add `POST /contacts/{contact_id}/client` using `create_client` and no `create_patient`. Append the audit row in the same transaction.
+- [x] Add `GET /contacts/{contact_id}/link-events` for every clinical reader, including viewers.
+- [x] Add the PROJECT.md sentence, run `pnpm api:generate`, and run the checks in Verification.
 
 ## Verification
 - `uv run --project apps/api python -c "from vetdietderm_api.main import app"` imports.
