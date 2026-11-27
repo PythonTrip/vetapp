@@ -15,6 +15,8 @@ def open_contact(
     telegram_chat_id: int,
     profile_name: str | None,
     username: str | None,
+    *,
+    refresh_profile: bool = True,
 ) -> tuple[ClinicContact, ClinicConversation]:
     """Open the pair in the caller's transaction."""
     statement = insert(ClinicContact).values(
@@ -25,18 +27,32 @@ def open_contact(
         username=username,
         local_name=(profile_name or "").strip() or (username or "").strip() or str(telegram_user_id),
     )
-    # The upsert holds the contact row lock until commit, serializing conversation creation.
-    contact = session.scalars(
-        statement.on_conflict_do_update(
+    # Both paths hold the contact row lock until commit, serializing conversation creation.
+    if refresh_profile:
+        statement = statement.on_conflict_do_update(
             index_elements=[ClinicContact.clinic_id, ClinicContact.telegram_user_id],
             set_={
                 "profile_name": statement.excluded.profile_name,
                 "username": statement.excluded.username,
                 "updated_at": utc_now(),
             },
-        ).returning(ClinicContact),
+        )
+    else:
+        statement = statement.on_conflict_do_nothing(
+            index_elements=[ClinicContact.clinic_id, ClinicContact.telegram_user_id],
+        )
+    contact = session.scalars(
+        statement.returning(ClinicContact),
         execution_options={"populate_existing": True},
-    ).one()
+    ).one_or_none()
+    if contact is None:
+        contact = session.scalars(
+            select(ClinicContact).where(
+                ClinicContact.clinic_id == clinic_id,
+                ClinicContact.telegram_user_id == telegram_user_id,
+            ).with_for_update(),
+            execution_options={"populate_existing": True},
+        ).one()
     conversation = session.scalar(
         select(ClinicConversation).where(
             ClinicConversation.clinic_id == clinic_id,

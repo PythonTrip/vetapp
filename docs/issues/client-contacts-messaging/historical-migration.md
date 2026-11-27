@@ -4,7 +4,7 @@ prd_id: 2026-11-27-client-contacts-messaging
 cycle_id: 2026-11-27-client-contacts-messaging
 cycle_slug: client-contacts-messaging
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 complexity: L
 criticality: High
 ---
@@ -12,7 +12,7 @@ criticality: High
 # Historical Migration
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 Reliable Owner Cabinet chat history lands in one contact and one conversation. All threads of that owner become that single conversation. Migrated messages keep their time, direction, author, attachments, and Patient tag. They are not sent to Telegram, and running the migration again does not duplicate them.
@@ -54,11 +54,11 @@ Reliable Owner Cabinet chat history lands in one contact and one conversation. A
 - `docs/PROJECT.md`
 
 ## Implementation Steps
-- [ ] Add `migrate_owner_cabinet_chats` with the identity filter, one conversation per identity, and source-message deduplication.
-- [ ] Copy direction, time, author, body, one allowed file, and the thread Patient tag. Leave delivery status and Telegram message id null.
-- [ ] Apply the single-Client link rule without writing a link-audit event and without updating Client or Patient rows.
-- [ ] Call the function from the Alembic `upgrade`. Limit `downgrade` to rows this migration created.
-- [ ] Add the PROJECT.md sentence and run the checks in Verification.
+- [x] Add `migrate_owner_cabinet_chats` with the identity filter, one conversation per identity, and source-message deduplication.
+- [x] Copy direction, time, author, body, one allowed file, and the thread Patient tag. Leave delivery status and Telegram message id null.
+- [x] Apply the single-Client link rule without writing a link-audit event and without updating Client or Patient rows.
+- [x] Call the function from the Alembic `upgrade`. Limit `downgrade` to rows this migration created.
+- [x] Add the PROJECT.md sentence and run the checks in Verification.
 
 ## Verification
 - Build a fixture with one clinic identity, two threads, one owner message, one staff message, one allowed chat upload, and one accepted registration whose Patients all share one `client_uuid`. Run the migration. Confirm one contact, one conversation, two messages, the shared storage key, the Patient tags, and the Client link.
