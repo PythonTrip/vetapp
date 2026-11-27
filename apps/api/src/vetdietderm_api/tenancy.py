@@ -18,7 +18,6 @@ def rehome_personal_rows(session: Session, user_id, clinic_id, organization_name
     from vetdietderm_api.assessments.models import DietPlan
     from vetdietderm_api.attachments.models import Attachment
     from vetdietderm_api.clinical_catalog.models import ClinicalCatalogItem
-    from vetdietderm_api.communications.models import Communication
     from vetdietderm_api.encounter_templates.models import EncounterTemplate
     from vetdietderm_api.encounters.models import Encounter
     from vetdietderm_api.owners.models import ClinicLink, JoinCode, OwnerAccount, TelegramIdentity
@@ -29,7 +28,7 @@ def rehome_personal_rows(session: Session, user_id, clinic_id, organization_name
     clinical_rows = []
     for model in (
         Client, Patient, Encounter, EncounterTemplate, ClinicalCatalogItem,
-        Appointment, Attachment, Communication, DietPlan,
+        Appointment, Attachment, DietPlan,
     ):
         filters = [model.tenant_id.is_(None), model.created_by == doctor]
         if model.__tablename__ == "encounter_templates":

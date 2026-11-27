@@ -6,7 +6,6 @@ import { RegistrationQueue } from "@/features/owner-cabinet/components/registrat
 import { VisitRequestQueue } from "@/features/owner-cabinet/components/visit-request-queue";
 import { EncounterPanel } from "@/features/encounters/components/encounter-panel";
 import { DermatologyGallery } from "@/features/encounters/components/dermatology-gallery";
-import { CommunicationLog } from "@/features/encounters/components/communication-log";
 import { PatientNutrition } from "@/features/nutrition/components/patient-nutrition";
 
 const renderTab: RenderPatientTab = (tab, patient) => {
@@ -14,7 +13,6 @@ const renderTab: RenderPatientTab = (tab, patient) => {
     case "encounters": return <EncounterPanel patient={patient} />;
     case "gallery": return <DermatologyGallery patientId={patient.uuid} />;
     case "nutrition": return <PatientNutrition patient={patient} />;
-    case "comms": return <CommunicationLog patientId={patient.uuid} />;
   }
 };
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { attachmentsApi, communicationsApi, encountersApi, type AttachmentPatch, type CommunicationWrite, type EncounterWrite } from "@/features/encounters/api";
+import { attachmentsApi, encountersApi, type AttachmentPatch, type EncounterWrite } from "@/features/encounters/api";
 import { retryUnlessClientError } from "@/shared/api/query";
 
 export function useEncountersQuery(patientId: string) {
@@ -91,35 +91,6 @@ export function useDeleteAttachment(patientId: string) {
     mutationFn: (id: string) => attachmentsApi.delete(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["attachments", patientId] });
-    },
-  });
-}
-
-export function useCommunicationsQuery(patientId: string) {
-  return useQuery({
-    queryKey: ["communications", patientId],
-    queryFn: () => communicationsApi.list(patientId),
-    enabled: patientId.length > 0,
-    retry: retryUnlessClientError,
-  });
-}
-
-export function useCreateCommunication(patientId: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (body: CommunicationWrite) => communicationsApi.create(patientId, body),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["communications", patientId] });
-    },
-  });
-}
-
-export function useDeleteCommunication(patientId: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => communicationsApi.delete(id),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["communications", patientId] });
     },
   });
 }

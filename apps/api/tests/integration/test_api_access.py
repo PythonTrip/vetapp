@@ -32,7 +32,6 @@ def test_health_ready_and_openapi_boundaries(api_client: TestClient) -> None:
         "/encounter-templates",
         f"/patients/{ZERO_UUID}/attachments",
         "/appointments",
-        f"/patients/{ZERO_UUID}/communications",
         "/foods",
         "/guidelines/active",
         "/diet-plans",

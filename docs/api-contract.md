@@ -16,7 +16,7 @@ Clients can migrate one feature at a time, using the same session in both versio
 | Existing resource | Versioned resource | Identity |
 | --- | --- | --- |
 | `/clients`, `/patients`, `/encounters`, `/appointments` | `/v1/staff` + existing path | Staff |
-| `/encounter-templates`, `/clinical-catalog`, `/communications` | `/v1/staff` + existing path | Staff |
+| `/encounter-templates`, `/clinical-catalog` | `/v1/staff` + existing path | Staff |
 | `/attachments`, `/foods`, `/nutrients`, `/guidelines`, `/assessments`, `/diet-plans` | `/v1/staff` + existing path | Staff |
 | `/join-codes/current`, `/clinic-bot`, `/owner-registrations`, `/visit-questionnaires`, `/visit-requests` | `/v1/staff` + existing path | Staff |
 | Patient/registration chat and nested clinical resources | `/v1/staff` + existing path | Staff |

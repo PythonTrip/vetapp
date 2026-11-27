@@ -6,7 +6,6 @@ from fastapi.testclient import TestClient
 
 from vetdietderm_api.appointments.schemas import AppointmentRead
 from vetdietderm_api.attachments.schemas import AttachmentRead
-from vetdietderm_api.communications.schemas import CommunicationRead
 from vetdietderm_api.encounters.schemas import EncounterRead
 from vetdietderm_api.patients.schemas import ClientRead, PatientRead
 
@@ -158,36 +157,6 @@ def test_clinical_records_persist_across_requests_and_attachment_storage(
     )
     assert [row["uuid"] for row in appointments] == [str(appointment.uuid)]
 
-    communication = CommunicationRead.model_validate(
-        _body(
-            api_client.post(
-                f"/patients/{patient.uuid}/communications",
-                json={
-                    "channel": "phone",
-                    "direction": "outbound",
-                    "subject": "Самочувствие после визита",
-                    "body": "Зуд уменьшился",
-                    "occurred_at": "2026-09-01T03:00:00Z",
-                    "follow_up_at": "2026-09-15T03:00:00Z",
-                },
-            ),
-            201,
-        )
-    )
-    assert communication.patient_uuid == patient.uuid
-    assert communication.client_uuid == client.uuid
-    updated_communication = CommunicationRead.model_validate(
-        _body(
-            api_client.patch(
-                f"/communications/{communication.uuid}",
-                json={"channel": "text", "body": "  Зуд уменьшился до VAS 4  "},
-            ),
-            200,
-        )
-    )
-    assert updated_communication.channel == "text"
-    assert updated_communication.body == "Зуд уменьшился до VAS 4"
-
     other_client = _body(api_client.post("/clients", json={"name": "Другой владелец"}), 201)
     other_patient = _body(
         api_client.post(
@@ -265,12 +234,10 @@ def test_clinical_records_persist_across_requests_and_attachment_storage(
     assert list(attachment_dir.iterdir()) == []
     assert api_client.get(f"/attachments/{attachment.uuid}").status_code == 404
 
-    _body(api_client.delete(f"/communications/{communication.uuid}"), 204)
     _body(api_client.delete(f"/appointments/{appointment.uuid}"), 204)
     _body(api_client.delete(f"/encounters/{encounter.uuid}"), 204)
     assert api_client.get(f"/encounters/{encounter.uuid}").status_code == 404
     assert api_client.get(f"/appointments/{appointment.uuid}").status_code == 404
-    assert api_client.patch(f"/communications/{communication.uuid}", json={}).status_code == 404
 
     invalid_uuid = api_client.get("/encounters/not-a-uuid")
     assert invalid_uuid.status_code == 422

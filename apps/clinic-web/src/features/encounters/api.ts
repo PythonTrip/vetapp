@@ -10,10 +10,6 @@ export type EncounterStatus = Schemas["EncounterStatus"];
 
 export type AttachmentKind = Schemas["AttachmentKind"];
 
-export type CommunicationChannel = Schemas["CommunicationChannel"];
-
-export type CommunicationDirection = Schemas["CommunicationDirection"];
-
 export type PrescriptionItem = Schemas["PrescriptionItem"];
 
 export type AnamnesisData = Schemas["AnamnesisData"];
@@ -25,10 +21,6 @@ export type EncounterWrite = Schemas["EncounterWrite"];
 export type AttachmentRecord = Schemas["AttachmentRead"];
 
 export type AttachmentPatch = Schemas["AttachmentUpdate"];
-
-export type CommunicationRecord = Schemas["CommunicationRead"];
-
-export type CommunicationWrite = Schemas["CommunicationWrite"];
 
 export const encountersApi = {
   get: (id: string, fallbackMessage = "Не удалось загрузить приём") =>
@@ -54,18 +46,4 @@ export const attachmentsApi = {
     api.patch<AttachmentRecord>(`/attachments/${id}`, body, fallbackMessage),
   delete: (id: string, fallbackMessage = "Не удалось удалить файл") =>
     api.delete(`/attachments/${id}`, fallbackMessage),
-};
-
-export const communicationsApi = {
-  list: (patientId: string, fallbackMessage = "Не удалось загрузить журнал") =>
-    api.get<CommunicationRecord[]>(`/patients/${patientId}/communications`, fallbackMessage),
-  create: (patientId: string, body: CommunicationWrite, fallbackMessage = "Не удалось сохранить контакт") =>
-    api.post<CommunicationRecord>(`/patients/${patientId}/communications`, body, fallbackMessage),
-  update: (
-    id: string,
-    body: Partial<CommunicationWrite>,
-    fallbackMessage = "Не удалось сохранить контакт",
-  ) => api.patch<CommunicationRecord>(`/communications/${id}`, body, fallbackMessage),
-  delete: (id: string, fallbackMessage = "Не удалось удалить запись журнала") =>
-    api.delete(`/communications/${id}`, fallbackMessage),
 };

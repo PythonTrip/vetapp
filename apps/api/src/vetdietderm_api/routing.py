@@ -8,7 +8,6 @@ from vetdietderm_api.attachments.router import router as attachments_router
 from vetdietderm_api.auth import require_clinical_access, router as account_router
 from vetdietderm_api.catalog.router import router as catalog_router
 from vetdietderm_api.clinical_catalog.router import router as clinical_catalog_router
-from vetdietderm_api.communications.router import router as communications_router
 from vetdietderm_api.encounters.router import router as encounters_router
 from vetdietderm_api.encounter_templates.router import router as encounter_templates_router
 from vetdietderm_api.guidelines.router import router as guidelines_router
@@ -32,7 +31,6 @@ LEGACY_CLINICAL_ROUTERS = (
     clinical_catalog_router,
     attachments_router,
     appointments_router,
-    communications_router,
     catalog_router,
     guidelines_router,
     assessments_router,

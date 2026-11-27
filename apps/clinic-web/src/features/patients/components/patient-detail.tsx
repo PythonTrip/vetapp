@@ -14,13 +14,12 @@ import { usePatientQuery, useUpdateClient, useUpdatePatient } from "@/features/p
 import { ACTIVITY_OPTIONS, clientFormToPayload, emptyClientForm, emptyPatientForm, formToPatientPayload, formatWeightKg, LIFE_STAGE_OPTIONS, patientToForm, speciesLabel, sexLabel, type ClientFormValues, type PatientFormValues } from "@/features/patients/form";
 import { apiErrorMessage } from "@/shared/api/error-message";
 
-export type PatientTab = "card" | "encounters" | "gallery" | "comms" | "nutrition";
+export type PatientTab = "card" | "encounters" | "gallery" | "nutrition";
 
 const PATIENT_TABS: { value: PatientTab; label: string }[] = [
   { value: "card", label: "Карточка" },
   { value: "encounters", label: "Приёмы" },
   { value: "gallery", label: "Галерея" },
-  { value: "comms", label: "Коммуникации" },
   { value: "nutrition", label: "Питание" },
 ];
 
@@ -194,10 +193,6 @@ export function PatientDetail({ patientId, activeTab, onTabChange, onOpenPatient
 
         <TabsContent value="gallery" className="mt-0 min-h-0 overflow-y-auto p-4 sm:p-6">
           <div className="mx-auto w-full max-w-6xl">{renderTab("gallery", patient)}</div>
-        </TabsContent>
-
-        <TabsContent value="comms" className="mt-0 min-h-0 overflow-y-auto p-4 sm:p-6">
-          {renderTab("comms", patient)}
         </TabsContent>
 
         <TabsContent value="nutrition" className="mt-0 min-h-0 overflow-y-auto p-4 sm:p-6">

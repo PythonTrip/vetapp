@@ -4,7 +4,7 @@ prd_id: 2026-11-27-client-contacts-messaging
 cycle_id: 2026-11-27-client-contacts-messaging
 cycle_slug: client-contacts-messaging
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 complexity: L
 criticality: High
 ---
@@ -12,7 +12,7 @@ criticality: High
 # Communications Journal Removal
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 The patient tab «Коммуникации», the manual phone-and-email journal, and follow-up on that journal leave the product. Stored `communications` rows are deleted with the table. Nothing in this cycle replaces follow-up, and this issue does not add a messaging page.
@@ -57,11 +57,11 @@ The patient tab «Коммуникации», the manual phone-and-email journal
 - `docs/PROJECT.md`
 
 ## Implementation Steps
-- [ ] Remove the communications routes, package, and `orm.py` import. Drop `communications` in a new Alembic revision with a schema-only downgrade.
-- [ ] Remove the `comms` tab from `PatientTab`, `PATIENT_TABS`, `normalizeTab`, and the tab panel. Delete `CommunicationLog` and its API hooks.
-- [ ] Update the API and clinic-web tests listed in Requirements so they no longer expect the journal.
-- [ ] Remove the journal, follow-up, and `communications` table from `docs/PROJECT.md`.
-- [ ] Run `pnpm api:generate` and the checks in Verification.
+- [x] Remove the communications routes, package, and `orm.py` import. Drop `communications` in a new Alembic revision with a schema-only downgrade.
+- [x] Remove the `comms` tab from `PatientTab`, `PATIENT_TABS`, `normalizeTab`, and the tab panel. Delete `CommunicationLog` and its API hooks.
+- [x] Update the API and clinic-web tests listed in Requirements so they no longer expect the journal.
+- [x] Remove the journal, follow-up, and `communications` table from `docs/PROJECT.md`.
+- [x] Run `pnpm api:generate` and the checks in Verification.
 
 ## Verification
 - `uv run --project apps/api python -c "from vetdietderm_api.main import app"` imports, and `app.openapi()` has no path containing `communications`.

@@ -35,7 +35,7 @@ type PatientsWorkspaceProps = {
 };
 
 function normalizeTab(value?: string): PatientTab {
-  if (value === "encounters" || value === "gallery" || value === "comms" || value === "nutrition") {
+  if (value === "encounters" || value === "gallery" || value === "nutrition") {
     return value;
   }
   return "card";
