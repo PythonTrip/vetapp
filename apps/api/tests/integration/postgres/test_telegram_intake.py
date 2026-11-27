@@ -15,6 +15,7 @@ from vetdietderm_api.owners.models import ClinicBot
 from vetdietderm_api.patients.models import Client, Patient
 from vetdietderm_api.settings import get_settings
 from vetdietderm_api.telegram.models import TelegramUpdate
+from vetdietderm_api.telegram.worker import unconsumed_updates
 
 SECRET_HEADER = "X-Telegram-Bot-Api-Secret-Token"
 
@@ -162,3 +163,6 @@ def test_private_telegram_updates_are_committed_once(api_app, staff_client, monk
         ]
         assert stored_updates[1].payload == edited
         assert all(update.transport_status == "complete" for update in stored_updates)
+        pending = unconsumed_updates(db)
+        assert {update.uuid for update in pending} == {update.uuid for update in stored_updates}
+        assert all(update.business_consumed_at is None for update in pending)

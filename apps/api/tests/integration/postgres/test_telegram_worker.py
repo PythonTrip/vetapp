@@ -1,6 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
+from datetime import timedelta
 from time import monotonic, sleep
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 
@@ -25,6 +26,34 @@ def update_row(update_id, **state):
 
 def transport_state(row):
     return row.transport_status, row.attempt_count, row.claimed_at
+
+
+def test_unconsumed_updates_selects_only_pending_completions_in_queue_order(api_app):
+    factory = get_session_factory()
+    created_at = utc_now()
+    with factory.begin() as db:
+        queued = update_row(1, created_at=created_at)
+        earlier = update_row(2, created_at=created_at - timedelta(seconds=1), transport_status="complete")
+        first = update_row(3, created_at=created_at, transport_status="complete")
+        second = update_row(4, created_at=created_at, transport_status="complete")
+        first.uuid = UUID(int=1)
+        second.uuid = UUID(int=2)
+        consumed = update_row(5, transport_status="complete", business_consumed_at=created_at)
+        db.add_all([second, queued, consumed, first, earlier])
+
+    with factory.begin() as db:
+        assert [row.uuid for row in worker.unconsumed_updates(db)] == [earlier.uuid, first.uuid, second.uuid]
+        assert worker.claim_next(db) == queued.uuid
+        assert worker.claim_next(db) is None
+        worker.mark_transport_complete(db, queued.uuid)
+        worker.mark_transport_complete(db, queued.uuid)
+
+    with factory() as db:
+        expected_ties = sorted([first.uuid, second.uuid, queued.uuid])
+        pending = worker.unconsumed_updates(db)
+        assert [row.uuid for row in pending] == [earlier.uuid, *expected_ties]
+        assert all(row.business_consumed_at is None for row in pending)
+        assert db.get(TelegramUpdate, consumed.uuid).business_consumed_at == created_at
 
 
 def test_claim_skips_a_row_locked_by_another_claimer(api_app):
@@ -76,6 +105,7 @@ def test_startup_recovers_abandoned_claims_and_preserves_completion(api_app):
                     assert row.transport_completed_at is not None
                     assert transport_state(db.get(TelegramUpdate, exhausted.uuid)) == ("error", 3, None)
                     assert db.get(TelegramUpdate, done.uuid).transport_completed_at == done.transport_completed_at
+                    assert {item.uuid for item in worker.unconsumed_updates(db)} == {replay.uuid, done.uuid}
                     break
             assert monotonic() < deadline, "The restarted API did not replay the abandoned claim"
             sleep(0.05)

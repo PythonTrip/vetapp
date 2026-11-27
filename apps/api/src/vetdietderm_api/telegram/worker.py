@@ -61,6 +61,16 @@ def record_transport_failure(session: Session, uuid: UUID) -> int | None:
     )
 
 
+def unconsumed_updates(session: Session) -> list[TelegramUpdate]:
+    """Read transport-complete updates that are pending business processing."""
+    pending = (
+        select(TelegramUpdate)
+        .where(TelegramUpdate.transport_status == "complete", TelegramUpdate.business_consumed_at.is_(None))
+        .order_by(TelegramUpdate.created_at, TelegramUpdate.uuid)
+    )
+    return list(session.scalars(pending))
+
+
 async def _transaction[T](operation: Callable[..., T], *args: UUID) -> T:
     def execute() -> T:
         with get_session_factory().begin() as session:

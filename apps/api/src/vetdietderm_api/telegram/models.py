@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import BigInteger, CheckConstraint, DateTime, Index, String, UniqueConstraint, Uuid
+from sqlalchemy import BigInteger, CheckConstraint, DateTime, Index, String, UniqueConstraint, Uuid, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -25,6 +25,12 @@ class TelegramUpdate(Base):
             name="ck_telegram_updates_transport_status",
         ),
         Index("ix_telegram_updates_transport_created", "transport_status", "created_at"),
+        Index(
+            "ix_telegram_updates_business_pending",
+            "created_at",
+            "uuid",
+            postgresql_where=text("transport_status = 'complete' AND business_consumed_at IS NULL"),
+        ),
     )
 
     uuid: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid6)
@@ -38,4 +44,5 @@ class TelegramUpdate(Base):
     attempt_count: Mapped[int] = mapped_column(server_default="0")
     claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     transport_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    business_consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)

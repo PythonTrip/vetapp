@@ -4,7 +4,7 @@ prd_id: 2026-11-27-client-contacts-messaging
 cycle_id: 2026-11-27-client-contacts-messaging
 cycle_slug: client-contacts-messaging
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 complexity: L
 criticality: Blocker
 ---
@@ -12,7 +12,7 @@ criticality: Blocker
 # Gateway Updates Become Business Messages
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 Stored private Telegram updates stay available after a bot disconnect. Business processing can select the ones that are transport-complete and not yet consumed. A transport retry does not hide them and does not create a conversation message. Group, channel, and other non-private updates stay outside the conversation.
@@ -47,11 +47,11 @@ Stored private Telegram updates stay available after a bot disconnect. Business 
 - `docs/PROJECT.md`
 
 ## Implementation Steps
-- [ ] Add `business_consumed_at` and the partial index in a new Alembic revision and on `TelegramUpdate`.
-- [ ] Add `unconsumed_updates(session)` with the filter and order in Requirements. Do not set `business_consumed_at` there.
-- [ ] Confirm `mark_transport_complete`, `record_transport_failure`, `release_abandoned_claims`, and `disconnect_clinic_bot` do not write `business_consumed_at` or delete update rows.
-- [ ] Add the Known Decisions sentence in `docs/PROJECT.md`.
-- [ ] Run the checks in Verification.
+- [x] Add `business_consumed_at` and the partial index in a new Alembic revision and on `TelegramUpdate`.
+- [x] Add `unconsumed_updates(session)` with the filter and order in Requirements. Do not set `business_consumed_at` there.
+- [x] Confirm `mark_transport_complete`, `record_transport_failure`, `release_abandoned_claims`, and `disconnect_clinic_bot` do not write `business_consumed_at` or delete update rows.
+- [x] Add the Known Decisions sentence in `docs/PROJECT.md`.
+- [x] Run the checks in Verification.
 
 ## Verification
 - `uv run --project apps/api python -c "from vetdietderm_api.telegram.worker import unconsumed_updates, mark_transport_complete"` imports.
