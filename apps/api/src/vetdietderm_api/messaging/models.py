@@ -60,6 +60,18 @@ class ConversationMessage(Base):
             "uq_conversation_messages_source", "source_chat_message_uuid",
             unique=True, postgresql_where=text("source_chat_message_uuid IS NOT NULL"),
         ),
+        CheckConstraint(
+            "delivery_status IN ('queued', 'sent', 'failed', 'unconfirmed')",
+            name="ck_conversation_messages_delivery_status",
+        ),
+        Index(
+            "uq_conversation_messages_idempotency", "conversation_uuid", "idempotency_key",
+            unique=True, postgresql_where=text("idempotency_key IS NOT NULL"),
+        ),
+        Index(
+            "ix_conversation_messages_delivery_queue", "created_at", "uuid",
+            postgresql_where=text("delivery_status = 'queued'"),
+        ),
     )
 
     uuid: Mapped[UUID] = mapped_column(primary_key=True, default=uuid6)
@@ -86,6 +98,12 @@ class ConversationMessage(Base):
         ForeignKey("patients.uuid", name="fk_conversation_messages_patient", ondelete="RESTRICT"),
     )
     patient_current: Mapped[bool] = query_expression()
+    delivery_status: Mapped[str | None] = mapped_column(Text)
+    delivery_attempt_count: Mapped[int] = mapped_column(server_default="0")
+    next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    idempotency_key: Mapped[str | None] = mapped_column(Text)
+    target_bot_id: Mapped[int | None] = mapped_column(BigInteger)
+    delivery_error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
     @property

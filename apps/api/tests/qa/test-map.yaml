@@ -2,44 +2,37 @@ schema_version: 1
 project:
   name: Vet Space API
   evidence_level: repository_inferred
-  commit: 4301b5ea4c40595a0e5084456214bf0268221ed7
+  commit: be72a1448236e94be1ec29ec7cf8e1a6b7005315
   owner: unassigned
 approvals:
-  core:
-    status: approved
-    approver: Requesting user (Codex chat)
-    approved_at: "2026-11-19"
-    evidence: 'User replied «Да» to the explicit request to retain the current Core checks.'
-    fingerprint: 560535a30774328747e3ef5142b23a8b4d7ab6669448a349f9504d8c31b54cde
-  scope:
-    status: approved
-    approver: Requesting user (Codex chat)
-    approved_at: "2026-11-19"
-    evidence: 'User replied «Да» to the five PostgreSQL scenarios, expected results, disposable environment, exclusions and nonblocking schedule.'
-    fingerprint: 767fb5a04bd8dd2ad2c5df9e93e704da605b165802e2d0be2e21048c727a9759
+  core: {status: pending}
+  scope: {status: pending}
 policy:
   mandatory_core_events: &core_events [pull_request, main_push, release_candidate]
 scope:
   included:
     - Clinical records, appointments and attachment persistence through FastAPI.
     - Nutrition catalog, assessment and saved diet plan snapshots.
-    - Clinic access controls and owner visit requests.
+    - Clinic access controls and staff handling of stored owner visit requests.
+    - Clinic bot webhook intake, Telegram conversation persistence and durable staff reply delivery.
     - Targeted PostgreSQL correctness checks for competing writes, Alembic migrations, and API readiness during migration.
   environments:
     - {id: api_postgres, purpose: In-process FastAPI requests with a disposable PostgreSQL instance and temporary file storage.}
     - {id: api_sqlite, purpose: In-process FastAPI requests with in-memory SQLite and temporary file storage.}
     - {id: postgres_alembic, purpose: Dedicated disposable PostgreSQL databases for fresh installation and upgrade of synthetic legacy rows through the real Alembic chain.}
     - {id: compose_postgres, purpose: "Isolated release-candidate Compose stack with disposable PostgreSQL, an API container, web services, and a temporary attachment volume."}
-  real_dependencies: [FastAPI and SQLAlchemy, PostgreSQL for clinical and nutrition integration, Temporary attachment filesystem, In-process FEDIAF 2025 provider, Alembic for schema changes, Docker Compose for startup checks]
+    - {id: telegram_manual, purpose: "Manual round trip with a disposable API and PostgreSQL, a dedicated test bot and a public HTTPS webhook."}
+  real_dependencies: [FastAPI and SQLAlchemy, PostgreSQL for clinical and nutrition integration, Temporary attachment filesystem, In-process FEDIAF 2025 provider, Alembic for schema changes, Docker Compose for startup checks, Telegram Bot API for the manual round trip]
   stubbed_dependencies:
     - {name: module-auth, reason: The fixtures provide synthetic users and clinic roles without calling the external service.}
+    - {name: Telegram Bot API, reason: Automated PostgreSQL checks control Telegram responses and inject repeatable transport outcomes.}
   test_data: Use synthetic clinic, owner, patient, visit and ration data. Use disposable PostgreSQL with test-only credentials. API fixtures use isolated schemas, Alembic cases use separate databases, and concurrent cases use separate connections, explicit synchronization and bounded waits. Read committed results through a fresh connection.
   not_core:
     - Existing API fixtures exercise ORM-created schemas. The targeted migration and readiness checks use separate Alembic and Compose environments.
-    - The wider visit matrix runs on SQLite. The focused confirmation rollback and retry check uses PostgreSQL.
+    - Live Telegram verification runs manually against a dedicated bot. Use a synthetic message and a consenting test sender.
   exclusions:
     - id: EXCL-API-PG-PRODUCTION
-      subject: Live production, real credentials and production data
+      subject: Production systems, production credentials and production data
       residual_risk: Disposable environments do not establish the effective settings or operational health of the deployed database.
       owner: unassigned
       review_by: Before setting a release gate
@@ -82,14 +75,14 @@ capabilities:
     evidence: Repository docs/PROJECT.md and tests/integration/test_multi_user_boundaries.py.
     owner: unassigned
   - id: CAP-API-VISITS
-    name: Owner request and staff confirmation
-    core: true
-    decision: approved
+    name: Staff confirmation of stored owner requests
+    core: false
+    decision: proposed
     risk: high
     why: Incorrect confirmation creates schedule entries or accepts registrations prematurely.
-    outcome: A request preserves submitted data and enters the schedule only on valid staff confirmation.
+    outcome: An existing request enters the schedule only on valid staff confirmation.
     layers: [api, database]
-    evidence: Repository docs/PROJECT.md, docs/prd/2026-11-07_booking-by-problem_prd.md and the SQLite and PostgreSQL visit integration suites.
+    evidence: Repository docs/PROJECT.md, docs/prd/2026-11-07_booking-by-problem_prd.md and the staff visit code. Owner submission and its historical test suites were removed with Owner Cabinet.
     owner: unassigned
   - id: CAP-API-POSTGRES
     name: PostgreSQL transaction and schema correctness
@@ -100,6 +93,16 @@ capabilities:
     outcome: Competing writes preserve business invariants, migrated databases preserve legacy records, and the API is ready before dependent web services start.
     layers: [api, database, deployment]
     evidence: Project data and startup contracts, Booking by Problem PRD, PostgreSQL audit of revision 4301b5e, and the existing PostgreSQL integration fixture.
+    owner: unassigned
+  - id: CAP-API-TELEGRAM
+    name: Clinic Telegram conversations and replies
+    core: true
+    decision: proposed
+    risk: high
+    why: Missing, duplicated or misrouted messages interrupt clinic communication with owners.
+    outcome: One authorized private Telegram message reaches its clinic conversation, and a staff reply records Telegram acceptance without automatically resending an ambiguous attempt.
+    layers: [api, database, external]
+    evidence: Telegram Bot Gateway PRD, Client Contacts and Messaging Domain PRD and the outbound-delivery issue.
     owner: unassigned
 features:
   - id: FEAT-API-CLINICAL
@@ -117,11 +120,6 @@ features:
     feature: Restrict client records by clinic and role
     places: [apps/api/src/vetdietderm_api/auth.py, apps/api/src/vetdietderm_api/auth_sessions.py, apps/api/src/vetdietderm_api/tenancy.py, apps/api/src/vetdietderm_api/patients/router.py]
     expected: The owning clinic keeps access to its record. Another clinic cannot read or change it, and a viewer cannot create a record.
-  - id: FEAT-API-VISITS
-    module: Visits
-    feature: Preserve owner submissions and schedule confirmed visits
-    places: [apps/api/src/vetdietderm_api/visits/router.py, apps/api/src/vetdietderm_api/visits/service.py, apps/api/src/vetdietderm_api/questionnaires/service.py, apps/api/src/vetdietderm_api/owners/registrations.py, apps/api/src/vetdietderm_api/appointments/router.py]
-    expected: Submitted answers survive questionnaire edits. Valid confirmation creates a typed appointment. Invalid confirmation leaves the request and registration pending.
   - id: FEAT-API-PG-NUTRIENTS
     module: PostgreSQL
     feature: Replace the as-fed nutrient set atomically under concurrent writes
@@ -147,6 +145,16 @@ features:
     feature: Gate dependent web startup on migration and API readiness
     places: [infra/docker-compose.yml, apps/api/src/vetdietderm_api/main.py, apps/api/src/vetdietderm_api/db.py]
     expected: A reachable database with a pending migration cannot make the API healthy. The API is listening and can use the migrated database before the web services start.
+  - id: FEAT-API-TELEGRAM-INBOUND
+    module: Telegram
+    feature: Accept private Telegram updates and persist a clinic conversation
+    places: [apps/api/src/vetdietderm_api/telegram, apps/api/src/vetdietderm_api/messaging/intake.py, apps/api/src/vetdietderm_api/messaging/router.py]
+    expected: The authorized private update is stored once, its latest accepted edit is visible in the clinic conversation, and another clinic cannot read that conversation.
+  - id: FEAT-API-TELEGRAM-OUTBOUND
+    module: Telegram
+    feature: Deliver a staff reply once with a durable status
+    places: [apps/api/src/vetdietderm_api/messaging/router.py, apps/api/src/vetdietderm_api/messaging/delivery.py, apps/api/src/vetdietderm_api/owners/telegram.py, apps/api/src/vetdietderm_api/owners/clinic_bots.py]
+    expected: A send with the current bot and a qualifying inbound message is queued once per idempotency key. Telegram acceptance marks it sent. An ambiguous attempt remains unconfirmed across restart.
 checks:
   - id: CHECK-API-CLINICAL
     feature_id: FEAT-API-CLINICAL
@@ -201,43 +209,6 @@ checks:
     safe_in_production: false
     status: implemented
     test_ref: tests/integration/test_multi_user_boundaries.py::test_tenant_boundaries_and_parallel_refresh
-    owner: unassigned
-  - id: CHECK-API-VISITS
-    feature_id: FEAT-API-VISITS
-    capability_ids: [CAP-API-VISITS]
-    scenario: Submit a visit request, change the published questionnaire, and exercise valid and invalid confirmation cases.
-    expected: Saved answers stay intact and the schedule stays empty until confirmation. Valid types create one appointment. An invalid type returns 422 and leaves the pending records intact.
-    oracle: Booking by Problem PRD and project contract, fixed questionnaire options and visit types, and independent schedule and database reads.
-    # Retired 2026-11-26 with Owner Cabinet runtime; archived on archive/owner-cabinet.
-    level: integration
-    core_smoke: true
-    environment: api_sqlite
-    real: [FastAPI ASGI routes, In-memory SQLite, Temporary attachment filesystem]
-    stubbed: [module-auth]
-    data: Synthetic owner, pet, clinic, questionnaire and pending registration.
-    triggers: *core_events
-    blocking_on: *core_events
-    safe_in_production: false
-    status: retired
-    test_ref: archived on archive/owner-cabinet (tests/integration/test_visit_requests.py)
-    owner: unassigned
-  - id: CHECK-API-VISIT-CONFIRMATION-PG
-    feature_id: FEAT-API-VISITS
-    capability_ids: [CAP-API-VISITS]
-    scenario: Confirm an owner request while its uploaded file is missing, then restore the file and retry.
-    expected: The failed confirmation leaves the request and registration pending, with zero clinical rows. Retry accepts the registration and creates one linked appointment and gallery attachment.
-    oracle: Project atomic-confirmation requirement and independently queried PostgreSQL rows, staff schedule and patient lists.
-    level: integration
-    core_smoke: true
-    environment: api_postgres
-    real: [FastAPI ASGI routes, PostgreSQL, Temporary attachment filesystem]
-    stubbed: [module-auth]
-    data: Synthetic clinic, pending owner registration, pet, request and temporary PDF.
-    triggers: *core_events
-    blocking_on: *core_events
-    safe_in_production: false
-    status: retired
-    test_ref: archived on archive/owner-cabinet (tests/integration/test_visit_confirmation_postgres.py)
     owner: unassigned
   - id: CHECK-API-PG-NUTRIENTS-CONCURRENT
     feature_id: FEAT-API-PG-NUTRIENTS
@@ -324,6 +295,95 @@ checks:
     safe_in_production: false
     status: planned
     owner: unassigned
+  - id: CHECK-API-TELEGRAM-WEBHOOK
+    feature_id: FEAT-API-TELEGRAM-INBOUND
+    capability_ids: [CAP-API-TELEGRAM]
+    scenario: Send authorized and unauthorized webhook requests with private and non-private synthetic updates and replay a private update.
+    expected: Invalid credentials and unsupported updates add no rows. The authorized private update is durable and a replay leaves one stored update.
+    oracle: Telegram Bot Gateway PRD, fixed synthetic update IDs and independent PostgreSQL reads.
+    level: integration
+    core_smoke: true
+    environment: api_postgres
+    real: [FastAPI webhook route, PostgreSQL]
+    stubbed: [module-auth, Telegram Bot API]
+    data: Dedicated synthetic clinics, bots and private updates.
+    triggers: *core_events
+    blocking_on: *core_events
+    safe_in_production: false
+    status: implemented
+    test_ref: tests/integration/postgres/test_telegram_intake.py::test_private_telegram_updates_are_committed_once
+    owner: unassigned
+  - id: CHECK-API-TELEGRAM-CONVERSATION
+    feature_id: FEAT-API-TELEGRAM-INBOUND
+    capability_ids: [CAP-API-TELEGRAM]
+    scenario: Process completed private updates with duplicate messages and out-of-order edits in a database migrated to head.
+    expected: One contact and conversation hold each message once with the latest accepted edit. A staff member in another clinic receives 404.
+    oracle: Client Contacts and Messaging Domain PRD, explicit expected message bodies and independent PostgreSQL and staff API reads.
+    level: integration
+    core_smoke: true
+    environment: postgres_alembic
+    real: [Alembic, PostgreSQL, Business intake worker, FastAPI staff API]
+    stubbed: [module-auth, Telegram update input]
+    data: Synthetic private updates with fixed message IDs, timestamps and edit order.
+    triggers: *core_events
+    blocking_on: *core_events
+    safe_in_production: false
+    status: implemented
+    test_ref: tests/integration/postgres/test_conversation_intake.py::test_messages_deduplicate_and_keep_the_newest_edit
+    owner: unassigned
+  - id: CHECK-API-TELEGRAM-DELIVERY
+    feature_id: FEAT-API-TELEGRAM-OUTBOUND
+    capability_ids: [CAP-API-TELEGRAM]
+    scenario: Submit a staff reply twice with one key. Try sending as a viewer and to contacts lacking inbound from the current bot. Process a Telegram acceptance.
+    expected: The first eligible send returns 201 and the replay returns 200 with the same ID. Ineligible contacts return 422 and a viewer gets 403. The worker records sent with the accepted Telegram message ID.
+    oracle: Outbound-delivery acceptance criteria, fixed response from the Telegram HTTP stub and independently read PostgreSQL rows.
+    level: integration
+    core_smoke: true
+    environment: api_postgres
+    real: [FastAPI staff API, PostgreSQL, Delivery worker, Temporary attachment filesystem]
+    stubbed: [module-auth, Telegram Bot API]
+    data: Synthetic clinic bot, current and former inbound messages, staff roles and sample PDF.
+    triggers: *core_events
+    blocking_on: *core_events
+    safe_in_production: false
+    status: implemented
+    test_ref: tests/integration/postgres/test_outbound_delivery.py::test_staff_composition_and_send_gate
+    owner: unassigned
+  - id: CHECK-API-TELEGRAM-UNCONFIRMED
+    feature_id: FEAT-API-TELEGRAM-OUTBOUND
+    capability_ids: [CAP-API-TELEGRAM]
+    scenario: Interrupt result handling after committing the outbound attempt and run the worker again.
+    expected: The worker leaves the stored message unconfirmed and calls Telegram only once. Explicit retry returns 409.
+    oracle: Outbound-delivery issue rule for ambiguous results, recorded call count and independently read PostgreSQL status.
+    level: integration
+    core_smoke: true
+    environment: api_postgres
+    real: [FastAPI retry API, PostgreSQL, Delivery worker]
+    stubbed: [module-auth, Telegram Bot API]
+    data: One synthetic staff reply with an interrupted delivery attempt.
+    triggers: *core_events
+    blocking_on: *core_events
+    safe_in_production: false
+    status: implemented
+    test_ref: tests/integration/postgres/test_outbound_delivery.py::test_worker_restart_leaves_unconfirmed
+    owner: unassigned
+  - id: CHECK-API-TELEGRAM-LIVE
+    feature_id: FEAT-API-TELEGRAM-OUTBOUND
+    capability_ids: [CAP-API-TELEGRAM]
+    scenario: Connect a dedicated bot and verify the HTTPS webhook. Send a unique private message from Telegram, locate it via the staff API, send a reply and replay the same idempotency key.
+    expected: The webhook is active, the clinic API shows exactly one matching inbound message, and Telegram displays exactly one reply while the staff API reports sent.
+    oracle: Matching test text in both the staff API and the independent Telegram client, plus stable outbound ID on replay.
+    level: e2e
+    core_smoke: false
+    environment: telegram_manual
+    real: [Telegram Bot API, Public HTTPS webhook, FastAPI, PostgreSQL, Telegram client]
+    stubbed: [module-auth]
+    data: Dedicated test bot, consenting sender, synthetic clinic and a unique text marker.
+    triggers: [local_change]
+    blocking_on: []
+    safe_in_production: false
+    status: planned
+    owner: unassigned
 impact_rules:
   - paths:
       - apps/api/tests/integration/conftest.py
@@ -337,17 +397,13 @@ impact_rules:
       - apps/api/src/vetdietderm_api/auth_models.py
       - apps/api/src/vetdietderm_api/auth_sessions.py
       - apps/api/src/vetdietderm_api/clinic_transfer.py
-    checks: [CHECK-API-CLINICAL, CHECK-API-NUTRITION, CHECK-API-CLINIC-ACCESS, CHECK-API-VISITS, CHECK-API-VISIT-CONFIRMATION-PG]
+    checks: [CHECK-API-CLINICAL, CHECK-API-NUTRITION, CHECK-API-CLINIC-ACCESS, CHECK-API-TELEGRAM-WEBHOOK, CHECK-API-TELEGRAM-CONVERSATION, CHECK-API-TELEGRAM-DELIVERY, CHECK-API-TELEGRAM-UNCONFIRMED]
   - paths: [apps/api/src/vetdietderm_api/patients, apps/api/src/vetdietderm_api/encounters, apps/api/src/vetdietderm_api/appointments, apps/api/src/vetdietderm_api/attachments, apps/api/tests/integration/test_clinical_workflow.py]
     checks: [CHECK-API-CLINICAL]
   - paths: [apps/api/src/vetdietderm_api/assessments, apps/api/src/vetdietderm_api/standards, apps/api/src/vetdietderm_api/catalog, apps/api/tests/integration/test_nutrition_workflow.py, apps/api/tests/unit/assessments]
     checks: [CHECK-API-NUTRITION]
   - paths: [apps/api/src/vetdietderm_api/patients, apps/api/tests/integration/test_multi_user_boundaries.py]
     checks: [CHECK-API-CLINIC-ACCESS]
-  - paths: [apps/api/src/vetdietderm_api/visits, apps/api/src/vetdietderm_api/questionnaires, apps/api/src/vetdietderm_api/owners, apps/api/src/vetdietderm_api/chat/repository.py, apps/api/tests/integration/test_owner_cabinet.py, apps/api/tests/integration/test_visit_requests.py]
-    checks: [CHECK-API-VISITS]
-  - paths: [apps/api/src/vetdietderm_api/visits, apps/api/src/vetdietderm_api/questionnaires, apps/api/src/vetdietderm_api/owners, apps/api/src/vetdietderm_api/chat/repository.py, apps/api/src/vetdietderm_api/attachments, apps/api/tests/integration/test_visit_confirmation_postgres.py]
-    checks: [CHECK-API-VISIT-CONFIRMATION-PG]
   - paths: [apps/api/src/vetdietderm_api/catalog, apps/api/src/vetdietderm_api/db.py]
     checks: [CHECK-API-PG-NUTRIENTS-CONCURRENT]
   - paths: [apps/api/src/vetdietderm_api/visits, apps/api/src/vetdietderm_api/owners, apps/api/src/vetdietderm_api/attachments, apps/api/src/vetdietderm_api/db.py]
@@ -358,7 +414,9 @@ impact_rules:
     checks: [CHECK-API-PG-ALEMBIC]
   - paths: [infra/docker-compose.yml, infra/docker/api.Dockerfile, apps/api/alembic, apps/api/src/vetdietderm_api/main.py, apps/api/src/vetdietderm_api/db.py, packages/web-proxy]
     checks: [CHECK-API-PG-COMPOSE-READINESS]
+  - paths: [apps/api/src/vetdietderm_api/telegram, apps/api/src/vetdietderm_api/messaging, apps/api/src/vetdietderm_api/owners/clinic_bots.py, apps/api/src/vetdietderm_api/owners/telegram.py, apps/api/tests/integration/postgres/test_telegram_intake.py, apps/api/tests/integration/postgres/test_conversation_intake.py, apps/api/tests/integration/postgres/test_outbound_delivery.py]
+    checks: [CHECK-API-TELEGRAM-WEBHOOK, CHECK-API-TELEGRAM-CONVERSATION, CHECK-API-TELEGRAM-DELIVERY, CHECK-API-TELEGRAM-UNCONFIRMED, CHECK-API-TELEGRAM-LIVE]
 metadata:
   discovery: PROJECT_CONTEXT_MISSING at apps/api/docs/PROJECT.md. Shared docs/PROJECT.md and relevant PRDs were used as repository evidence.
   references: Feature and impact paths are repository-relative. Test references are relative to apps/api.
-  reconciliation: The prior draft recorded collection of the four existing exact node references and the visit scenario suite. The targeted PostgreSQL checks are planned gaps without executable references. Existing PostgreSQL checks cover clinical persistence, nutrition snapshots, clinic isolation and confirmation rollback. The shared API PostgreSQL fixture uses ORM create_all and cannot verify the Alembic chain.
+  reconciliation: The listed commit is the base revision. Telegram checks were reviewed against the current working tree. The archived CHECK-API-VISITS and CHECK-API-VISIT-CONFIRMATION-PG referenced removed runtime tests and used an unsupported status. The proposal retains staff handling of stored requests in scope and moves it outside Core pending a current smoke. Historical approvals remain in Git history.

@@ -21,7 +21,6 @@ from vetdietderm_api.patients.models import Client, Patient
 pytestmark = pytest.mark.integration
 API_ROOT = Path(__file__).resolve().parents[3]
 PREVIOUS = "0050_message_patient_tag"
-MIGRATION = "0051_owner_chat_history"
 OCCURRED = datetime(2025, 1, 1, tzinfo=UTC)
 
 
@@ -102,12 +101,12 @@ def test_owner_chat_history_upgrade_replay_and_downgrade(
         if scenario == "existing_contact":
             contact, conversation = open_contact(db, clinic, 42, 42, "Telegram Name", "telegram_username")
             original_pair = contact.uuid, conversation.uuid
-            db.add(ConversationMessage(
+            db.execute(insert(ConversationMessage.__table__).values(
                 clinic_id=clinic, conversation_uuid=conversation.uuid, direction="inbound",
                 channel="telegram", origin="owner_cabinet", occurred_at=OCCURRED, source_chat_message_uuid=uuid4(),
             ))
 
-    command.upgrade(config, MIGRATION)
+    command.upgrade(config, "head")
     with Session(engine) as db, db.begin():
         contact = db.scalars(select(ClinicContact)).one()
         conversation = db.scalars(select(ClinicConversation)).one()
@@ -138,6 +137,8 @@ def test_owner_chat_history_upgrade_replay_and_downgrade(
             assert message.occurred_at == OCCURRED + timedelta(minutes=index)
             assert (message.origin, message.channel) == ("owner_cabinet", "telegram")
             assert message.bot_id is message.telegram_message_id is None
+            assert message.delivery_status is None
+            assert message.delivery_attempt_count == 0
             assert (message.author_user_id, message.author_label, message.body) == (
                 owner, f"Author {index}", f"Message {index}",
             )
@@ -163,7 +164,7 @@ def test_owner_chat_history_upgrade_replay_and_downgrade(
 
     command.downgrade(config, PREVIOUS)
     with Session(engine) as db:
-        remaining = db.scalars(select(ConversationMessage)).all()
+        remaining = db.execute(select(ConversationMessage.source_chat_message_uuid)).all()
         if scenario in {"linked", "untagged"}:
             assert remaining == []
             assert db.get(ClinicContact, pair[0]) is db.get(ClinicConversation, pair[1]) is None

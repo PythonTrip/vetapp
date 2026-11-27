@@ -14,6 +14,8 @@ from vetdietderm_api.telegram.models import TelegramUpdate
 type MessageFile = tuple[str, bytes]
 
 _PDF = "application/pdf"
+_TELEGRAM_TEXT_LIMIT = 4096
+_TELEGRAM_CAPTION_LIMIT = 1024
 _IMAGE_TYPES = tuple(content_type for content_type in storage.ALLOWED_CONTENT_TYPES if content_type.startswith("image/"))
 _TELEGRAM_FILE_FIELDS = (
     "animation", "audio", "document", "live_photo", "paid_media", "photo",
@@ -27,8 +29,12 @@ def validate_staff_composition(text: str | None, file: UploadFile | None) -> tup
     if file is None:
         if text is None:
             raise HTTPException(422, "Добавьте текст или файл")
+        if len(text) > _TELEGRAM_TEXT_LIMIT:
+            raise HTTPException(422, f"Текст сообщения в Telegram — максимум {_TELEGRAM_TEXT_LIMIT} символов")
         return text, None
 
+    if text is not None and len(text) > _TELEGRAM_CAPTION_LIMIT:
+        raise HTTPException(422, f"Подпись к файлу в Telegram — максимум {_TELEGRAM_CAPTION_LIMIT} символа")
     content_type = (file.content_type or "").split(";")[0].strip().lower()
     if content_type not in storage.ALLOWED_CONTENT_TYPES:
         raise HTTPException(422, "Допустимы JPEG, PNG, WebP, GIF и PDF")

@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from vetdietderm_api.api_errors import install_error_handlers
 from vetdietderm_api.auth import require_clinical_access
 from vetdietderm_api.db import ping_database
+from vetdietderm_api.messaging.delivery import run_delivery_worker
 from vetdietderm_api.messaging.intake import run_business_worker
 from vetdietderm_api.orm import load_models
 from vetdietderm_api.routing import include_clinical_and_versioned_routes, include_legacy_self_scoped_routes
@@ -26,7 +27,11 @@ class StatusResponse(BaseModel):
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     get_settings()
     logger.info("Vet Space API starting")
-    workers = (asyncio.create_task(run_worker()), asyncio.create_task(run_business_worker()))
+    workers = (
+        asyncio.create_task(run_worker()),
+        asyncio.create_task(run_business_worker()),
+        asyncio.create_task(run_delivery_worker()),
+    )
     try:
         yield
     finally:

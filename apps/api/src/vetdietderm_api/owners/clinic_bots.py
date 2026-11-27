@@ -6,10 +6,12 @@ from uuid import UUID
 from weakref import WeakValueDictionary
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from vetdietderm_api.messaging.delivery import BOT_CHANGED
+from vetdietderm_api.messaging.models import ConversationMessage
 from vetdietderm_api.owners import telegram
 from vetdietderm_api.owners.bot_crypto import decrypt_credential, encrypt_secret, scrub_secrets
 from vetdietderm_api.owners.models import ClinicBot, JoinCode
@@ -112,6 +114,7 @@ def _save_clinic_bot(body: ClinicBotWrite, clinic: UUID, db: Session) -> ClinicB
         raise HTTPException(409, DUPLICATE_BOT)
     previous_token = None
     previous_secret = None
+    bot_changed = row is not None and row.bot_id != bot_id
     if row is None:
         row = ClinicBot(clinic_id=clinic, status=ClinicBotStatus.connected)
         db.add(row)
@@ -140,6 +143,12 @@ def _save_clinic_bot(body: ClinicBotWrite, clinic: UUID, db: Session) -> ClinicB
     registered = _register_webhook(row, body.token, secret, expected_url)
     if registered and previous_cleanup_failed:
         row.last_error = scrub_secrets(PREVIOUS_WEBHOOK_ERROR, (body.token, secret, previous_token, previous_secret))
+    if bot_changed:
+        db.execute(
+            update(ConversationMessage)
+            .where(ConversationMessage.clinic_id == clinic, ConversationMessage.delivery_status == "queued")
+            .values(delivery_status="failed", next_attempt_at=None, delivery_error=BOT_CHANGED)
+        )
     db.commit()
     return clinic_bot_read(row)
 

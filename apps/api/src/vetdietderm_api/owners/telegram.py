@@ -1,9 +1,14 @@
 """Telegram Bot API helpers for clinic bot credentials and webhooks."""
 
 import logging
+from dataclasses import dataclass
+from typing import Literal
 from urllib.parse import quote, urlsplit
 
 import httpx
+
+from vetdietderm_api.attachments.storage import extension_for
+from vetdietderm_api.owners.bot_crypto import scrub_secrets
 
 _TELEGRAM_HOST = "api.telegram.org"
 _UNCONFIRMED = "Telegram не подтвердил токен"
@@ -52,6 +57,65 @@ def set_webhook(token: str, url: str, secret: str) -> bool:
 
 def delete_webhook(token: str) -> bool:
     return _webhook_changed(_call_bot_api(token, "deleteWebhook", {}))
+
+
+@dataclass(frozen=True)
+class BotSendResult:
+    status: Literal["sent", "failed", "retry", "unconfirmed"]
+    message_id: int | None = None
+    retry_after: int = 0
+    error: str | None = None
+
+
+def send_bot_message(
+    token: str,
+    webhook_secret: str | None,
+    chat_id: int,
+    body: str | None,
+    attachment: tuple[str, bytes] | None,
+) -> BotSendResult:
+    data = {"chat_id": str(chat_id)}
+    if attachment is None:
+        method = "sendMessage"
+        request_body = {"json": {"chat_id": chat_id, "text": body}}
+    else:
+        content_type, payload = attachment
+        field = "document" if content_type == "application/pdf" else "photo"
+        method = "sendDocument" if field == "document" else "sendPhoto"
+        if body is not None:
+            data["caption"] = body
+        request_body = {
+            "data": data,
+            "files": {field: (f"attachment{extension_for(content_type)}", payload, content_type)},
+        }
+    url = _bot_api_url(token, method)
+    if url is None:
+        return BotSendResult("failed", error="Недоступен токен бота")
+    try:
+        response = httpx.post(url, timeout=10.0, follow_redirects=False, **request_body)
+        if response.status_code >= 500:
+            return BotSendResult("unconfirmed")
+        payload = response.json()
+    except httpx.ConnectError:
+        return BotSendResult("retry")
+    except (httpx.HTTPError, ValueError):
+        return BotSendResult("unconfirmed")
+
+    if isinstance(payload, dict):
+        result = payload.get("result")
+        if payload.get("ok") is True and isinstance(result, dict):
+            message_id = result.get("message_id")
+            if type(message_id) is int and -(2**63) <= message_id < 2**63:
+                return BotSendResult("sent", message_id=message_id)
+        if payload.get("ok") is False:
+            description = payload.get("description")
+            error = scrub_secrets(description, (token, webhook_secret)) if isinstance(description, str) else None
+            parameters = payload.get("parameters")
+            retry_after = parameters.get("retry_after") if isinstance(parameters, dict) else None
+            if type(retry_after) is int and retry_after > 0:
+                return BotSendResult("retry", retry_after=retry_after, error=error)
+            return BotSendResult("failed", error=error)
+    return BotSendResult("unconfirmed")
 
 
 def download_bot_file(token: str, file_id: str, max_bytes: int) -> bytes | None:

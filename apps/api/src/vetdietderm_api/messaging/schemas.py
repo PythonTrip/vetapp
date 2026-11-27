@@ -74,4 +74,8 @@ class ConversationMessageRead(BaseModel):
     source_chat_message_uuid: UUID | None
     patient_uuid: UUID | None
     patient_current: bool
+    delivery_status: Literal["queued", "sent", "failed", "unconfirmed"] | None
+    delivery_attempt_count: int
+    next_attempt_at: datetime | None
+    delivery_error: str | None
     created_at: datetime

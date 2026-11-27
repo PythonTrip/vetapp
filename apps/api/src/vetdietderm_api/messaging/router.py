@@ -1,13 +1,17 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Request, Response, UploadFile
+from loguru import logger
 from sqlalchemy import select, update
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, with_expression
 
-from vetdietderm_api.attachments.storage import resolve_file
+from vetdietderm_api.attachments import storage
+from vetdietderm_api.clock import utc_now
 from vetdietderm_api.db import get_session
 from vetdietderm_api.messaging.audit import change_client_link, list_link_events
+from vetdietderm_api.messaging.content import validate_staff_composition
 from vetdietderm_api.messaging.models import ClinicContact, ConversationMessage
 from vetdietderm_api.messaging.repository import clinic_contacts, clinic_messages
 from vetdietderm_api.messaging.schemas import (
@@ -18,6 +22,8 @@ from vetdietderm_api.messaging.schemas import (
     ConversationMessageRead,
     MessagePatientUpdate,
 )
+from vetdietderm_api.owners.models import ClinicBot
+from vetdietderm_api.owners.schemas import ClinicBotStatus
 from vetdietderm_api.patients import repository as patients
 from vetdietderm_api.patients.models import Client, Patient
 from vetdietderm_api.patients.schemas import ClientCreate
@@ -70,11 +76,8 @@ def get_contact(contact_id: UUID, request: Request, db: DatabaseSession) -> Cont
     return contact_read(*get_clinic_contact(contact_id, UUID(str(request.state.tenant_id)), db))
 
 
-@contacts.get("/{contact_id}/messages")
-def get_contact_messages(contact_id: UUID, request: Request, db: DatabaseSession) -> list[ConversationMessageRead]:
-    clinic_id = UUID(str(request.state.tenant_id))
-    _, conversation_uuid = get_clinic_contact(contact_id, clinic_id, db)
-    messages = db.scalars(
+def messages_with_patient(clinic_id: UUID):
+    return (
         clinic_messages(clinic_id)
         .outerjoin(
             Patient,
@@ -83,10 +86,133 @@ def get_contact_messages(contact_id: UUID, request: Request, db: DatabaseSession
             & (Patient.tenant_id == ClinicContact.clinic_id),
         )
         .options(with_expression(ConversationMessage.patient_current, Patient.uuid.is_not(None)))
+    )
+
+
+@contacts.get("/{contact_id}/messages")
+def get_contact_messages(contact_id: UUID, request: Request, db: DatabaseSession) -> list[ConversationMessageRead]:
+    clinic_id = UUID(str(request.state.tenant_id))
+    _, conversation_uuid = get_clinic_contact(contact_id, clinic_id, db)
+    messages = db.scalars(
+        messages_with_patient(clinic_id)
         .where(ConversationMessage.conversation_uuid == conversation_uuid)
         .order_by(ConversationMessage.occurred_at, ConversationMessage.uuid)
     )
     return [ConversationMessageRead.model_validate(message) for message in messages]
+
+
+@contacts.post(
+    "/{contact_id}/messages", status_code=201,
+    responses={200: {"model": ConversationMessageRead, "description": "Existing message for this idempotency key"}},
+)
+def send_contact_message(
+    contact_id: UUID,
+    request: Request,
+    response: Response,
+    db: DatabaseSession,
+    idempotency_key: Annotated[str, Header(min_length=1, max_length=200)],
+    text: Annotated[str | None, Form()] = None,
+    file: Annotated[list[UploadFile] | None, File(max_length=1)] = None,
+) -> ConversationMessageRead:
+    clinic_id = UUID(str(request.state.tenant_id))
+    # Serialize identical sends through file storage and let replays find the row
+    # even if its bot has since been disconnected or replaced.
+    contact, conversation_uuid = get_clinic_contact(contact_id, clinic_id, db, for_update=True)
+    existing = db.scalar(messages_with_patient(clinic_id).where(
+        ConversationMessage.conversation_uuid == conversation_uuid,
+        ConversationMessage.idempotency_key == idempotency_key,
+    ))
+    if existing is not None:
+        response.status_code = 200
+        return ConversationMessageRead.model_validate(existing)
+
+    body, attachment = validate_staff_composition(text, file[0] if file else None)
+    bot = db.get(ClinicBot, clinic_id, with_for_update={"read": True})
+    if bot is None or bot.bot_id is None or bot.status != ClinicBotStatus.connected:
+        raise HTTPException(422, "Подключите бота клиники")
+    has_inbound = select(ConversationMessage.uuid).where(
+        ConversationMessage.clinic_id == clinic_id,
+        ConversationMessage.conversation_uuid == conversation_uuid,
+        ConversationMessage.direction == "inbound",
+        ConversationMessage.origin == "telegram",
+        ConversationMessage.bot_id == bot.bot_id,
+    ).exists()
+    if not db.scalar(select(has_inbound)):
+        raise HTTPException(422, "Контакт ещё не писал текущему боту клиники")
+
+    user = request.state.user
+    display_name = user.get("display_name")
+    message = ConversationMessage(
+        clinic_id=clinic_id,
+        conversation_uuid=conversation_uuid,
+        direction="outbound",
+        origin="telegram",
+        channel="telegram",
+        occurred_at=utc_now(),
+        telegram_chat_id=contact.telegram_chat_id,
+        body=body,
+        author_user_id=UUID(str(user["user_id"])),
+        author_label=display_name if isinstance(display_name, str) and display_name else user["email"],
+        patient_current=False,
+        delivery_status="queued",
+        idempotency_key=idempotency_key,
+        target_bot_id=bot.bot_id,
+    )
+    storage_key = None
+    committing_message_id = None
+    try:
+        if attachment is not None:
+            content_type, payload = attachment
+            storage_key = storage.write_bytes(content_type, payload)
+            message.attachment_storage_key = storage_key
+            message.attachment_content_type = content_type
+            message.attachment_byte_size = len(payload)
+        db.add(message)
+        db.flush()
+        result = ConversationMessageRead.model_validate(message)
+        committing_message_id = result.uuid
+        db.commit()
+    except Exception:
+        if storage_key is not None:
+            try:
+                persisted_key = None
+                if committing_message_id is not None:
+                    db.rollback()
+                    # Reacquire the send's contact lock to wait for the prior transaction's outcome.
+                    db.execute(select(ClinicContact.uuid).where(
+                        ClinicContact.uuid == contact_id, ClinicContact.clinic_id == clinic_id,
+                    ).with_for_update())
+                    persisted_key = db.scalar(select(ConversationMessage.attachment_storage_key).where(
+                        ConversationMessage.uuid == committing_message_id,
+                        ConversationMessage.clinic_id == clinic_id,
+                    ))
+                if persisted_key != storage_key:
+                    storage.delete_file(storage_key)
+            except (SQLAlchemyError, OSError) as exc:
+                logger.warning("Outbound attachment cleanup failed for {} ({})", storage_key, type(exc).__name__)
+        raise
+    return result
+
+
+@messages.post("/{message_id}/retry", responses={409: {"description": "Message is not failed"}})
+def retry_message(message_id: UUID, request: Request, db: DatabaseSession) -> ConversationMessageRead:
+    clinic_id = UUID(str(request.state.tenant_id))
+    message = db.scalar(
+        messages_with_patient(clinic_id)
+        .where(ConversationMessage.uuid == message_id)
+        .with_for_update(of=ConversationMessage)
+    )
+    if message is None:
+        raise HTTPException(404, "Запись не найдена")
+    if message.delivery_status != "failed":
+        raise HTTPException(409, "Повторить можно только неудачную отправку")
+    message.delivery_status = "queued"
+    message.delivery_attempt_count = 0
+    message.next_attempt_at = None
+    message.delivery_error = None
+    result = ConversationMessageRead.model_validate(message)
+    db.commit()
+    return result
 
 
 @messages.patch("/{message_id}")
@@ -142,7 +268,7 @@ def get_message_file(message_id: UUID, request: Request, db: DatabaseSession) ->
     if message is None or message.attachment_storage_key is None:
         raise HTTPException(404, "Файл не найден")
     try:
-        payload = resolve_file(message.attachment_storage_key).read_bytes()
+        payload = storage.resolve_file(message.attachment_storage_key).read_bytes()
     except FileNotFoundError:
         raise HTTPException(404, "Файл не найден") from None
     return Response(

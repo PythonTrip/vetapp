@@ -16,7 +16,7 @@ Vet Space is a veterinary clinical workbench for specialists who manage patients
 - Private-practice veterinary nutritionists and dermatologists
 - Small specialty clinics and cabinets
 - Assistants and admins who schedule visits and owner communications
-The roadmap is closed through Telegram Bot Gateway (#12). Client Contacts and Messaging Domain is #13, Clinic Messaging Interface is #14, and Specialty Depth is #15. The clinic workspace runs on an existing VPS.
+The roadmap is closed through Client Contacts and Messaging Domain (#13). Clinic Messaging Interface is #14, and Specialty Depth is #15. The clinic workspace runs on an existing VPS.
 
 ## Business Model
 
@@ -74,6 +74,7 @@ Browser calls go to same-origin `/api/*`. A Next.js Route Handler proxies to Fas
 - Each clinic stores its Telegram bot token and webhook secret in PostgreSQL as Fernet ciphertext. `GET /clinic-bot` exposes the credential status, webhook status, username, public `t.me` link and last error. Owners and admins connect or replace a bot through `PUT /clinic-bot`, which registers this deployment's webhook URL and rotates the secret while preserving the integration ID. Saving requires both the encryption key and public HTTPS base URL. `POST /clinic-bot/verify` checks the URL reported by Telegram and repairs a mismatch with the existing secret when available. `POST /clinic-bot/disconnect` clears the local credentials before asking Telegram to remove the webhook.
 - The webhook stores private Telegram updates once in PostgreSQL. The API worker records transport completion, and cycle #13 can select those updates even after the clinic disconnects the bot.
 - A transport-complete private Telegram update becomes one inbound conversation message. Repeat deliveries do not insert a second row, and only a newer edit changes the stored message.
+- A PostgreSQL worker in the API process delivers staff replies to Telegram. `sent` means Telegram accepted the message. The worker skips `unconfirmed` messages on subsequent passes.
 - A conversation file uses the existing 8 MiB on-disk attachment store and has no patient gallery lesion record.
 - A conversation message has at most one Patient tag. A new tag must belong to the contact's current Client in the same clinic. A retained tag survives relinking and remains visible as a historical tag.
 - `GET /join-codes/current` returns the clinic's stored code and organization metadata. It returns no owner join link because no owner host exists
@@ -101,7 +102,7 @@ Not shipped: Food `species_compatibility`, knowledge/AI handouts, drug checker, 
 | 10 | ✅ Done | Pro | Booking by Problem | The owner requests a visit by describing the problem, without choosing a type or specialty. The clinic questionnaire stays optional. After the visit is conducted, the doctor enters one ruble amount and marks it paid. Closed 2026-11-17. | [PRD](prd/2026-11-07_booking-by-problem_prd.md) |
 | 11 | ✅ Done | Pro | Catalog Browse | On Расчёт рациона, the nutritionist filters the Food catalog from a category tree, adds a ration food from that same nutrient table in a modal, and reads an incomplete ration total as ≥ the known amount. Closed 2026-11-26. | [PRD](prd/2026-11-25_catalog-browse_prd.md) |
 | 12 | ✅ Done | Platform | Telegram Bot Gateway | Each clinic connects, checks, and disconnects its own Telegram bot. The platform verifies the webhook URL, durably receives private updates, and processes them on a PostgreSQL queue inside the existing API process. Staff see bot health. | [PRD](prd/2026-11-26_telegram-bot-gateway_prd.md) (draft) |
-| 13 | 🚧 In Progress | Pro | Client Contacts and Messaging Domain | A person who messages the clinic bot becomes a clinic contact with one conversation. The staff API can link a Client, tag a Patient, and deliver a reply. The phone journal and the per-animal chat leave the product. This cycle has no new messaging screens. | [PRD](prd/2026-11-27_client-contacts-messaging_prd.md) (draft) |
+| 13 | ✅ Done | Pro | Client Contacts and Messaging Domain | A person who messages the clinic bot becomes a clinic contact with one conversation. The staff API can link a Client, tag a Patient, and deliver a reply. The phone journal and the per-animal chat leave the product. This cycle has no new messaging screens. | [PRD](prd/2026-11-27_client-contacts-messaging_prd.md) (draft) |
 | 14 | ⬜ Planned | Pro | Clinic Messaging Interface | Staff read and reply in the clinic workspace: navigation, search, filters, entry from the patient card, a per-staff read state, and a conversation that updates without a full reload. No PRD yet. | — |
 | 15 | ⬜ Planned | Pro | Specialty Depth | Stronger derm/nutrition encounter templates, follow-up CRM, signed encounters, encounter-stored calculations, additional clinical calculators (dose, fluids), and disease-specific therapeutic nutrient profiles if still wanted. No PRD yet. | — |
 

@@ -4,7 +4,7 @@ prd_id: 2026-11-27-client-contacts-messaging
 cycle_id: 2026-11-27-client-contacts-messaging
 cycle_slug: client-contacts-messaging
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 complexity: L
 criticality: High
 ---
@@ -12,7 +12,7 @@ criticality: High
 # Outbound Delivery
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 A staff reply is stored before Telegram is called. A repeated request for the same send returns that message and does not insert another. Telegram acceptance is stored once as sent. Definite non-acceptance is retried a finite number of times. An ambiguous result stays unconfirmed and is not sent again.
@@ -62,11 +62,11 @@ A staff reply is stored before Telegram is called. A repeated request for the sa
 - `packages/api-contract/src/generated.ts`
 
 ## Implementation Steps
-- [ ] Add the delivery columns, check, and idempotency index.
-- [ ] Add `POST /contacts/{contact_id}/messages` and `POST /messages/{message_id}/retry` with the current-bot inbound gate and the staff composition check.
-- [ ] Add `run_delivery_worker` with the unconfirmed-before-call rule, the 3-attempt bound, and `retry_after`. Start it from the lifespan.
-- [ ] On bot id replacement, fail queued messages for that clinic. Leave queued messages in place on disconnect of the same bot.
-- [ ] Add the PROJECT.md sentence, run `pnpm api:generate`, and run the checks in Verification.
+- [x] Add the delivery columns, check, and idempotency index.
+- [x] Add `POST /contacts/{contact_id}/messages` and `POST /messages/{message_id}/retry` with the current-bot inbound gate and the staff composition check.
+- [x] Add `run_delivery_worker` with the unconfirmed-before-call rule, the 3-attempt bound, and `retry_after`. Start it from the lifespan.
+- [x] On bot id replacement, fail queued messages for that clinic. Leave queued messages in place on disconnect of the same bot.
+- [x] Add the PROJECT.md sentence, run `pnpm api:generate`, and run the checks in Verification.
 
 ## Verification
 - `uv run --project apps/api python -c "from vetdietderm_api.messaging.delivery import DELIVERY_ATTEMPT_LIMIT; assert DELIVERY_ATTEMPT_LIMIT == 3"` exits 0. The lifespan source starts the delivery worker.
