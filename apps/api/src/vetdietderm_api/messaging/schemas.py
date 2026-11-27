@@ -60,6 +60,9 @@ class ConversationMessageRead(BaseModel):
     source_update_id: int | None
     edited_at: datetime | None
     body: str | None
+    unsupported_attachment: bool
+    attachment_content_type: str | None
+    has_attachment: bool
     author_user_id: UUID | None
     author_label: str | None
     source_chat_message_uuid: UUID | None

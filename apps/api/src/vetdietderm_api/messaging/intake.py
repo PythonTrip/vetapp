@@ -8,10 +8,13 @@ from uuid import UUID
 from loguru import logger
 from sqlalchemy import and_, or_, tuple_
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
+from vetdietderm_api.attachments import storage
 from vetdietderm_api.clock import utc_now
 from vetdietderm_api.db import get_session_factory
+from vetdietderm_api.messaging.content import has_telegram_file, load_telegram_file
 from vetdietderm_api.messaging.models import (
     EXTERNAL_MESSAGE_IDENTITY,
     EXTERNAL_MESSAGE_PREDICATE,
@@ -103,8 +106,32 @@ def _consume_update(session: Session, update: TelegramUpdate) -> None:
         )
     else:
         statement = statement.on_conflict_do_nothing(**identity)
-    session.execute(statement)
+    accepted_id = session.scalar(statement.returning(table.c.uuid))
+    if accepted_id is not None:
+        _apply_attachment(session, update, session.get_one(ConversationMessage, accepted_id), message)
     update.business_consumed_at = utc_now()
+
+
+def _apply_attachment(
+    session: Session, update: TelegramUpdate, stored: ConversationMessage, message: dict,
+) -> None:
+    previous_key = stored.attachment_storage_key
+    has_file = has_telegram_file(message)
+    attachment = load_telegram_file(session, update, message) if has_file else None
+    stored.attachment_storage_key = None
+    stored.attachment_content_type = None
+    stored.attachment_byte_size = None
+    stored.unsupported_attachment = has_file and attachment is None
+    if attachment is not None:
+        content_type, payload = attachment
+        stored.attachment_storage_key = storage.write_bytes(content_type, payload)
+        stored.attachment_content_type = content_type
+        stored.attachment_byte_size = len(payload)
+        caption = message.get("caption")
+        if isinstance(caption, str):
+            stored.body = caption
+    if previous_key != stored.attachment_storage_key:
+        session.info["message_attachment_change"] = (previous_key, stored.attachment_storage_key)
 
 
 def process_next_business_update(
@@ -120,9 +147,27 @@ def process_next_business_update(
             if update is None:
                 return None
             position = (update.created_at, update.uuid)
-            _consume_update(session, update)
-            if stopping is None or not stopping.is_set():
-                session.commit()
+            commit_uncertain = committed = False
+            try:
+                _consume_update(session, update)
+                if stopping is None or not stopping.is_set():
+                    session.flush()
+                    try:
+                        session.commit()
+                    except DBAPIError as exc:
+                        # A lost commit response may mean the new file is already referenced.
+                        commit_uncertain = exc.connection_invalidated
+                        raise
+                    committed = True
+            finally:
+                previous_key, new_key = session.info.pop("message_attachment_change", (None, None))
+                obsolete_key = previous_key if committed else new_key
+                if obsolete_key is not None and not commit_uncertain:
+                    try:
+                        storage.delete_file(obsolete_key)
+                    except OSError as exc:
+                        logger.warning("Telegram attachment cleanup failed for update {} ({})",
+                                       update.uuid, type(exc).__name__)
     except Exception as exc:
         if position is None:
             logger.warning("Telegram business claim failed ({})", type(exc).__name__)

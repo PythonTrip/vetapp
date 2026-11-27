@@ -703,6 +703,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/messages/{message_id}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Message File */
+        get: operations["get_message_file_messages__message_id__file_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/nutrients": {
         parameters: {
             query?: never;
@@ -1603,6 +1620,23 @@ export interface paths {
         };
         /** V1 Join Code */
         get: operations["v1_join_code_v1_staff_join_codes_current_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/staff/messages/{message_id}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Message File */
+        get: operations["get_message_file_v1_staff_messages__message_id__file_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2715,6 +2749,8 @@ export interface components {
         };
         /** ConversationMessageRead */
         ConversationMessageRead: {
+            /** Attachment Content Type */
+            attachment_content_type: string | null;
             /** Author Label */
             author_label: string | null;
             /** Author User Id */
@@ -2750,6 +2786,8 @@ export interface components {
             direction: "inbound" | "outbound";
             /** Edited At */
             edited_at: string | null;
+            /** Has Attachment */
+            has_attachment: boolean;
             /**
              * Occurred At
              * Format: date-time
@@ -2768,6 +2806,8 @@ export interface components {
             telegram_chat_id: number | null;
             /** Telegram Message Id */
             telegram_message_id: number | null;
+            /** Unsupported Attachment */
+            unsupported_attachment: boolean;
             /**
              * Uuid
              * Format: uuid
@@ -6331,6 +6371,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CurrentJoinCode"];
+                };
+            };
+        };
+    };
+    get_message_file_messages__message_id__file_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": Blob;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -15534,6 +15605,148 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CurrentJoinCode"];
+                };
+            };
+            /** @description bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description method not allowed */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description rate limited */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description bad gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description gateway timeout */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_message_file_v1_staff_messages__message_id__file_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
+                "X-Vetapp-CSRF"?: string | null;
+            };
+            path: {
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": Blob;
                 };
             };
             /** @description bad request */

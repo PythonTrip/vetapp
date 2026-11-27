@@ -2164,6 +2164,17 @@
       },
       "ConversationMessageRead": {
         "properties": {
+          "attachment_content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attachment Content Type"
+          },
           "author_label": {
             "anyOf": [
               {
@@ -2249,6 +2260,10 @@
             ],
             "title": "Edited At"
           },
+          "has_attachment": {
+            "title": "Has Attachment",
+            "type": "boolean"
+          },
           "occurred_at": {
             "format": "date-time",
             "title": "Occurred At",
@@ -2307,6 +2322,10 @@
             ],
             "title": "Telegram Message Id"
           },
+          "unsupported_attachment": {
+            "title": "Unsupported Attachment",
+            "type": "boolean"
+          },
           "uuid": {
             "format": "uuid",
             "title": "Uuid",
@@ -2327,6 +2346,9 @@
           "source_update_id",
           "edited_at",
           "body",
+          "unsupported_attachment",
+          "attachment_content_type",
+          "has_attachment",
           "author_user_id",
           "author_label",
           "source_chat_message_uuid",
@@ -10117,6 +10139,50 @@
         "summary": "Join Code",
         "tags": [
           "owners"
+        ]
+      }
+    },
+    "/messages/{message_id}/file": {
+      "get": {
+        "operationId": "get_message_file_messages__message_id__file_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "message_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Message Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Message File",
+        "tags": [
+          "messages"
         ]
       }
     },
@@ -22478,6 +22544,194 @@
         "summary": "V1 Join Code",
         "tags": [
           "v1 staff"
+        ]
+      }
+    },
+    "/v1/staff/messages/{message_id}/file": {
+      "get": {
+        "operationId": "get_message_file_v1_staff_messages__message_id__file_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "message_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Message Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+            "in": "header",
+            "name": "X-Vetapp-CSRF",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+              "title": "X-Vetapp-Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "unauthenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "method not allowed"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "validation error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "rate limited"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "internal error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad gateway"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "service unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "gateway timeout"
+          }
+        },
+        "security": [
+          {
+            "StaffSession": []
+          }
+        ],
+        "summary": "Get Message File",
+        "tags": [
+          "v1 staff",
+          "messages"
         ]
       }
     },

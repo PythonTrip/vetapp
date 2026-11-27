@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, Index, Text, UniqueConstraint, text
+from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, Index, Text, UniqueConstraint, false, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from vetdietderm_api.clock import utc_now
@@ -75,7 +75,15 @@ class ConversationMessage(Base):
     source_update_id: Mapped[int | None] = mapped_column(BigInteger)
     edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     body: Mapped[str | None] = mapped_column(Text)
+    attachment_storage_key: Mapped[str | None] = mapped_column(Text)
+    attachment_content_type: Mapped[str | None] = mapped_column(Text)
+    attachment_byte_size: Mapped[int | None] = mapped_column(BigInteger)
+    unsupported_attachment: Mapped[bool] = mapped_column(server_default=false())
     author_user_id: Mapped[UUID | None]
     author_label: Mapped[str | None] = mapped_column(Text)
     source_chat_message_uuid: Mapped[UUID | None]
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+    @property
+    def has_attachment(self) -> bool:
+        return self.attachment_storage_key is not None

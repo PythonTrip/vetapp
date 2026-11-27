@@ -1,5 +1,6 @@
 import asyncio
 from datetime import UTC, datetime
+from io import BytesIO
 from pathlib import Path
 from threading import Event
 from uuid import UUID, uuid4
@@ -8,14 +9,23 @@ import httpx
 import pytest
 from alembic import command
 from alembic.config import Config
+from cryptography.fernet import Fernet
+from fastapi import HTTPException, UploadFile
 from sqlalchemy import func, select
+from starlette.datastructures import Headers
 
 from tests.postgres_auth_stub import CLINIC_ID
 from vetdietderm_api import auth, main
+from vetdietderm_api.attachments.models import Attachment
+from vetdietderm_api.attachments.storage import MAX_ATTACHMENT_BYTES, attachment_root
 from vetdietderm_api.db import get_session_factory
 from vetdietderm_api.messaging import intake
+from vetdietderm_api.messaging.content import validate_staff_composition
 from vetdietderm_api.messaging.models import ClinicContact, ClinicConversation, ConversationMessage
+from vetdietderm_api.owners.bot_crypto import encrypt_secret
+from vetdietderm_api.owners.models import ClinicBot
 from vetdietderm_api.patients.models import Client, Patient
+from vetdietderm_api.settings import get_settings
 from vetdietderm_api.telegram.models import TelegramUpdate
 
 pytestmark = pytest.mark.integration
@@ -23,7 +33,7 @@ API_ROOT = Path(__file__).resolve().parents[3]
 SENT_AT = 1_790_000_000
 
 
-def queue_update(update_id, message_id, body, *, edited=False, edit_date=None, sender_id=42):
+def queue_update(update_id, message_id, body, *, edited=False, edit_date=None, sender_id=42, **fields):
     kind = "edited_message" if edited else "message"
     message = {
         "message_id": message_id,
@@ -35,6 +45,7 @@ def queue_update(update_id, message_id, body, *, edited=False, edit_date=None, s
             "last_name": "Example",
             "username": f"anna{update_id}",
         },
+        **fields,
     }
     if body is not None:
         message["text"] = body
@@ -222,3 +233,129 @@ def test_invalid_update_and_failed_transaction_do_not_block_following_updates(ap
     with factory() as db:
         assert db.get(TelegramUpdate, failing).business_consumed_at is not None
         assert count(db, ConversationMessage) == 2
+
+
+def test_message_files_follow_accepted_versions_and_clinic_access(api_app, staff_client, monkeypatch):
+    key = Fernet.generate_key().decode("ascii")
+    token = "4321:test-token"
+    jpeg = b"\xff\xd8\xffphoto"
+    pdf = b"%PDF-replacement"
+    monkeypatch.setenv("CLINIC_BOT_ENCRYPTION_KEY", key)
+    get_settings.cache_clear()
+    factory = get_session_factory()
+    with factory.begin() as db:
+        db.add(ClinicBot(
+            clinic_id=UUID(CLINIC_ID), bot_id=4321, status="connected", token=encrypt_secret(token, key),
+        ))
+
+    requested = []
+    files = {"best": jpeg, "pdf": pdf, "bad": jpeg, "oversized-download": pdf.ljust(MAX_ATTACHMENT_BYTES + 1)}
+
+    def telegram_request(_transport, request):
+        assert request.url.host == "api.telegram.org"
+        if request.url.path == f"/bot{token}/getFile":
+            file_id = request.url.params["file_id"]
+            requested.append(file_id)
+            if file_id == "failed":
+                return httpx.Response(302, headers={"Location": "https://elsewhere.invalid/file"})
+            return httpx.Response(200, json={"ok": True, "result": {"file_path": f"files/{file_id}"}})
+        file_id = request.url.path.removeprefix(f"/file/bot{token}/files/")
+        return httpx.Response(200, content=files[file_id])
+
+    monkeypatch.setattr(httpx.HTTPTransport, "handle_request", telegram_request)
+    photos = [
+        {"file_id": "too-large", "file_size": MAX_ATTACHMENT_BYTES + 1},
+        {"file_id": "unknown"},
+        {"file_id": "small", "file_size": len(jpeg) - 1},
+        {"file_id": "best", "file_size": len(jpeg)},
+    ]
+    initial_update = queue_update(1, 100, None, photo=photos, caption="Фото")
+    stopping = Event()
+    stopping.set()
+    intake.process_next_business_update(stopping=stopping)
+    assert list(attachment_root().iterdir()) == []
+    with factory() as db:
+        assert db.get(TelegramUpdate, initial_update).business_consumed_at is None
+    intake.process_next_business_update()
+    with factory() as db:
+        first = db.scalars(select(ConversationMessage)).one()
+        assert (first.body, first.attachment_content_type, first.attachment_byte_size) == ("Фото", "image/jpeg", len(jpeg))
+        assert first.has_attachment and not first.unsupported_attachment
+        first_key = first.attachment_storage_key
+        assert [path.name for path in attachment_root().iterdir()] == [first_key]
+        assert count(db, Attachment) == 0
+        contact_id = db.scalars(select(ClinicContact.uuid)).one()
+
+    upstream = auth.upstream
+    clinic_id = CLINIC_ID
+
+    def viewer(method, url, body=None, token=None):
+        response = upstream(method, url, body, token)
+        if url == "/me":
+            payload = response.json()
+            payload["organization"].update(org_id=clinic_id, org_role="viewer")
+            return httpx.Response(200, json=payload)
+        return response
+
+    monkeypatch.setattr(auth, "upstream", viewer)
+    with staff_client(api_app, "editor@example.test") as staff:
+        response = staff.get(f"/messages/{first.uuid}/file")
+        assert (response.status_code, response.headers["content-type"], response.content) == (200, "image/jpeg", jpeg)
+
+    def document(file_id, size=None):
+        return {"file_id": file_id, "mime_type": "application/pdf", "file_size": size}
+
+    queue_update(2, 100, None, edited=True, edit_date=SENT_AT + 1, caption="PDF", document=document("pdf"))
+    intake.process_next_business_update(stopping=stopping)
+    with factory() as db:
+        assert db.get(ConversationMessage, first.uuid).attachment_storage_key == first_key
+    assert [path.name for path in attachment_root().iterdir()] == [first_key]
+    intake.process_next_business_update()
+    queue_update(3, 100, None, photo=photos)
+    queue_update(4, 101, None, sticker={"file_id": "sticker"})
+    queue_update(5, 102, "/start")
+    queue_update(6, 103, None, document=document("too-large", MAX_ATTACHMENT_BYTES + 1))
+    queue_update(7, 104, None, document=document("bad"))
+    queue_update(8, 105, None, document=document("failed"))
+    queue_update(9, 106, None, video={"file_id": "video"})
+    queue_update(10, 107, None, document=document("oversized-download"))
+    for _ in range(8):
+        assert intake.process_next_business_update() is not None
+    assert intake.process_next_business_update() is None
+    assert requested == ["best", "best", "pdf", "pdf", "bad", "failed", "oversized-download"]
+    with factory() as db:
+        messages = db.scalars(select(ConversationMessage).order_by(ConversationMessage.telegram_message_id)).all()
+        replacement, sticker, start, oversized, invalid, unavailable, video, oversized_download = messages
+        assert (replacement.uuid, replacement.body, replacement.attachment_content_type) == (first.uuid, "PDF", "application/pdf")
+        assert replacement.attachment_storage_key != first_key
+        assert [path.name for path in attachment_root().iterdir()] == [replacement.attachment_storage_key]
+        for message in (sticker, oversized, invalid, unavailable, video, oversized_download):
+            assert message.unsupported_attachment and message.attachment_storage_key is None
+        assert not start.unsupported_attachment
+        assert count(db, Attachment) == 0
+    with staff_client(api_app, "editor@example.test") as staff:
+        file_url = f"/messages/{replacement.uuid}/file"
+        for url in (file_url, "/v1/staff" + file_url):
+            response = staff.get(url)
+            assert (response.status_code, response.headers["content-type"], response.content) == (200, "application/pdf", pdf)
+        response = staff.get(f"/contacts/{contact_id}/messages")
+        item = next(item for item in response.json() if item["uuid"] == str(replacement.uuid))
+        assert item["has_attachment"] and item["attachment_content_type"] == "application/pdf"
+        assert "attachment_storage_key" not in item
+        assert staff.get(f"/messages/{sticker.uuid}/file").status_code == 404
+        clinic_id = str(uuid4())
+        assert staff.get(file_url).status_code == 404
+
+    paths = api_app.openapi()["paths"]
+    assert set(paths["/messages/{message_id}/file"]) == {"get"}
+    assert "/messages/{message_id}" not in paths
+
+
+def test_staff_composition_requires_text_or_a_supported_file():
+    with pytest.raises(HTTPException) as empty:
+        validate_staff_composition(None, None)
+    assert empty.value.status_code == 422
+    assert validate_staff_composition("Ок", None) == ("Ок", None)
+    jpeg = b"\xff\xd8\xffphoto"
+    file = UploadFile(BytesIO(jpeg), headers=Headers({"content-type": "image/jpeg"}))
+    assert validate_staff_composition(None, file) == (None, ("image/jpeg", jpeg))

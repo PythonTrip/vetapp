@@ -1,10 +1,11 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
+from vetdietderm_api.attachments.storage import resolve_file
 from vetdietderm_api.db import get_session
 from vetdietderm_api.messaging.audit import change_client_link, list_link_events
 from vetdietderm_api.messaging.models import ClinicContact, ConversationMessage
@@ -20,7 +21,9 @@ from vetdietderm_api.patients import repository as patients
 from vetdietderm_api.patients.models import Client
 from vetdietderm_api.patients.schemas import ClientCreate
 
-router = APIRouter(prefix="/contacts", tags=["contacts"])
+router = APIRouter()
+contacts = APIRouter(prefix="/contacts", tags=["contacts"])
+messages = APIRouter(prefix="/messages", tags=["messages"])
 DatabaseSession = Annotated[Session, Depends(get_session)]
 
 
@@ -53,7 +56,7 @@ def get_clinic_contact(
     return contact, conversation_uuid
 
 
-@router.get("")
+@contacts.get("")
 def list_contacts(request: Request, db: DatabaseSession) -> list[ContactRead]:
     rows = db.execute(
         clinic_contacts(UUID(str(request.state.tenant_id))).order_by(ClinicContact.created_at, ClinicContact.uuid)
@@ -61,12 +64,12 @@ def list_contacts(request: Request, db: DatabaseSession) -> list[ContactRead]:
     return [contact_read(contact, conversation_uuid) for contact, conversation_uuid in rows]
 
 
-@router.get("/{contact_id}")
+@contacts.get("/{contact_id}")
 def get_contact(contact_id: UUID, request: Request, db: DatabaseSession) -> ContactRead:
     return contact_read(*get_clinic_contact(contact_id, UUID(str(request.state.tenant_id)), db))
 
 
-@router.get("/{contact_id}/messages")
+@contacts.get("/{contact_id}/messages")
 def get_contact_messages(contact_id: UUID, request: Request, db: DatabaseSession) -> list[ConversationMessageRead]:
     clinic_id = UUID(str(request.state.tenant_id))
     _, conversation_uuid = get_clinic_contact(contact_id, clinic_id, db)
@@ -78,7 +81,31 @@ def get_contact_messages(contact_id: UUID, request: Request, db: DatabaseSession
     return [ConversationMessageRead.model_validate(message) for message in messages]
 
 
-@router.patch("/{contact_id}")
+@messages.get(
+    "/{message_id}/file",
+    response_class=Response,
+    responses={200: {"content": {"application/octet-stream": {"schema": {"type": "string", "format": "binary"}}}}},
+)
+def get_message_file(message_id: UUID, request: Request, db: DatabaseSession) -> Response:
+    # Keep a concurrent edit from replacing the file while this request reads it.
+    message = db.scalar(
+        select(ConversationMessage)
+        .where(ConversationMessage.uuid == message_id, ConversationMessage.clinic_id == UUID(str(request.state.tenant_id)))
+        .with_for_update(read=True)
+    )
+    if message is None or message.attachment_storage_key is None:
+        raise HTTPException(404, "Файл не найден")
+    try:
+        payload = resolve_file(message.attachment_storage_key).read_bytes()
+    except FileNotFoundError:
+        raise HTTPException(404, "Файл не найден") from None
+    return Response(
+        payload, media_type=message.attachment_content_type,
+        headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
+    )
+
+
+@contacts.patch("/{contact_id}")
 def update_contact(contact_id: UUID, body: ContactUpdate, request: Request, db: DatabaseSession) -> ContactRead:
     clinic_id = UUID(str(request.state.tenant_id))
     db.execute(
@@ -102,7 +129,7 @@ def save_client_link(db: Session, contact: ClinicContact, client_uuid: UUID | No
     db.commit()
 
 
-@router.put("/{contact_id}/client")
+@contacts.put("/{contact_id}/client")
 def set_contact_client(
     contact_id: UUID, body: ContactClientUpdate, request: Request, db: DatabaseSession,
 ) -> ContactRead:
@@ -120,7 +147,7 @@ def set_contact_client(
     return contact_read(contact, conversation_uuid)
 
 
-@router.post("/{contact_id}/client", status_code=201)
+@contacts.post("/{contact_id}/client", status_code=201)
 def create_contact_client(contact_id: UUID, request: Request, db: DatabaseSession) -> ContactRead:
     clinic_id = UUID(str(request.state.tenant_id))
     contact, conversation_uuid = get_clinic_contact(contact_id, clinic_id, db, for_update=True)
@@ -129,8 +156,12 @@ def create_contact_client(contact_id: UUID, request: Request, db: DatabaseSessio
     return contact_read(contact, conversation_uuid)
 
 
-@router.get("/{contact_id}/link-events")
+@contacts.get("/{contact_id}/link-events")
 def get_contact_link_events(contact_id: UUID, request: Request, db: DatabaseSession) -> list[ContactLinkEventRead]:
     clinic_id = UUID(str(request.state.tenant_id))
     get_clinic_contact(contact_id, clinic_id, db)
     return [ContactLinkEventRead.model_validate(event) for event in list_link_events(db, clinic_id, contact_id)]
+
+
+router.include_router(contacts)
+router.include_router(messages)

@@ -4,7 +4,7 @@ prd_id: 2026-11-27-client-contacts-messaging
 cycle_id: 2026-11-27-client-contacts-messaging
 cycle_slug: client-contacts-messaging
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 complexity: L
 criticality: Blocker
 ---
@@ -12,7 +12,7 @@ criticality: Blocker
 # Message Content and Attachments
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 A conversation message can hold text, one image, or one PDF. An image or PDF can also hold a caption. Any other inbound file still creates the message, shows that a file arrived, and does not store the file. Staff cannot edit or delete a stored message. A staff send with neither text nor a file is rejected.
@@ -55,11 +55,11 @@ A conversation message can hold text, one image, or one PDF. An image or PDF can
 - `packages/api-contract/src/generated.ts`
 
 ## Implementation Steps
-- [ ] Add the attachment columns and `unsupported_attachment` on `conversation_messages`.
-- [ ] Add content application inside the inbound transaction, after the newer-version check and before `business_consumed_at` is set. Download and store at most one allowed file.
-- [ ] Add `GET /messages/{message_id}/file` using `resolve_file`. Do not add a body edit or delete route.
-- [ ] Add `validate_staff_composition` with the empty-composition rejection and the shared allow-list.
-- [ ] Add the PROJECT.md sentence, run `pnpm api:generate`, and run the checks in Verification.
+- [x] Add the attachment columns and `unsupported_attachment` on `conversation_messages`.
+- [x] Add content application inside the inbound transaction, after the newer-version check and before `business_consumed_at` is set. Download and store at most one allowed file.
+- [x] Add `GET /messages/{message_id}/file` using `resolve_file`. Do not add a body edit or delete route.
+- [x] Add `validate_staff_composition` with the empty-composition rejection and the shared allow-list.
+- [x] Add the PROJECT.md sentence, run `pnpm api:generate`, and run the checks in Verification.
 
 ## Verification
 - Process an inbound photo update under 8 MiB and confirm one storage file, a caption in `body`, `unsupported_attachment` false, and no new `attachments` row.
