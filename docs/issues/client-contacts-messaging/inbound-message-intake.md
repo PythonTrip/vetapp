@@ -4,7 +4,7 @@ prd_id: 2026-11-27-client-contacts-messaging
 cycle_id: 2026-11-27-client-contacts-messaging
 cycle_slug: client-contacts-messaging
 project_doc: docs/PROJECT.md
-status: Not Started
+status: Done
 complexity: L
 criticality: Blocker
 ---
@@ -12,7 +12,7 @@ criticality: Blocker
 # Inbound Message Intake
 
 ## Implementation Status
-Status: Not Started
+Status: Done
 
 ## Description
 Business processing reads stored private updates after transport completion and turns each one into a single conversation message. Processing the same update again does not create a second message. An edit changes the stored message only when it is newer. A Client and a Patient are not created by that message.
@@ -59,12 +59,12 @@ Business processing reads stored private updates after transport completion and 
 - `packages/api-contract/src/generated.ts`
 
 ## Implementation Steps
-- [ ] Add the `conversation_messages` revision, model, and both partial unique indexes.
-- [ ] Implement the version compare and the one-transaction consume path in `messaging/intake.py`. Call `open_contact`. Set `business_consumed_at` only after the message insert or the newer-edit update.
-- [ ] Add `run_business_worker` and start one lifespan task beside `run_worker`.
-- [ ] Add `GET /contacts/{contact_id}/messages` for the contact's clinic, including viewers.
-- [ ] Add the PROJECT.md sentence and run `pnpm api:generate`.
-- [ ] Run the checks in Verification.
+- [x] Add the `conversation_messages` revision, model, and both partial unique indexes.
+- [x] Implement the version compare and the one-transaction consume path in `messaging/intake.py`. Call `open_contact`. Set `business_consumed_at` only after the message insert or the newer-edit update.
+- [x] Add `run_business_worker` and start one lifespan task beside `run_worker`.
+- [x] Add `GET /contacts/{contact_id}/messages` for the contact's clinic, including viewers.
+- [x] Add the PROJECT.md sentence and run `pnpm api:generate`.
+- [x] Run the checks in Verification.
 
 ## Verification
 - `uv run --project apps/api python -c "from vetdietderm_api.main import app"` imports, and the lifespan source starts `run_worker` and `run_business_worker`.

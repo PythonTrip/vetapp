@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, StringConstraints
@@ -42,3 +42,25 @@ class ContactRead(BaseModel):
     conversation_uuid: UUID
     created_at: datetime
     updated_at: datetime
+
+
+class ConversationMessageRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    uuid: UUID
+    clinic_id: UUID
+    conversation_uuid: UUID
+    direction: Literal["inbound", "outbound"]
+    channel: Literal["telegram"]
+    origin: Literal["telegram", "owner_cabinet"]
+    occurred_at: datetime
+    bot_id: int | None
+    telegram_chat_id: int | None
+    telegram_message_id: int | None
+    source_update_id: int | None
+    edited_at: datetime | None
+    body: str | None
+    author_user_id: UUID | None
+    author_label: str | None
+    source_chat_message_uuid: UUID | None
+    created_at: datetime

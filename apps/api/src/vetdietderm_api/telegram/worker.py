@@ -61,14 +61,17 @@ def record_transport_failure(session: Session, uuid: UUID) -> int | None:
     )
 
 
-def unconsumed_updates(session: Session) -> list[TelegramUpdate]:
-    """Read transport-complete updates that are pending business processing."""
-    pending = (
+def pending_business_updates():
+    return (
         select(TelegramUpdate)
         .where(TelegramUpdate.transport_status == "complete", TelegramUpdate.business_consumed_at.is_(None))
         .order_by(TelegramUpdate.created_at, TelegramUpdate.uuid)
     )
-    return list(session.scalars(pending))
+
+
+def unconsumed_updates(session: Session) -> list[TelegramUpdate]:
+    """Read transport-complete updates that are pending business processing."""
+    return list(session.scalars(pending_business_updates()))
 
 
 async def _transaction[T](operation: Callable[..., T], *args: UUID) -> T:

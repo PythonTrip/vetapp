@@ -440,6 +440,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/contacts/{contact_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Contact Messages */
+        get: operations["get_contact_messages_contacts__contact_id__messages_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/diet-plans": {
         parameters: {
             query?: never;
@@ -1340,6 +1357,23 @@ export interface paths {
         };
         /** Get Contact Link Events */
         get: operations["get_contact_link_events_v1_staff_contacts__contact_id__link_events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/staff/contacts/{contact_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Contact Messages */
+        get: operations["get_contact_messages_v1_staff_contacts__contact_id__messages_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2678,6 +2712,67 @@ export interface components {
             code: string;
             /** Reason */
             reason: string;
+        };
+        /** ConversationMessageRead */
+        ConversationMessageRead: {
+            /** Author Label */
+            author_label: string | null;
+            /** Author User Id */
+            author_user_id: string | null;
+            /** Body */
+            body: string | null;
+            /** Bot Id */
+            bot_id: number | null;
+            /**
+             * Channel
+             * @constant
+             */
+            channel: "telegram";
+            /**
+             * Clinic Id
+             * Format: uuid
+             */
+            clinic_id: string;
+            /**
+             * Conversation Uuid
+             * Format: uuid
+             */
+            conversation_uuid: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "inbound" | "outbound";
+            /** Edited At */
+            edited_at: string | null;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /**
+             * Origin
+             * @enum {string}
+             */
+            origin: "telegram" | "owner_cabinet";
+            /** Source Chat Message Uuid */
+            source_chat_message_uuid: string | null;
+            /** Source Update Id */
+            source_update_id: number | null;
+            /** Telegram Chat Id */
+            telegram_chat_id: number | null;
+            /** Telegram Message Id */
+            telegram_message_id: number | null;
+            /**
+             * Uuid
+             * Format: uuid
+             */
+            uuid: string;
         };
         /** CoverageAssessment */
         CoverageAssessment: {
@@ -5526,6 +5621,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ContactLinkEventRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_contact_messages_contacts__contact_id__messages_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationMessageRead"][];
                 };
             };
             /** @description Validation Error */
@@ -12258,6 +12384,148 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ContactLinkEventRead"][];
+                };
+            };
+            /** @description bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description method not allowed */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description rate limited */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description bad gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description gateway timeout */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_contact_messages_v1_staff_contacts__contact_id__messages_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection. */
+                "X-Vetapp-CSRF"?: string | null;
+            };
+            path: {
+                contact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationMessageRead"][];
                 };
             };
             /** @description bad request */

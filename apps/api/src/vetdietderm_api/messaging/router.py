@@ -7,9 +7,15 @@ from sqlalchemy.orm import Session
 
 from vetdietderm_api.db import get_session
 from vetdietderm_api.messaging.audit import change_client_link, list_link_events
-from vetdietderm_api.messaging.models import ClinicContact
+from vetdietderm_api.messaging.models import ClinicContact, ConversationMessage
 from vetdietderm_api.messaging.repository import clinic_contacts
-from vetdietderm_api.messaging.schemas import ContactClientUpdate, ContactLinkEventRead, ContactRead, ContactUpdate
+from vetdietderm_api.messaging.schemas import (
+    ContactClientUpdate,
+    ContactLinkEventRead,
+    ContactRead,
+    ContactUpdate,
+    ConversationMessageRead,
+)
 from vetdietderm_api.patients import repository as patients
 from vetdietderm_api.patients.models import Client
 from vetdietderm_api.patients.schemas import ClientCreate
@@ -58,6 +64,18 @@ def list_contacts(request: Request, db: DatabaseSession) -> list[ContactRead]:
 @router.get("/{contact_id}")
 def get_contact(contact_id: UUID, request: Request, db: DatabaseSession) -> ContactRead:
     return contact_read(*get_clinic_contact(contact_id, UUID(str(request.state.tenant_id)), db))
+
+
+@router.get("/{contact_id}/messages")
+def get_contact_messages(contact_id: UUID, request: Request, db: DatabaseSession) -> list[ConversationMessageRead]:
+    clinic_id = UUID(str(request.state.tenant_id))
+    _, conversation_uuid = get_clinic_contact(contact_id, clinic_id, db)
+    messages = db.scalars(
+        select(ConversationMessage)
+        .where(ConversationMessage.clinic_id == clinic_id, ConversationMessage.conversation_uuid == conversation_uuid)
+        .order_by(ConversationMessage.occurred_at, ConversationMessage.uuid)
+    )
+    return [ConversationMessageRead.model_validate(message) for message in messages]
 
 
 @router.patch("/{contact_id}")

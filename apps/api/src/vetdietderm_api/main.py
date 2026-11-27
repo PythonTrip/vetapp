@@ -1,6 +1,6 @@
 import asyncio
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager, suppress
+from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from vetdietderm_api.api_errors import install_error_handlers
 from vetdietderm_api.auth import require_clinical_access
 from vetdietderm_api.db import ping_database
+from vetdietderm_api.messaging.intake import run_business_worker
 from vetdietderm_api.orm import load_models
 from vetdietderm_api.routing import include_clinical_and_versioned_routes, include_legacy_self_scoped_routes
 from vetdietderm_api.settings import get_settings
@@ -25,13 +26,13 @@ class StatusResponse(BaseModel):
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     get_settings()
     logger.info("Vet Space API starting")
-    worker = asyncio.create_task(run_worker())
+    workers = (asyncio.create_task(run_worker()), asyncio.create_task(run_business_worker()))
     try:
         yield
     finally:
-        worker.cancel()
-        with suppress(asyncio.CancelledError):
-            await worker
+        for worker in workers:
+            worker.cancel()
+        await asyncio.gather(*workers, return_exceptions=True)
         logger.info("Vet Space API stopped")
 
 
