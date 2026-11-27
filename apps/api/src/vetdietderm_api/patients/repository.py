@@ -42,11 +42,14 @@ def search_clients(session: Session, query: str) -> list[Client]:
     return list(session.scalars(stmt).all())
 
 
-def create_client(session: Session, data: ClientCreate) -> Client:
+def create_client(session: Session, data: ClientCreate, *, commit: bool = True) -> Client:
     client = Client(**data.model_dump())
     session.add(client)
-    session.commit()
-    session.refresh(client)
+    if commit:
+        session.commit()
+        session.refresh(client)
+    else:
+        session.flush()
     return client
 
 

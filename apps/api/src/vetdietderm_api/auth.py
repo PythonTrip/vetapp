@@ -17,6 +17,7 @@ from vetdietderm_api.clinic_transfer import OWNER_REQUIRED as OWNER_REQUIRED
 from vetdietderm_api.clinic_transfer import TRANSFER_RETRY as TRANSFER_RETRY
 from vetdietderm_api.db import get_session_factory
 from vetdietderm_api.settings import get_settings
+from vetdietderm_api.owners.clinic_bots import require_bot_admin
 from vetdietderm_api.owners.models import ClinicLink, JoinCode
 from vetdietderm_api.owners.repository import freeze_clinic_link
 from vetdietderm_api.account_schemas import UserProfileRead, OrganizationMembersRead, OrganizationInvitesRead
@@ -164,6 +165,8 @@ def require_clinical_access(request: Request, user: Annotated[dict, Depends(requ
     if request.method not in {"GET", "HEAD", "OPTIONS"}:
         # Apply the same resource policy through the legacy and versioned adapters.
         path = request.url.path.removeprefix("/v1/staff")
+        if path == "/clinic-bot" or path.startswith("/clinic-bot/"):
+            require_bot_admin(user)
         if path.startswith("/visit-questionnaires/") and org.get("org_role") not in {"owner", "admin"}:
             raise HTTPException(403, "Анкету клиники изменяют владелец и администратор")
         calculation = path.startswith("/assessments/")

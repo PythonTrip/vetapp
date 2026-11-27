@@ -32,6 +32,16 @@ def save_clinic_bot(body: ClinicBotWrite, request: Request, db: DB) -> ClinicBot
     return clinic_bots.save_clinic_bot(body, request.state.user, request.state.tenant_id, db)
 
 
+@router.post("/clinic-bot/verify", response_model=ClinicBotRead, dependencies=[Depends(require_clinical_access)])
+def verify_clinic_bot(request: Request, db: DB) -> ClinicBotRead:
+    return clinic_bots.verify_clinic_bot(request.state.user, request.state.tenant_id, db)
+
+
+@router.post("/clinic-bot/disconnect", response_model=ClinicBotRead, dependencies=[Depends(require_clinical_access)])
+def disconnect_clinic_bot(request: Request, db: DB) -> ClinicBotRead:
+    return clinic_bots.disconnect_clinic_bot(request.state.user, request.state.tenant_id, db)
+
+
 @router.get("/join-codes/current", response_model=CurrentJoinCode, dependencies=[Depends(require_clinical_access)])
 def join_code(request: Request, db: DB):
     row = repo.current_code(db, clinic_uuid(request))

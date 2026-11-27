@@ -49,10 +49,7 @@ def upload(db, owner, animal_id, file, kind):
         raise HTTPException(400, "Файл пустой")
     if len(body) > storage.MAX_ATTACHMENT_BYTES:
         raise HTTPException(413, "Файл больше 8 МБ")
-    signatures = {"image/jpeg": body.startswith(b"\xff\xd8\xff"), "image/png": body.startswith(b"\x89PNG\r\n\x1a\n"),
-        "image/gif": body.startswith((b"GIF87a", b"GIF89a")), "image/webp": body.startswith(b"RIFF") and body[8:12] == b"WEBP",
-        "application/pdf": body.startswith(b"%PDF-")}
-    if not signatures[content_type]:
+    if not storage.matches_signature(content_type, body):
         raise HTTPException(400, "Содержимое файла не соответствует его формату")
     key = storage.write_bytes(content_type, body)
     filename = PurePosixPath((file.filename or "Файл").replace("\\", "/")).name

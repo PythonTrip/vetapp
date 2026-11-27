@@ -11,8 +11,6 @@ vi.mock("@/features/owner-cabinet/components/registration-queue", () => ({ Regis
 vi.mock("@/features/owner-cabinet/components/visit-request-queue", () => ({ VisitRequestQueue: () => <div>Очередь визитов</div> }));
 vi.mock("@/features/encounters/components/encounter-panel", () => ({ EncounterPanel: ({ patient }: { patient: PatientRecord }) => <div>Приёмы: {patient.uuid}</div> }));
 vi.mock("@/features/encounters/components/dermatology-gallery", () => ({ DermatologyGallery: ({ patientId }: { patientId: string }) => <div>Галерея: {patientId}</div> }));
-vi.mock("@/features/encounters/components/communication-log", () => ({ CommunicationLog: ({ patientId }: { patientId: string }) => <div>Контакты: {patientId}</div> }));
-vi.mock("@/features/owner-cabinet/components/patient-chat", () => ({ PatientChat: ({ patientId }: { patientId: string }) => <div>Чат: {patientId}</div> }));
 vi.mock("@/features/nutrition/components/patient-nutrition", () => ({ PatientNutrition: ({ patient }: { patient: PatientRecord }) => <div>Питание: {patient.uuid}</div> }));
 
 const patient = {
@@ -38,13 +36,12 @@ describe("patient screen composition", () => {
   it.each([
     ["encounters", "Приёмы", "Приёмы: patient-1"],
     ["gallery", "Галерея", "Галерея: patient-1"],
-    ["comms", "Коммуникации", "Контакты: patient-1"],
     ["nutrition", "Питание", "Питание: patient-1"],
   ])("preserves the %s deep link and passes the selected patient to its feature", async (tab, label, content) => {
     mount(tab);
     expect(await screen.findByText(content)).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: label })).toHaveAttribute("aria-selected", "true");
-    if (tab === "comms") expect(screen.getByText("Чат: patient-1")).toBeInTheDocument();
+    expect(screen.queryByText(/Чат:/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Редактировать" })).not.toBeInTheDocument();
   });
 
@@ -60,6 +57,15 @@ describe("patient screen composition", () => {
   it("still normalizes an unknown tab to the existing card URL", async () => {
     mount("unknown");
     await screen.findByText("Основные данные");
+    expect(replace).toHaveBeenCalledWith("/patients/patient-1?tab=card", { scroll: false });
+  });
+
+  it("opens the card tab for the removed communications deep link", async () => {
+    mount("comms");
+    await screen.findByText("Основные данные");
+    expect(screen.getByRole("tab", { name: "Карточка" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByRole("tab", { name: "Коммуникации" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Follow-up|Напоминание/)).not.toBeInTheDocument();
     expect(replace).toHaveBeenCalledWith("/patients/patient-1?tab=card", { scroll: false });
   });
 });

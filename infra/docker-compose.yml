@@ -21,6 +21,8 @@ services:
       AUTH_COOKIE_SAMESITE: ${AUTH_COOKIE_SAMESITE:-lax}
       FRONTEND_URL: ${FRONTEND_URL:-https://vetapp.syndex-ai.ru}
       API_ALLOWED_ORIGINS: '${API_ALLOWED_ORIGINS:-[]}'
+      CLINIC_BOT_ENCRYPTION_KEY: ${CLINIC_BOT_ENCRYPTION_KEY:-}
+      TELEGRAM_PUBLIC_BASE_URL: ${TELEGRAM_PUBLIC_BASE_URL:-}
       ATTACHMENT_DIR: /data/attachments
 
     networks:
@@ -28,7 +30,7 @@ services:
         aliases:
           - vetapp-api
 
-    # Loopback only — nginx must not proxy here; Next.js reaches API via Docker DNS.
+    # nginx forwards only /telegram/webhooks/ to this loopback port. Next.js uses Docker DNS.
     ports:
       - "127.0.0.1:${API_PORT:-8001}:8000"
 
@@ -45,7 +47,11 @@ services:
         - CMD
         - python
         - -c
-        - "from vetdietderm_api.db import ping_database; ping_database()"
+        - |
+          from urllib.request import urlopen
+          from vetdietderm_api.db import ping_database
+          with urlopen('http://127.0.0.1:8000/health', timeout=3):
+              ping_database()
       interval: 15s
       timeout: 10s
       retries: 5

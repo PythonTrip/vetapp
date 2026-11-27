@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from uuid import UUID
 
-from sqlalchemy import BigInteger, CheckConstraint, Date, DateTime, Float, ForeignKey, Index, String, UniqueConstraint, Uuid, text
+from sqlalchemy import BigInteger, CheckConstraint, Date, DateTime, Float, ForeignKey, Index, String, Text, UniqueConstraint, Uuid, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from vetdietderm_api.clock import utc_now
@@ -109,14 +109,20 @@ class OwnerAnimal(Base):
 class ClinicBot(Base):
     __tablename__ = "clinic_bots"
     __table_args__ = (
-        CheckConstraint("status IN ('connected', 'error')", name="ck_clinic_bots_status"),
+        CheckConstraint("status IN ('connected', 'error', 'disconnected')", name="ck_clinic_bots_status"),
+        CheckConstraint("webhook_status IN ('not_configured', 'active', 'error')",
+                        name="ck_clinic_bots_webhook_status"),
         UniqueConstraint("bot_id", name="uq_clinic_bots_bot_id"),
+        UniqueConstraint("integration_id", name="uq_clinic_bots_integration_id"),
     )
     clinic_id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
-    token: Mapped[str | None] = mapped_column(String(256))
+    integration_id: Mapped[UUID] = mapped_column(Uuid, default=uuid6)
+    token: Mapped[str | None] = mapped_column(Text)
+    webhook_secret_ciphertext: Mapped[str | None] = mapped_column(Text)
     bot_id: Mapped[int | None] = mapped_column(BigInteger)
     username: Mapped[str | None] = mapped_column(String(64))
     status: Mapped[str] = mapped_column(String(16))
+    webhook_status: Mapped[str] = mapped_column(String(16), default="not_configured", server_default="not_configured")
     last_error: Mapped[str | None] = mapped_column(String(500))
 
     def __repr__(self) -> str:

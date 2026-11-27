@@ -1347,6 +1347,72 @@
         "title": "AttachmentUpdate",
         "type": "object"
       },
+      "Body_send_contact_message_contacts__contact_id__messages_post": {
+        "properties": {
+          "file": {
+            "anyOf": [
+              {
+                "items": {
+                  "contentMediaType": "application/octet-stream",
+                  "type": "string"
+                },
+                "maxItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          }
+        },
+        "title": "Body_send_contact_message_contacts__contact_id__messages_post",
+        "type": "object"
+      },
+      "Body_send_contact_message_v1_staff_contacts__contact_id__messages_post": {
+        "properties": {
+          "file": {
+            "anyOf": [
+              {
+                "items": {
+                  "contentMediaType": "application/octet-stream",
+                  "type": "string"
+                },
+                "maxItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          }
+        },
+        "title": "Body_send_contact_message_v1_staff_contacts__contact_id__messages_post",
+        "type": "object"
+      },
       "Body_upload_patient_attachment_patients__patient_id__attachments_post": {
         "properties": {
           "body_region": {
@@ -1628,6 +1694,17 @@
             ],
             "title": "Last Error"
           },
+          "public_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Public Url"
+          },
           "status": {
             "anyOf": [
               {
@@ -1648,6 +1725,16 @@
               }
             ],
             "title": "Username"
+          },
+          "webhook_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClinicBotWebhookStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "title": "ClinicBotRead",
@@ -1656,9 +1743,19 @@
       "ClinicBotStatus": {
         "enum": [
           "connected",
-          "error"
+          "error",
+          "disconnected"
         ],
         "title": "ClinicBotStatus",
+        "type": "string"
+      },
+      "ClinicBotWebhookStatus": {
+        "enum": [
+          "not_configured",
+          "active",
+          "error"
+        ],
+        "title": "ClinicBotWebhookStatus",
         "type": "string"
       },
       "ClinicBotWrite": {
@@ -1899,44 +1996,47 @@
         "title": "ClinicalCatalogScope",
         "type": "string"
       },
-      "CommunicationChannel": {
-        "enum": [
-          "phone",
-          "email",
-          "text",
-          "video",
-          "in_person"
-        ],
-        "title": "CommunicationChannel",
-        "type": "string"
-      },
-      "CommunicationDirection": {
-        "enum": [
-          "inbound",
-          "outbound"
-        ],
-        "title": "CommunicationDirection",
-        "type": "string"
-      },
-      "CommunicationRead": {
+      "ContactClientUpdate": {
+        "additionalProperties": false,
         "properties": {
-          "body": {
+          "client_uuid": {
             "anyOf": [
               {
+                "format": "uuid",
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Body"
+            "title": "Client Uuid"
+          }
+        },
+        "required": [
+          "client_uuid"
+        ],
+        "title": "ContactClientUpdate",
+        "type": "object"
+      },
+      "ContactLinkEventRead": {
+        "properties": {
+          "actor_label": {
+            "title": "Actor Label",
+            "type": "string"
           },
-          "channel": {
-            "$ref": "#/components/schemas/CommunicationChannel"
-          },
-          "client_uuid": {
+          "actor_user_id": {
             "format": "uuid",
-            "title": "Client Uuid",
+            "title": "Actor User Id",
+            "type": "string"
+          },
+          "clinic_id": {
+            "format": "uuid",
+            "title": "Clinic Id",
+            "type": "string"
+          },
+          "contact_uuid": {
+            "format": "uuid",
+            "title": "Contact Uuid",
             "type": "string"
           },
           "created_at": {
@@ -1944,46 +2044,29 @@
             "title": "Created At",
             "type": "string"
           },
-          "direction": {
-            "$ref": "#/components/schemas/CommunicationDirection"
-          },
-          "follow_up_at": {
+          "new_client_uuid": {
             "anyOf": [
               {
-                "format": "date-time",
+                "format": "uuid",
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Follow Up At"
+            "title": "New Client Uuid"
           },
-          "occurred_at": {
-            "format": "date-time",
-            "title": "Occurred At",
-            "type": "string"
-          },
-          "patient_uuid": {
-            "format": "uuid",
-            "title": "Patient Uuid",
-            "type": "string"
-          },
-          "subject": {
+          "previous_client_uuid": {
             "anyOf": [
               {
+                "format": "uuid",
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Subject"
-          },
-          "updated_at": {
-            "format": "date-time",
-            "title": "Updated At",
-            "type": "string"
+            "title": "Previous Client Uuid"
           },
           "uuid": {
             "format": "uuid",
@@ -1993,23 +2076,51 @@
         },
         "required": [
           "uuid",
-          "patient_uuid",
-          "client_uuid",
-          "channel",
-          "direction",
-          "subject",
-          "body",
-          "occurred_at",
-          "follow_up_at",
-          "created_at",
-          "updated_at"
+          "clinic_id",
+          "contact_uuid",
+          "actor_user_id",
+          "actor_label",
+          "previous_client_uuid",
+          "new_client_uuid",
+          "created_at"
         ],
-        "title": "CommunicationRead",
+        "title": "ContactLinkEventRead",
         "type": "object"
       },
-      "CommunicationUpdate": {
+      "ContactRead": {
         "properties": {
-          "body": {
+          "client_uuid": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Uuid"
+          },
+          "clinic_id": {
+            "format": "uuid",
+            "title": "Clinic Id",
+            "type": "string"
+          },
+          "conversation_uuid": {
+            "format": "uuid",
+            "title": "Conversation Uuid",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "local_name": {
+            "title": "Local Name",
+            "type": "string"
+          },
+          "profile_name": {
             "anyOf": [
               {
                 "type": "string"
@@ -2018,71 +2129,22 @@
                 "type": "null"
               }
             ],
-            "title": "Body"
+            "title": "Profile Name"
           },
-          "channel": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/CommunicationChannel"
-              },
-              {
-                "type": "null"
-              }
-            ]
+          "telegram_chat_id": {
+            "title": "Telegram Chat Id",
+            "type": "integer"
           },
-          "direction": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/CommunicationDirection"
-              },
-              {
-                "type": "null"
-              }
-            ]
+          "telegram_user_id": {
+            "title": "Telegram User Id",
+            "type": "integer"
           },
-          "follow_up_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Follow Up At"
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
           },
-          "occurred_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Occurred At"
-          },
-          "subject": {
-            "anyOf": [
-              {
-                "maxLength": 255,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Subject"
-          }
-        },
-        "title": "CommunicationUpdate",
-        "type": "object"
-      },
-      "CommunicationWrite": {
-        "properties": {
-          "body": {
+          "username": {
             "anyOf": [
               {
                 "type": "string"
@@ -2091,56 +2153,43 @@
                 "type": "null"
               }
             ],
-            "title": "Body"
+            "title": "Username"
           },
-          "channel": {
-            "$ref": "#/components/schemas/CommunicationChannel"
-          },
-          "direction": {
-            "$ref": "#/components/schemas/CommunicationDirection"
-          },
-          "follow_up_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Follow Up At"
-          },
-          "occurred_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Occurred At"
-          },
-          "subject": {
-            "anyOf": [
-              {
-                "maxLength": 255,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Subject"
+          "uuid": {
+            "format": "uuid",
+            "title": "Uuid",
+            "type": "string"
           }
         },
         "required": [
-          "channel",
-          "direction"
+          "uuid",
+          "clinic_id",
+          "telegram_user_id",
+          "telegram_chat_id",
+          "profile_name",
+          "username",
+          "local_name",
+          "client_uuid",
+          "conversation_uuid",
+          "created_at",
+          "updated_at"
         ],
-        "title": "CommunicationWrite",
+        "title": "ContactRead",
+        "type": "object"
+      },
+      "ContactUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "local_name": {
+            "minLength": 1,
+            "title": "Local Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "local_name"
+        ],
+        "title": "ContactUpdate",
         "type": "object"
       },
       "ContextOptionRead": {
@@ -2177,6 +2226,267 @@
           "reason"
         ],
         "title": "ContextSuggestion",
+        "type": "object"
+      },
+      "ConversationMessageRead": {
+        "properties": {
+          "attachment_content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attachment Content Type"
+          },
+          "author_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author Label"
+          },
+          "author_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author User Id"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "bot_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bot Id"
+          },
+          "channel": {
+            "const": "telegram",
+            "title": "Channel",
+            "type": "string"
+          },
+          "clinic_id": {
+            "format": "uuid",
+            "title": "Clinic Id",
+            "type": "string"
+          },
+          "conversation_uuid": {
+            "format": "uuid",
+            "title": "Conversation Uuid",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "delivery_attempt_count": {
+            "title": "Delivery Attempt Count",
+            "type": "integer"
+          },
+          "delivery_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Error"
+          },
+          "delivery_status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "queued",
+                  "sent",
+                  "failed",
+                  "unconfirmed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Status"
+          },
+          "direction": {
+            "enum": [
+              "inbound",
+              "outbound"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "edited_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edited At"
+          },
+          "has_attachment": {
+            "title": "Has Attachment",
+            "type": "boolean"
+          },
+          "next_attempt_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Attempt At"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "origin": {
+            "enum": [
+              "telegram",
+              "owner_cabinet"
+            ],
+            "title": "Origin",
+            "type": "string"
+          },
+          "patient_current": {
+            "title": "Patient Current",
+            "type": "boolean"
+          },
+          "patient_uuid": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Patient Uuid"
+          },
+          "source_chat_message_uuid": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Chat Message Uuid"
+          },
+          "source_update_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Update Id"
+          },
+          "telegram_chat_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Telegram Chat Id"
+          },
+          "telegram_message_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Telegram Message Id"
+          },
+          "unsupported_attachment": {
+            "title": "Unsupported Attachment",
+            "type": "boolean"
+          },
+          "uuid": {
+            "format": "uuid",
+            "title": "Uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "uuid",
+          "clinic_id",
+          "conversation_uuid",
+          "direction",
+          "channel",
+          "origin",
+          "occurred_at",
+          "bot_id",
+          "telegram_chat_id",
+          "telegram_message_id",
+          "source_update_id",
+          "edited_at",
+          "body",
+          "unsupported_attachment",
+          "attachment_content_type",
+          "has_attachment",
+          "author_user_id",
+          "author_label",
+          "source_chat_message_uuid",
+          "patient_uuid",
+          "patient_current",
+          "delivery_status",
+          "delivery_attempt_count",
+          "next_attempt_at",
+          "delivery_error",
+          "created_at"
+        ],
+        "title": "ConversationMessageRead",
         "type": "object"
       },
       "CoverageAssessment": {
@@ -4420,74 +4730,26 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
-      "MessageCreate": {
+      "MessagePatientUpdate": {
+        "additionalProperties": false,
         "properties": {
-          "attachment_ids": {
-            "items": {
-              "format": "uuid",
-              "type": "string"
-            },
-            "maxItems": 10,
-            "title": "Attachment Ids",
-            "type": "array"
-          },
-          "body": {
-            "maxLength": 4000,
-            "minLength": 1,
-            "title": "Body",
-            "type": "string"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "title": "MessageCreate",
-        "type": "object"
-      },
-      "MessageRead": {
-        "properties": {
-          "attachments": {
-            "items": {
-              "$ref": "#/components/schemas/OwnerUploadRead"
-            },
-            "title": "Attachments",
-            "type": "array"
-          },
-          "author_kind": {
-            "enum": [
-              "owner",
-              "staff"
+          "patient_uuid": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Author Kind",
-            "type": "string"
-          },
-          "author_label": {
-            "title": "Author Label",
-            "type": "string"
-          },
-          "body": {
-            "title": "Body",
-            "type": "string"
-          },
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "uuid": {
-            "format": "uuid",
-            "title": "Uuid",
-            "type": "string"
+            "title": "Patient Uuid"
           }
         },
         "required": [
-          "uuid",
-          "author_kind",
-          "author_label",
-          "body",
-          "created_at"
+          "patient_uuid"
         ],
-        "title": "MessageRead",
+        "title": "MessagePatientUpdate",
         "type": "object"
       },
       "NutrientCategory": {
@@ -4840,41 +5102,6 @@
           "uploaded_by_owner"
         ],
         "title": "OwnerFileRead",
-        "type": "object"
-      },
-      "OwnerUploadRead": {
-        "properties": {
-          "byte_size": {
-            "title": "Byte Size",
-            "type": "integer"
-          },
-          "content_type": {
-            "title": "Content Type",
-            "type": "string"
-          },
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "filename": {
-            "title": "Filename",
-            "type": "string"
-          },
-          "uuid": {
-            "format": "uuid",
-            "title": "Uuid",
-            "type": "string"
-          }
-        },
-        "required": [
-          "uuid",
-          "filename",
-          "content_type",
-          "byte_size",
-          "created_at"
-        ],
-        "title": "OwnerUploadRead",
         "type": "object"
       },
       "PasswordReset": {
@@ -8489,6 +8716,48 @@
         ]
       }
     },
+    "/clinic-bot/disconnect": {
+      "post": {
+        "operationId": "disconnect_clinic_bot_clinic_bot_disconnect_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClinicBotRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Disconnect Clinic Bot",
+        "tags": [
+          "owners"
+        ]
+      }
+    },
+    "/clinic-bot/verify": {
+      "post": {
+        "operationId": "verify_clinic_bot_clinic_bot_verify_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClinicBotRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Verify Clinic Bot",
+        "tags": [
+          "owners"
+        ]
+      }
+    },
     "/clinical-catalog": {
       "get": {
         "operationId": "list_clinical_catalog_clinical_catalog_get",
@@ -8668,23 +8937,55 @@
         ]
       }
     },
-    "/communications/{communication_id}": {
-      "delete": {
-        "operationId": "remove_communication_communications__communication_id__delete",
+    "/contacts": {
+      "get": {
+        "operationId": "list_contacts_contacts_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ContactRead"
+                  },
+                  "title": "Response List Contacts Contacts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Contacts",
+        "tags": [
+          "contacts"
+        ]
+      }
+    },
+    "/contacts/{contact_id}": {
+      "get": {
+        "operationId": "get_contact_contacts__contact_id__get",
         "parameters": [
           {
             "in": "path",
-            "name": "communication_id",
+            "name": "contact_id",
             "required": true,
             "schema": {
               "format": "uuid",
-              "title": "Communication Id",
+              "title": "Contact Id",
               "type": "string"
             }
           }
         ],
         "responses": {
-          "204": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactRead"
+                }
+              }
+            },
             "description": "Successful Response"
           },
           "422": {
@@ -8698,21 +8999,21 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Remove Communication",
+        "summary": "Get Contact",
         "tags": [
-          "communications"
+          "contacts"
         ]
       },
       "patch": {
-        "operationId": "patch_communication_communications__communication_id__patch",
+        "operationId": "update_contact_contacts__contact_id__patch",
         "parameters": [
           {
             "in": "path",
-            "name": "communication_id",
+            "name": "contact_id",
             "required": true,
             "schema": {
               "format": "uuid",
-              "title": "Communication Id",
+              "title": "Contact Id",
               "type": "string"
             }
           }
@@ -8721,7 +9022,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CommunicationUpdate"
+                "$ref": "#/components/schemas/ContactUpdate"
               }
             }
           },
@@ -8732,7 +9033,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CommunicationRead"
+                  "$ref": "#/components/schemas/ContactRead"
                 }
               }
             },
@@ -8749,9 +9050,268 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Patch Communication",
+        "summary": "Update Contact",
         "tags": [
-          "communications"
+          "contacts"
+        ]
+      }
+    },
+    "/contacts/{contact_id}/client": {
+      "post": {
+        "operationId": "create_contact_client_contacts__contact_id__client_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Contact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Contact Client",
+        "tags": [
+          "contacts"
+        ]
+      },
+      "put": {
+        "operationId": "set_contact_client_contacts__contact_id__client_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Contact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactClientUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Contact Client",
+        "tags": [
+          "contacts"
+        ]
+      }
+    },
+    "/contacts/{contact_id}/link-events": {
+      "get": {
+        "operationId": "get_contact_link_events_contacts__contact_id__link_events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Contact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ContactLinkEventRead"
+                  },
+                  "title": "Response Get Contact Link Events Contacts  Contact Id  Link Events Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Contact Link Events",
+        "tags": [
+          "contacts"
+        ]
+      }
+    },
+    "/contacts/{contact_id}/messages": {
+      "get": {
+        "operationId": "get_contact_messages_contacts__contact_id__messages_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Contact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ConversationMessageRead"
+                  },
+                  "title": "Response Get Contact Messages Contacts  Contact Id  Messages Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Contact Messages",
+        "tags": [
+          "contacts"
+        ]
+      },
+      "post": {
+        "operationId": "send_contact_message_contacts__contact_id__messages_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Contact Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "idempotency-key",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_send_contact_message_contacts__contact_id__messages_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationMessageRead"
+                }
+              }
+            },
+            "description": "Existing message for this idempotency key"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationMessageRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Send Contact Message",
+        "tags": [
+          "contacts"
         ]
       }
     },
@@ -9807,6 +10367,149 @@
         ]
       }
     },
+    "/messages/{message_id}": {
+      "patch": {
+        "operationId": "update_message_patient_messages__message_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "message_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Message Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessagePatientUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationMessageRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Message Patient",
+        "tags": [
+          "messages"
+        ]
+      }
+    },
+    "/messages/{message_id}/file": {
+      "get": {
+        "operationId": "get_message_file_messages__message_id__file_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "message_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Message Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Message File",
+        "tags": [
+          "messages"
+        ]
+      }
+    },
+    "/messages/{message_id}/retry": {
+      "post": {
+        "operationId": "retry_message_messages__message_id__retry_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "message_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Message Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationMessageRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "Message is not failed"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Retry Message",
+        "tags": [
+          "messages"
+        ]
+      }
+    },
     "/nutrients": {
       "get": {
         "operationId": "list_nutrients_nutrients_get",
@@ -9907,185 +10610,6 @@
         "summary": "Accept",
         "tags": [
           "owners"
-        ]
-      }
-    },
-    "/owner-registrations/{registration_id}/animals/{animal_id}/chat/files/{file_id}": {
-      "get": {
-        "operationId": "registration_chat_file_owner_registrations__registration_id__animals__animal_id__chat_files__file_id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "registration_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Registration Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "animal_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Animal Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "file_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "File Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Registration Chat File",
-        "tags": [
-          "chat"
-        ]
-      }
-    },
-    "/owner-registrations/{registration_id}/animals/{owner_animal_id}/chat": {
-      "get": {
-        "operationId": "registration_messages_owner_registrations__registration_id__animals__owner_animal_id__chat_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "registration_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Registration Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "owner_animal_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Owner Animal Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/MessageRead"
-                  },
-                  "title": "Response Registration Messages Owner Registrations  Registration Id  Animals  Owner Animal Id  Chat Get",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Registration Messages",
-        "tags": [
-          "chat"
-        ]
-      },
-      "post": {
-        "operationId": "registration_send_owner_registrations__registration_id__animals__owner_animal_id__chat_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "registration_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Registration Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "owner_animal_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Owner Animal Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MessageCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MessageRead"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Registration Send",
-        "tags": [
-          "chat"
         ]
       }
     },
@@ -10424,253 +10948,6 @@
         ]
       }
     },
-    "/patients/{patient_id}/chat": {
-      "get": {
-        "operationId": "patient_messages_patients__patient_id__chat_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "patient_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Patient Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/MessageRead"
-                  },
-                  "title": "Response Patient Messages Patients  Patient Id  Chat Get",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Patient Messages",
-        "tags": [
-          "chat"
-        ]
-      },
-      "post": {
-        "operationId": "patient_send_patients__patient_id__chat_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "patient_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Patient Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MessageCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MessageRead"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Patient Send",
-        "tags": [
-          "chat"
-        ]
-      }
-    },
-    "/patients/{patient_id}/chat/files/{file_id}": {
-      "get": {
-        "operationId": "patient_chat_file_patients__patient_id__chat_files__file_id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "patient_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Patient Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "file_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "File Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Patient Chat File",
-        "tags": [
-          "chat"
-        ]
-      }
-    },
-    "/patients/{patient_id}/communications": {
-      "get": {
-        "operationId": "list_patient_communications_patients__patient_id__communications_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "patient_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Patient Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/CommunicationRead"
-                  },
-                  "title": "Response List Patient Communications Patients  Patient Id  Communications Get",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "List Patient Communications",
-        "tags": [
-          "communications"
-        ]
-      },
-      "post": {
-        "operationId": "create_patient_communication_patients__patient_id__communications_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "patient_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Patient Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CommunicationWrite"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CommunicationRead"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Create Patient Communication",
-        "tags": [
-          "communications"
-        ]
-      }
-    },
     "/patients/{patient_id}/encounters": {
       "get": {
         "operationId": "list_patient_encounters_patients__patient_id__encounters_get",
@@ -10785,6 +11062,94 @@
           }
         },
         "summary": "Ready"
+      }
+    },
+    "/telegram/webhooks/{integration_id}": {
+      "post": {
+        "operationId": "receive_webhook_telegram_webhooks__integration_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "integration_id",
+            "required": true,
+            "schema": {
+              "title": "Integration Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Telegram-Bot-Api-Secret-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Telegram-Bot-Api-Secret-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "update_id": {
+                    "format": "int64",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "update_id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Invalid JSON or update_id"
+          },
+          "401": {
+            "description": "Invalid Telegram webhook secret"
+          },
+          "404": {
+            "description": "Telegram integration not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "description": "Telegram webhook intake is unavailable"
+          }
+        },
+        "summary": "Receive Webhook",
+        "tags": [
+          "telegram"
+        ]
       }
     },
     "/v1/auth/staff/email/resend-verification": {
@@ -15971,6 +16336,358 @@
         ]
       }
     },
+    "/v1/staff/clinic-bot/disconnect": {
+      "post": {
+        "operationId": "v1_disconnect_clinic_bot_v1_staff_clinic_bot_disconnect_post",
+        "parameters": [
+          {
+            "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+            "in": "header",
+            "name": "X-Vetapp-CSRF",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+              "title": "X-Vetapp-Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClinicBotRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "unauthenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "method not allowed"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "validation error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "rate limited"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "internal error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad gateway"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "service unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "gateway timeout"
+          }
+        },
+        "security": [
+          {
+            "StaffSession": []
+          }
+        ],
+        "summary": "V1 Disconnect Clinic Bot",
+        "tags": [
+          "v1 staff"
+        ]
+      }
+    },
+    "/v1/staff/clinic-bot/verify": {
+      "post": {
+        "operationId": "v1_verify_clinic_bot_v1_staff_clinic_bot_verify_post",
+        "parameters": [
+          {
+            "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+            "in": "header",
+            "name": "X-Vetapp-CSRF",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+              "title": "X-Vetapp-Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClinicBotRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "unauthenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "method not allowed"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "validation error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "rate limited"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "internal error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad gateway"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "service unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "gateway timeout"
+          }
+        },
+        "security": [
+          {
+            "StaffSession": []
+          }
+        ],
+        "summary": "V1 Verify Clinic Bot",
+        "tags": [
+          "v1 staff"
+        ]
+      }
+    },
     "/v1/staff/clinical-catalog": {
       "get": {
         "operationId": "list_clinical_catalog_v1_staff_clinical_catalog_get",
@@ -16728,20 +17445,10 @@
         ]
       }
     },
-    "/v1/staff/communications/{communication_id}": {
-      "delete": {
-        "operationId": "remove_communication_v1_staff_communications__communication_id__delete",
+    "/v1/staff/contacts": {
+      "get": {
+        "operationId": "list_contacts_v1_staff_contacts_get",
         "parameters": [
-          {
-            "in": "path",
-            "name": "communication_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Communication Id",
-              "type": "string"
-            }
-          },
           {
             "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
             "in": "header",
@@ -16762,7 +17469,18 @@
           }
         ],
         "responses": {
-          "204": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ContactRead"
+                  },
+                  "title": "Response List Contacts V1 Staff Contacts Get",
+                  "type": "array"
+                }
+              }
+            },
             "description": "Successful Response"
           },
           "400": {
@@ -16901,22 +17619,209 @@
             "StaffSession": []
           }
         ],
-        "summary": "Remove Communication",
+        "summary": "List Contacts",
         "tags": [
           "v1 staff",
-          "communications"
+          "contacts"
         ]
-      },
-      "patch": {
-        "operationId": "patch_communication_v1_staff_communications__communication_id__patch",
+      }
+    },
+    "/v1/staff/contacts/{contact_id}": {
+      "get": {
+        "operationId": "get_contact_v1_staff_contacts__contact_id__get",
         "parameters": [
           {
             "in": "path",
-            "name": "communication_id",
+            "name": "contact_id",
             "required": true,
             "schema": {
               "format": "uuid",
-              "title": "Communication Id",
+              "title": "Contact Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+            "in": "header",
+            "name": "X-Vetapp-CSRF",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+              "title": "X-Vetapp-Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "unauthenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "method not allowed"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "validation error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "rate limited"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "internal error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad gateway"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "service unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "gateway timeout"
+          }
+        },
+        "security": [
+          {
+            "StaffSession": []
+          }
+        ],
+        "summary": "Get Contact",
+        "tags": [
+          "v1 staff",
+          "contacts"
+        ]
+      },
+      "patch": {
+        "operationId": "update_contact_v1_staff_contacts__contact_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Contact Id",
               "type": "string"
             }
           },
@@ -16943,7 +17848,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CommunicationUpdate"
+                "$ref": "#/components/schemas/ContactUpdate"
               }
             }
           },
@@ -16954,7 +17859,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CommunicationRead"
+                  "$ref": "#/components/schemas/ContactRead"
                 }
               }
             },
@@ -17096,10 +18001,989 @@
             "StaffSession": []
           }
         ],
-        "summary": "Patch Communication",
+        "summary": "Update Contact",
         "tags": [
           "v1 staff",
-          "communications"
+          "contacts"
+        ]
+      }
+    },
+    "/v1/staff/contacts/{contact_id}/client": {
+      "post": {
+        "operationId": "create_contact_client_v1_staff_contacts__contact_id__client_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Contact Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+            "in": "header",
+            "name": "X-Vetapp-CSRF",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+              "title": "X-Vetapp-Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "unauthenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "method not allowed"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "validation error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "rate limited"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "internal error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad gateway"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "service unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "gateway timeout"
+          }
+        },
+        "security": [
+          {
+            "StaffSession": []
+          }
+        ],
+        "summary": "Create Contact Client",
+        "tags": [
+          "v1 staff",
+          "contacts"
+        ]
+      },
+      "put": {
+        "operationId": "set_contact_client_v1_staff_contacts__contact_id__client_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Contact Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+            "in": "header",
+            "name": "X-Vetapp-CSRF",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+              "title": "X-Vetapp-Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactClientUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "unauthenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "method not allowed"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "validation error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "rate limited"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "internal error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad gateway"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "service unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "gateway timeout"
+          }
+        },
+        "security": [
+          {
+            "StaffSession": []
+          }
+        ],
+        "summary": "Set Contact Client",
+        "tags": [
+          "v1 staff",
+          "contacts"
+        ]
+      }
+    },
+    "/v1/staff/contacts/{contact_id}/link-events": {
+      "get": {
+        "operationId": "get_contact_link_events_v1_staff_contacts__contact_id__link_events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Contact Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+            "in": "header",
+            "name": "X-Vetapp-CSRF",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+              "title": "X-Vetapp-Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ContactLinkEventRead"
+                  },
+                  "title": "Response Get Contact Link Events V1 Staff Contacts  Contact Id  Link Events Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "unauthenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "method not allowed"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "validation error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "rate limited"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "internal error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad gateway"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "service unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "gateway timeout"
+          }
+        },
+        "security": [
+          {
+            "StaffSession": []
+          }
+        ],
+        "summary": "Get Contact Link Events",
+        "tags": [
+          "v1 staff",
+          "contacts"
+        ]
+      }
+    },
+    "/v1/staff/contacts/{contact_id}/messages": {
+      "get": {
+        "operationId": "get_contact_messages_v1_staff_contacts__contact_id__messages_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Contact Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+            "in": "header",
+            "name": "X-Vetapp-CSRF",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+              "title": "X-Vetapp-Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ConversationMessageRead"
+                  },
+                  "title": "Response Get Contact Messages V1 Staff Contacts  Contact Id  Messages Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "unauthenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "method not allowed"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "validation error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "rate limited"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "internal error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad gateway"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "service unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "gateway timeout"
+          }
+        },
+        "security": [
+          {
+            "StaffSession": []
+          }
+        ],
+        "summary": "Get Contact Messages",
+        "tags": [
+          "v1 staff",
+          "contacts"
+        ]
+      },
+      "post": {
+        "operationId": "send_contact_message_v1_staff_contacts__contact_id__messages_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Contact Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "idempotency-key",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+            "in": "header",
+            "name": "X-Vetapp-CSRF",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+              "title": "X-Vetapp-Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_send_contact_message_v1_staff_contacts__contact_id__messages_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationMessageRead"
+                }
+              }
+            },
+            "description": "Existing message for this idempotency key"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationMessageRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "unauthenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "method not allowed"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "validation error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "rate limited"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "internal error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad gateway"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "service unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "gateway timeout"
+          }
+        },
+        "security": [
+          {
+            "StaffSession": []
+          }
+        ],
+        "summary": "Send Contact Message",
+        "tags": [
+          "v1 staff",
+          "contacts"
         ]
       }
     },
@@ -21202,6 +23086,571 @@
         ]
       }
     },
+    "/v1/staff/messages/{message_id}": {
+      "patch": {
+        "operationId": "update_message_patient_v1_staff_messages__message_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "message_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Message Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+            "in": "header",
+            "name": "X-Vetapp-CSRF",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+              "title": "X-Vetapp-Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessagePatientUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationMessageRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "unauthenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "method not allowed"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "validation error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "rate limited"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "internal error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad gateway"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "service unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "gateway timeout"
+          }
+        },
+        "security": [
+          {
+            "StaffSession": []
+          }
+        ],
+        "summary": "Update Message Patient",
+        "tags": [
+          "v1 staff",
+          "messages"
+        ]
+      }
+    },
+    "/v1/staff/messages/{message_id}/file": {
+      "get": {
+        "operationId": "get_message_file_v1_staff_messages__message_id__file_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "message_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Message Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+            "in": "header",
+            "name": "X-Vetapp-CSRF",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+              "title": "X-Vetapp-Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "unauthenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "method not allowed"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "validation error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "rate limited"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "internal error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad gateway"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "service unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "gateway timeout"
+          }
+        },
+        "security": [
+          {
+            "StaffSession": []
+          }
+        ],
+        "summary": "Get Message File",
+        "tags": [
+          "v1 staff",
+          "messages"
+        ]
+      }
+    },
+    "/v1/staff/messages/{message_id}/retry": {
+      "post": {
+        "operationId": "retry_message_v1_staff_messages__message_id__retry_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "message_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Message Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+            "in": "header",
+            "name": "X-Vetapp-CSRF",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
+              "title": "X-Vetapp-Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationMessageRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "unauthenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "method not allowed"
+          },
+          "409": {
+            "description": "Message is not failed"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "validation error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "rate limited"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "internal error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "bad gateway"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "service unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "gateway timeout"
+          }
+        },
+        "security": [
+          {
+            "StaffSession": []
+          }
+        ],
+        "summary": "Retry Message",
+        "tags": [
+          "v1 staff",
+          "messages"
+        ]
+      }
+    },
     "/v1/staff/nutrients": {
       "get": {
         "operationId": "list_nutrients_v1_staff_nutrients_get",
@@ -22124,614 +24573,6 @@
           }
         ],
         "summary": "V1 Accept",
-        "tags": [
-          "v1 staff"
-        ]
-      }
-    },
-    "/v1/staff/owner-registrations/{registration_id}/animals/{animal_id}/chat/files/{file_id}": {
-      "get": {
-        "operationId": "registration_chat_file_v1_staff_owner_registrations__registration_id__animals__animal_id__chat_files__file_id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "registration_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Registration Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "animal_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Animal Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "file_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "File Id",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
-            "in": "header",
-            "name": "X-Vetapp-CSRF",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
-              "title": "X-Vetapp-Csrf"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "bad request"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "unauthenticated"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "forbidden"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "not found"
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "method not allowed"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "conflict"
-          },
-          "413": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "payload too large"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "validation error"
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "rate limited"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "internal error"
-          },
-          "502": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "bad gateway"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "service unavailable"
-          },
-          "504": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "gateway timeout"
-          }
-        },
-        "security": [
-          {
-            "StaffSession": []
-          }
-        ],
-        "summary": "Registration Chat File",
-        "tags": [
-          "v1 staff"
-        ]
-      }
-    },
-    "/v1/staff/owner-registrations/{registration_id}/animals/{owner_animal_id}/chat": {
-      "get": {
-        "operationId": "registration_messages_v1_staff_owner_registrations__registration_id__animals__owner_animal_id__chat_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "registration_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Registration Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "owner_animal_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Owner Animal Id",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
-            "in": "header",
-            "name": "X-Vetapp-CSRF",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
-              "title": "X-Vetapp-Csrf"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/MessageRead"
-                  },
-                  "title": "Response Registration Messages V1 Staff Owner Registrations  Registration Id  Animals  Owner Animal Id  Chat Get",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "bad request"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "unauthenticated"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "forbidden"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "not found"
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "method not allowed"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "conflict"
-          },
-          "413": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "payload too large"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "validation error"
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "rate limited"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "internal error"
-          },
-          "502": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "bad gateway"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "service unavailable"
-          },
-          "504": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "gateway timeout"
-          }
-        },
-        "security": [
-          {
-            "StaffSession": []
-          }
-        ],
-        "summary": "Registration Messages",
-        "tags": [
-          "v1 staff"
-        ]
-      },
-      "post": {
-        "operationId": "registration_send_v1_staff_owner_registrations__registration_id__animals__owner_animal_id__chat_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "registration_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Registration Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "owner_animal_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Owner Animal Id",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
-            "in": "header",
-            "name": "X-Vetapp-CSRF",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
-              "title": "X-Vetapp-Csrf"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MessageCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MessageRead"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "bad request"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "unauthenticated"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "forbidden"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "not found"
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "method not allowed"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "conflict"
-          },
-          "413": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "payload too large"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "validation error"
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "rate limited"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "internal error"
-          },
-          "502": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "bad gateway"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "service unavailable"
-          },
-          "504": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "gateway timeout"
-          }
-        },
-        "security": [
-          {
-            "StaffSession": []
-          }
-        ],
-        "summary": "Registration Send",
         "tags": [
           "v1 staff"
         ]
@@ -24078,970 +25919,6 @@
         "tags": [
           "v1 staff",
           "attachments"
-        ]
-      }
-    },
-    "/v1/staff/patients/{patient_id}/chat": {
-      "get": {
-        "operationId": "patient_messages_v1_staff_patients__patient_id__chat_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "patient_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Patient Id",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
-            "in": "header",
-            "name": "X-Vetapp-CSRF",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
-              "title": "X-Vetapp-Csrf"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/MessageRead"
-                  },
-                  "title": "Response Patient Messages V1 Staff Patients  Patient Id  Chat Get",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "bad request"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "unauthenticated"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "forbidden"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "not found"
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "method not allowed"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "conflict"
-          },
-          "413": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "payload too large"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "validation error"
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "rate limited"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "internal error"
-          },
-          "502": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "bad gateway"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "service unavailable"
-          },
-          "504": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "gateway timeout"
-          }
-        },
-        "security": [
-          {
-            "StaffSession": []
-          }
-        ],
-        "summary": "Patient Messages",
-        "tags": [
-          "v1 staff"
-        ]
-      },
-      "post": {
-        "operationId": "patient_send_v1_staff_patients__patient_id__chat_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "patient_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Patient Id",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
-            "in": "header",
-            "name": "X-Vetapp-CSRF",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
-              "title": "X-Vetapp-Csrf"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MessageCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MessageRead"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "bad request"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "unauthenticated"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "forbidden"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "not found"
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "method not allowed"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "conflict"
-          },
-          "413": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "payload too large"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "validation error"
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "rate limited"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "internal error"
-          },
-          "502": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "bad gateway"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "service unavailable"
-          },
-          "504": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "gateway timeout"
-          }
-        },
-        "security": [
-          {
-            "StaffSession": []
-          }
-        ],
-        "summary": "Patient Send",
-        "tags": [
-          "v1 staff"
-        ]
-      }
-    },
-    "/v1/staff/patients/{patient_id}/chat/files/{file_id}": {
-      "get": {
-        "operationId": "patient_chat_file_v1_staff_patients__patient_id__chat_files__file_id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "patient_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Patient Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "file_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "File Id",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
-            "in": "header",
-            "name": "X-Vetapp-CSRF",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
-              "title": "X-Vetapp-Csrf"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "bad request"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "unauthenticated"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "forbidden"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "not found"
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "method not allowed"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "conflict"
-          },
-          "413": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "payload too large"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "validation error"
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "rate limited"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "internal error"
-          },
-          "502": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "bad gateway"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "service unavailable"
-          },
-          "504": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "gateway timeout"
-          }
-        },
-        "security": [
-          {
-            "StaffSession": []
-          }
-        ],
-        "summary": "Patient Chat File",
-        "tags": [
-          "v1 staff"
-        ]
-      }
-    },
-    "/v1/staff/patients/{patient_id}/communications": {
-      "get": {
-        "operationId": "list_patient_communications_v1_staff_patients__patient_id__communications_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "patient_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Patient Id",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
-            "in": "header",
-            "name": "X-Vetapp-CSRF",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
-              "title": "X-Vetapp-Csrf"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/CommunicationRead"
-                  },
-                  "title": "Response List Patient Communications V1 Staff Patients  Patient Id  Communications Get",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "bad request"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "unauthenticated"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "forbidden"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "not found"
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "method not allowed"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "conflict"
-          },
-          "413": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "payload too large"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "validation error"
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "rate limited"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "internal error"
-          },
-          "502": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "bad gateway"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "service unavailable"
-          },
-          "504": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "gateway timeout"
-          }
-        },
-        "security": [
-          {
-            "StaffSession": []
-          }
-        ],
-        "summary": "List Patient Communications",
-        "tags": [
-          "v1 staff",
-          "communications"
-        ]
-      },
-      "post": {
-        "operationId": "create_patient_communication_v1_staff_patients__patient_id__communications_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "patient_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Patient Id",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
-            "in": "header",
-            "name": "X-Vetapp-CSRF",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Send 1 on POST, PUT, PATCH and DELETE (including login/logout). Required by CSRF protection.",
-              "title": "X-Vetapp-Csrf"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CommunicationWrite"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CommunicationRead"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "bad request"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "unauthenticated"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "forbidden"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "not found"
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "method not allowed"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "conflict"
-          },
-          "413": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "payload too large"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "validation error"
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "rate limited"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "internal error"
-          },
-          "502": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "bad gateway"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "service unavailable"
-          },
-          "504": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "gateway timeout"
-          }
-        },
-        "security": [
-          {
-            "StaffSession": []
-          }
-        ],
-        "summary": "Create Patient Communication",
-        "tags": [
-          "v1 staff",
-          "communications"
         ]
       }
     },

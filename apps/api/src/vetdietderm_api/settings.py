@@ -1,9 +1,11 @@
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 from urllib.parse import urlsplit
 
-from pydantic import Field, field_validator, model_validator
+from cryptography.fernet import Fernet
+from pydantic import AnyHttpUrl, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import URL
 
@@ -16,6 +18,7 @@ class Settings(BaseSettings):
         env_file=_API_ROOT / ".env",
         env_file_encoding="utf-8",
         extra="ignore",
+        hide_input_in_errors=True,
     )
 
     DATABASE_URL: str = Field(default="", repr=False)
@@ -31,6 +34,36 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://127.0.0.1:3000"
     API_ALLOWED_ORIGINS: list[str] = Field(default_factory=list)
     ATTACHMENT_DIR: Path = _API_ROOT / "data" / "attachments"
+    CLINIC_BOT_ENCRYPTION_KEY: str = Field(default="", repr=False)
+    TELEGRAM_PUBLIC_BASE_URL: str = Field(default="", repr=False)
+
+    @field_validator("CLINIC_BOT_ENCRYPTION_KEY")
+    @classmethod
+    def validate_clinic_bot_encryption_key(cls, value: str) -> str:
+        if value:
+            if re.fullmatch(r"[A-Za-z0-9_-]{43}=", value) is None:
+                raise ValueError("CLINIC_BOT_ENCRYPTION_KEY must be a Fernet key")
+            Fernet(value)
+        return value
+
+    @field_validator("TELEGRAM_PUBLIC_BASE_URL")
+    @classmethod
+    def validate_telegram_public_base_url(cls, value: str) -> str:
+        if not value:
+            return value
+        message = "TELEGRAM_PUBLIC_BASE_URL must be an HTTPS origin"
+        if any(char.isspace() or ord(char) < 32 or char in "\\?#%" for char in value):
+            raise ValueError(message)
+        try:
+            AnyHttpUrl(value)
+            parsed = urlsplit(value)
+            port = parsed.port
+        except ValueError:
+            raise ValueError(message) from None
+        if (parsed.scheme != "https" or not parsed.hostname or parsed.username is not None
+                or parsed.path not in {"", "/"} or parsed.netloc.endswith(":") or port == 0):
+            raise ValueError(message)
+        return value.removesuffix("/")
 
     @property
     def client_origins(self) -> list[str]:

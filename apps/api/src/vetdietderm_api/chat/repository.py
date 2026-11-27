@@ -5,10 +5,8 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from vetdietderm_api.chat.models import ChatMessage, ChatThread
-from vetdietderm_api.chat.schemas import MessageCreate, MessageRead
 from vetdietderm_api.owners import repository as owners
-from vetdietderm_api.owners.models import JoinCode, OwnerAccount, OwnerAnimal, OwnerUpload
-from vetdietderm_api.owners.schemas import OwnerUploadRead
+from vetdietderm_api.owners.models import JoinCode, OwnerAccount, OwnerAnimal
 from vetdietderm_api.patients.models import Patient
 
 
@@ -34,88 +32,6 @@ def owner_target(db: Session, owner: OwnerAccount, animal_id: UUID, *, write=Fal
     raise HTTPException(404, "Животное не найдено")
 
 
-def registration_target(db: Session, registration_id: UUID, animal_id: UUID, user: dict, *, write=False) -> ChatTarget:
-    registration, _, code = owners.registration_context(db, registration_id, lock=True)
-    owners.authorize_registration(code, user, write=write)
-    animal = db.scalar(select(OwnerAnimal).where(OwnerAnimal.uuid == animal_id,
-        OwnerAnimal.registration_uuid == registration.uuid))
-    if animal is None:
-        raise HTTPException(404, "Животное не найдено")
-    if animal.patient_uuid:
-        db.scalar(select(Patient).where(Patient.uuid == animal.patient_uuid).with_for_update())
-    return animal.uuid, animal.patient_uuid, code
-
-
-def patient_target(db: Session, patient_id: UUID, user: dict, tenant_id: str | None, *, write=False) -> ChatTarget:
-    # Chat tables deliberately do not use TenantOwned, so the clinic id is applied here.
-    if not tenant_id:
-        raise HTTPException(403, "Клиника недоступна")
-    patient = db.scalar(select(Patient).where(
-        Patient.uuid == patient_id, Patient.tenant_id == UUID(str(tenant_id))).with_for_update())
-    if patient is None:
-        raise HTTPException(404, "Пациент не найден")
-    if write and (user.get("organization") or {}).get("org_role") not in {"owner", "admin", "member"}:
-        raise HTTPException(403, "Роль наблюдателя разрешает только просмотр")
-    return None, patient.uuid, None
-
-
-def thread_for(db: Session, target: ChatTarget, *, create=False):
-    animal_id, patient_id, _ = target
-    condition = ChatThread.patient_uuid == patient_id if patient_id else ChatThread.owner_animal_uuid == animal_id
-    thread = db.scalar(select(ChatThread).where(condition))
-    if thread is None and create:
-        # All callers hold the registration/patient lock before the unique insert.
-        thread = ChatThread(owner_animal_uuid=animal_id, patient_uuid=patient_id)
-        db.add(thread)
-        db.flush()
-    return thread
-
-
-def list_messages(db: Session, target: ChatTarget, *, owner_view=False):
-    thread = thread_for(db, target)
-    if thread is None:
-        return []
-    messages = db.scalars(select(ChatMessage).where(ChatMessage.thread_uuid == thread.uuid)
-        .order_by(ChatMessage.created_at, ChatMessage.uuid))
-    result = []
-    for message in messages:
-        item = MessageRead.model_validate(message)
-        item.attachments = [OwnerUploadRead.model_validate(file) for file in db.scalars(
-            select(OwnerUpload).where(OwnerUpload.message_uuid == message.uuid).order_by(OwnerUpload.created_at, OwnerUpload.uuid))]
-        if not owner_view and message.author_kind == "owner":
-            item.author_label = "Владелец"
-        result.append(item)
-    return result
-
-
-def add_message(db: Session, target: ChatTarget, payload: MessageCreate, *, owner: OwnerAccount | None = None, user: dict | None = None):
-    files = []
-    if payload.attachment_ids:
-        if owner is None or len(set(payload.attachment_ids)) != len(payload.attachment_ids):
-            raise HTTPException(422, "Некорректные вложения")
-        from vetdietderm_api.owners.uploads import animal_ids
-        ids = animal_ids(db, owner, target[1] or target[0])
-        files = list(db.scalars(select(OwnerUpload).where(OwnerUpload.uuid.in_(payload.attachment_ids),
-            OwnerUpload.owner_account_uuid == owner.uuid, OwnerUpload.animal_uuid.in_(ids),
-            OwnerUpload.kind == "chat", OwnerUpload.message_uuid.is_(None)).with_for_update()))
-        if len(files) != len(payload.attachment_ids):
-            raise HTTPException(404, "Вложение недоступно или уже отправлено")
-    thread = thread_for(db, target, create=True)
-    message = ChatMessage(thread_uuid=thread.uuid, body=payload.body,
-        author_kind="owner" if owner else "staff", author_id=owner.uuid if owner else UUID(user["user_id"]),
-        author_label=owner.name if owner else user.get("display_name") or user["email"])
-    db.add(message)
-    db.flush()
-    for file in files:
-        file.message_uuid = message.uuid
-    result = MessageRead.model_validate(message)
-    result.attachments = [OwnerUploadRead.model_validate(file) for file in files]
-    if owner is None:
-        return result
-    result.author_label = owner.name
-    return result
-
-
 def link_thread(db: Session, animal_id: UUID, patient_id: UUID):
     pending = db.scalar(select(ChatThread).where(ChatThread.owner_animal_uuid == animal_id))
     if pending is None:
@@ -129,15 +45,3 @@ def link_thread(db: Session, animal_id: UUID, patient_id: UUID):
         db.flush()
     pending.patient_uuid = patient_id
     db.flush()
-
-
-
-def get_thread_file(db: Session, target: ChatTarget, file_id: UUID) -> OwnerUpload | None:
-    thread = thread_for(db, target)
-    if thread is None:
-        raise HTTPException(404, "Файл не найден")
-    return db.scalar(
-        select(OwnerUpload)
-        .join(ChatMessage, OwnerUpload.message_uuid == ChatMessage.uuid)
-        .where(OwnerUpload.uuid == file_id, ChatMessage.thread_uuid == thread.uuid)
-    )

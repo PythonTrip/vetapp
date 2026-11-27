@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -9,9 +10,13 @@ from pydantic import BaseModel
 from vetdietderm_api.api_errors import install_error_handlers
 from vetdietderm_api.auth import require_clinical_access
 from vetdietderm_api.db import ping_database
+from vetdietderm_api.messaging.delivery import run_delivery_worker
+from vetdietderm_api.messaging.intake import run_business_worker
 from vetdietderm_api.orm import load_models
 from vetdietderm_api.routing import include_clinical_and_versioned_routes, include_legacy_self_scoped_routes
 from vetdietderm_api.settings import get_settings
+from vetdietderm_api.telegram.router import router as telegram_router
+from vetdietderm_api.telegram.worker import run_worker
 
 
 class StatusResponse(BaseModel):
@@ -22,8 +27,18 @@ class StatusResponse(BaseModel):
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     get_settings()
     logger.info("Vet Space API starting")
-    yield
-    logger.info("Vet Space API stopped")
+    workers = (
+        asyncio.create_task(run_worker()),
+        asyncio.create_task(run_business_worker()),
+        asyncio.create_task(run_delivery_worker()),
+    )
+    try:
+        yield
+    finally:
+        for worker in workers:
+            worker.cancel()
+        await asyncio.gather(*workers, return_exceptions=True)
+        logger.info("Vet Space API stopped")
 
 
 @logger.catch(reraise=True)
@@ -48,6 +63,7 @@ def create_app() -> FastAPI:
         return StatusResponse(status="ok")
 
     include_legacy_self_scoped_routes(application)
+    application.include_router(telegram_router)
 
     @application.get("/ready", response_model=StatusResponse, dependencies=[Depends(require_clinical_access)])
     def ready() -> StatusResponse:

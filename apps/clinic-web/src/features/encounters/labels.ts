@@ -1,4 +1,4 @@
-import type { CommunicationChannel, CommunicationDirection, EncounterSpecialty, EncounterStatus, EncounterType } from "@/features/encounters/api";
+import type { EncounterSpecialty, EncounterStatus, EncounterType } from "@/features/encounters/api";
 
 
 export const SPECIALTY_LABELS: Record<EncounterSpecialty, string> = {
@@ -18,17 +18,4 @@ export const ENCOUNTER_STATUS_LABELS: Record<EncounterStatus, string> = {
   draft: "Черновик",
   in_progress: "Идёт консультация",
   completed: "Завершён",
-};
-
-export const CHANNEL_LABELS: Record<CommunicationChannel, string> = {
-  phone: "Телефон",
-  email: "Email",
-  text: "Сообщение",
-  video: "Видео",
-  in_person: "Очно",
-};
-
-export const DIRECTION_LABELS: Record<CommunicationDirection, string> = {
-  inbound: "Входящий",
-  outbound: "Исходящий",
 };

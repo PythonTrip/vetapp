@@ -32,6 +32,7 @@ describe("registration queue", () => {
     expect(screen.getByText("Врач: Доктор Иванова · Клиника")).toBeInTheDocument();
     expect(screen.getAllByText(/Сибирская.*10.05.2020/)).toHaveLength(2);
     expect(screen.queryByRole("button", { name: "Принять регистрацию" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     expect(screen.getByText("Доступен только просмотр.")).toBeInTheDocument();
   });
 
